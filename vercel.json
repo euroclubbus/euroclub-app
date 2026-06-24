@@ -1,12 +1,6 @@
 {
-  "routes": [
-    {
-      "src": "/eclub-api/(.*)",
-      "dest": "https://eclub.com.ua/api/$1",
-      "headers": {
-        "Access-Control-Allow-Origin": "*"
-      }
-    },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/eclub-api/:path*", "destination": "https://eclub.com.ua/api/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
