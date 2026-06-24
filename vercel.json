@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/eclub-api/:path*", "destination": "https://eclub.com.ua/api/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
