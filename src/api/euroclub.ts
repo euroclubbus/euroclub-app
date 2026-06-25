@@ -1,7 +1,7 @@
 const API_KEY = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_KEY) || 'apitest_joieerv65v6j'
 // Use Vite dev proxy (configured in vite.config.ts) to bypass CORS during development.
 // In production (Vercel), this needs server-side proxy too — see vercel.json rewrites.
-const BASE = '/api/proxy/v1/json'
+const BASE = '/eclub-api/v1/json'
 
 async function call(method: string, params: Record<string,string> = {}) {
   const qs = new URLSearchParams(params).toString()
