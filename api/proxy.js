@@ -1,13 +1,22 @@
-export default async function handler(req, res) {
-  const path = req.url.replace('/api/proxy', '');
-  const url = `https://eclub.com.ua/api${path}`;
+export const config = { runtime: 'edge' }
+
+export default async function handler(req) {
+  const url = new URL(req.url)
+  const apiPath = url.pathname.replace('/api/proxy', '') + url.search
+  const target = `https://eclub.com.ua/api${apiPath}`
   
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.status(200).json(data);
-  } catch (e) {
-    res.status(500).json({ error: 'Proxy error' });
-  }
+  const response = await fetch(target, {
+    method: req.method,
+    headers: { 'Accept': 'application/json' }
+  })
+  
+  const data = await response.text()
+  
+  return new Response(data, {
+    status: response.status,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+    }
+  })
 }
