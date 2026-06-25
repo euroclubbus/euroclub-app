@@ -1,6 +1,6 @@
 {
   "rewrites": [
     { "source": "/eclub-api/:path*", "destination": "https://eclub.com.ua/api/:path*" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
