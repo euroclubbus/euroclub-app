@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, Wifi, Zap, Bus, MessageCircle } from 'lucide-react'
+import { ArrowLeft, Clock, Wifi, Zap, Bus, MessageCircle, AlertTriangle } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { getRoutes } from '../api/euroclub'
 import BottomSheet from '../components/BottomSheet'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
+
+const MONTHS_SHORT = ['січ','лют','бер','кві','тра','чер','лип','сер','вер','жов','лис','гру']
+const MONTHS_FULL  = ['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня']
+const DOW = ['нд','пн','вт','ср','чт','пт','сб']
 
 function splitDateTime(str?: string): { date: string; time: string } {
   if (!str) return { date: '', time: '--:--' }
@@ -19,14 +23,19 @@ function fmtShortDate(ddmmyyyy: string) {
   const [d, m, y] = ddmmyyyy.split('.')
   if (!d || !m || !y) return ddmmyyyy
   const dateObj = new Date(Number(y), Number(m) - 1, Number(d))
-  const days = ['нд','пн','вт','ср','чт','пт','сб']
-  const months = ['січ','лют','бер','кві','тра','чер','лип','сер','вер','жов','лис','гру']
-  return `${days[dateObj.getDay()]} ${d} ${months[Number(m)-1]}`
+  return `${DOW[dateObj.getDay()]} ${d} ${MONTHS_SHORT[Number(m)-1]}`
+}
+
+// ISO (YYYY-MM-DD) → "21 липня"
+function fmtLongISO(iso: string) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return `${d.getDate()} ${MONTHS_FULL[d.getMonth()]}`
 }
 
 function fmtCurrency(c?: string) {
   if (!c) return '₴'
-  const v = c.toLowerCase()
+  const v = String(c).toLowerCase()
   if (v === 'uah') return '₴'
   if (v === 'eur') return '€'
   return c
@@ -46,8 +55,35 @@ function calcDuration(depStr?: string, arrStr?: string): string {
   return m > 0 ? `${h}г ${m}хв` : `${h}г`
 }
 
+// Чи є вільні місця (якщо API не віддав free — вважаємо, що є)
+function hasSeat(trip: any): boolean {
+  const f = Number(trip?.free)
+  return isNaN(f) ? true : f > 0
+}
+
+// Сума за весь склад пасажирів зі знижками конкретного рейсу.
+// Якщо категорії немає в trip.discounts — відкат на повний тариф (default).
+function computeGroupPrice(trip: any, cats: string[]) {
+  const opts: any[] = trip?.discounts || []
+  const def = opts.find(d => d.default === 1 || d.default === '1') || opts[0]
+  const fullPrice = Number(def?.price ?? trip?.price ?? 0)
+  const list = cats.length ? cats : ['__one__']
+  let total = 0, original = 0, anyFallback = false
+  for (const catId of list) {
+    original += fullPrice
+    const opt = opts.find(d => String(d.id) === String(catId))
+    if (opt) {
+      total += Number(opt.price ?? fullPrice)
+    } else {
+      total += fullPrice
+      if (catId !== '__one__') anyFallback = true
+    }
+  }
+  return { total, original, anyFallback, discounted: total < original }
+}
+
 // ─── Trip Card ─────────────────────────────────────────────────────────────
-function TripCard({ trip, onInfo, onBook }: { trip: any; onInfo: () => void; onBook: () => void }) {
+function TripCard({ trip, cats, onInfo, onBook }: { trip: any; cats: string[]; onInfo: () => void; onBook: () => void }) {
   const dep = trip.departure?.[0]
   const arr = trip.arrival?.[0]
   const depDT = splitDateTime(dep?.time)
@@ -57,55 +93,65 @@ function TripCard({ trip, onInfo, onBook }: { trip: any; onInfo: () => void; onB
   const currencySign = fmtCurrency(trip.currency)
   const freeSeats = Number(trip.free)
   const duration = calcDuration(dep?.time, arr?.time)
-  // Використовуємо city_ua якщо є, інакше city
   const depCity = dep?.city_ua || dep?.city || ''
   const arrCity = arr?.city_ua || arr?.city || ''
+  const { total, original, discounted, anyFallback } = computeGroupPrice(trip, cats)
 
   return (
-    <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+    <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 14, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <span style={{ fontSize: 13, color: '#333', fontWeight: 600 }}>
           {fmtShortDate(depDT.date)} → {fmtShortDate(arrDT.date)}
         </span>
         {duration && <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: Gray }}>
-          <Clock size={13} />{duration}
+          <Clock size={13} />В дорозі {duration}
         </span>}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6, gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8, gap: 8 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 26, fontWeight: 800 }}>{depDT.time}</div>
-          <div style={{ fontSize: 13, color: '#333', fontWeight: 600 }}>{depCity}</div>
-          <div style={{ fontSize: 11, color: ORange, lineHeight: 1.3, marginTop: 2 }}>{dep?.name}</div>
+          <div style={{ fontSize: 13, color: '#333', fontWeight: 600, marginTop: 2 }}>{depCity}</div>
+          <div style={{ fontSize: 11, color: ORange, lineHeight: 1.3, marginTop: 2, textDecoration: 'underline' }}>{dep?.name}</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', flexDirection: 'column', gap: 4, paddingTop: 4, minWidth: 50 }}>
-          {hasTransfer && transferStop && <span style={{ fontSize: 9, color: Gray, whiteSpace: 'nowrap' }}>{transferStop.city_ua || transferStop.city}</span>}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: 50 }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexDirection: 'column', gap: 4, paddingTop: 4, minWidth: 56 }}>
+          {hasTransfer && transferStop && <span style={{ fontSize: 10, color: Gray, whiteSpace: 'nowrap' }}>{transferStop.city_ua || transferStop.city}</span>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: 56 }}>
             <div style={{ flex: 1, height: 1, borderTop: '2px dashed #DDD' }} />
-            <Bus size={16} color={hasTransfer ? ORange : Gray} />
+            {hasTransfer
+              ? <span style={{ display: 'flex', alignItems: 'center', gap: 1 }}><Bus size={14} color={Gray} /><AlertTriangle size={11} color={ORange} /></span>
+              : <Bus size={16} color={Gray} />}
             <div style={{ flex: 1, height: 1, borderTop: '2px dashed #DDD' }} />
           </div>
-          {hasTransfer && <span style={{ fontSize: 9, color: ORange, fontWeight: 700, whiteSpace: 'nowrap' }}>Пересадка</span>}
         </div>
         <div style={{ flex: 1, textAlign: 'right' }}>
           <div style={{ fontSize: 26, fontWeight: 800 }}>{arrDT.time}</div>
-          <div style={{ fontSize: 13, color: '#333', fontWeight: 600 }}>{arrCity}</div>
+          <div style={{ fontSize: 13, color: '#333', fontWeight: 600, marginTop: 2 }}>{arrCity}</div>
           <div style={{ fontSize: 11, color: Gray, lineHeight: 1.3, marginTop: 2 }}>{arr?.name}</div>
         </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTop: '1px solid #F5F5F5', gap: 8 }}>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {trip.option?.includes('WiFi') && <Wifi size={15} color={Gray} />}
           {trip.option?.includes('USB розетки') && <Zap size={15} color={Gray} />}
-          <Bus size={15} color={Gray} />
+          <Bus size={15} color={hasTransfer ? ORange : Gray} />
           <span style={{ fontSize: 12, color: hasTransfer ? ORange : Gray, fontWeight: hasTransfer ? 700 : 400 }}>{hasTransfer ? 'Пересадка' : 'Прямий'}</span>
           {freeSeats > 0 && freeSeats <= 5 && (
             <span style={{ fontSize: 11, color: '#E53935', fontWeight: 600 }}>Залишилось {freeSeats} місць</span>
           )}
         </div>
-        <span style={{ fontSize: 20, fontWeight: 800, whiteSpace: 'nowrap' }}>{trip.price} {currencySign}</span>
+        <div style={{ textAlign: 'right' }}>
+          {discounted && <div style={{ fontSize: 13, color: Gray, textDecoration: 'line-through' }}>{original} {currencySign}</div>}
+          <div style={{ fontSize: 20, fontWeight: 800, whiteSpace: 'nowrap' }}>{total} {currencySign}</div>
+        </div>
       </div>
+
+      {anyFallback && (
+        <div style={{ marginTop: 8, fontSize: 11, color: ORange, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <AlertTriangle size={12} /> На цьому рейсі частина знижок не діє — тариф повний
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
         <button onClick={onInfo} style={{ flex: 1, padding: '12px 0', background: 'none', border: `2px solid ${ORange}`, borderRadius: 12, color: ORange, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
@@ -121,7 +167,6 @@ function TripCard({ trip, onInfo, onBook }: { trip: any; onInfo: () => void; onB
 
 // ─── Trip Info Sheet ───────────────────────────────────────────────────────
 function TripInfoSheet({ open, onClose, trip, onBook }: any) {
-  const [expanded, setExpanded] = useState(false)
   if (!trip) return null
   const dep = trip.departure?.[0]
   const arr = trip.arrival?.[0]
@@ -131,130 +176,137 @@ function TripInfoSheet({ open, onClose, trip, onBook }: any) {
   const hasTransfer = Number(trip.transfer) === 1
   const duration = calcDuration(dep?.time, arr?.time)
 
+  type Row = { type: 'dep'|'arr'|'stop'|'transfer'; city: string; addr: string; time: string }
+  const rows: Row[] = [
+    { type: 'dep', city: dep?.city_ua || dep?.city || '', addr: dep?.name || '', time: depDT.time },
+    ...stops.map((s: any): Row => ({
+      type: Number(s.transfer) === 1 ? 'transfer' : 'stop',
+      city: s.city_ua || s.city || '',
+      addr: s.name || '',
+      time: splitDateTime(s.time_out || s.time_in).time,
+    })),
+    { type: 'arr', city: arr?.city_ua || arr?.city || '', addr: arr?.name || '', time: arrDT.time },
+  ]
+
+  const Rail = ({ row, first, last }: { row: Row; first: boolean; last: boolean }) => (
+    <div style={{ position: 'relative', width: 28, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+      <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: first ? '11px' : 0, bottom: last ? 'calc(100% - 11px)' : 0, borderLeft: '2px dashed #E0E0E0' }} />
+      <div style={{ position: 'relative', zIndex: 1, marginTop: 3 }}>
+        {row.type === 'transfer' ? (
+          <span style={{ display: 'flex', alignItems: 'center' }}><Bus size={15} color={ORange} /><AlertTriangle size={11} color={ORange} /></span>
+        ) : row.type === 'stop' ? (
+          <div style={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid #CFCFCF', background: '#fff' }} />
+        ) : (
+          <div style={{ width: 11, height: 11, borderRadius: '50%', background: ORange }} />
+        )}
+      </div>
+    </div>
+  )
+
   return (
     <BottomSheet open={open} onClose={onClose}>
-      <div style={{ padding: '16px 20px 32px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+      <div style={{ padding: '12px 20px 28px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700 }}>{fmtShortDate(depDT.date)} → {fmtShortDate(arrDT.date)}</div>
-            {duration && <div style={{ fontSize: 13, color: Gray }}>⏱ {duration}</div>}
+            {duration && <div style={{ fontSize: 13, color: Gray, display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}><Clock size={13} /> В дорозі {duration}</div>}
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: Gray, fontSize: 20, cursor: 'pointer' }}>✕</button>
+          <button onClick={onClose} aria-label="Закрити" style={{ background: 'none', border: 'none', color: Gray, fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>✕</button>
         </div>
 
-        <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <div style={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid #DDD', background: '#fff' }} />
-            <div style={{ width: 2, flex: 1, background: '#DDD', minHeight: 30 }} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>{dep?.city_ua || dep?.city}</div>
-            <div style={{ color: Gray, fontSize: 13 }}>{dep?.name}</div>
-          </div>
-          <div style={{ fontWeight: 700 }}>{depDT.time}</div>
-        </div>
-
-        {stops.length > 0 && (
-          <button onClick={() => setExpanded(!expanded)} style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 24, marginBottom: 16, background: 'none', border: 'none', cursor: 'pointer', color: '#555' }}>
-            <Bus size={16} color={Gray} />
-            <span style={{ fontWeight: 600, fontSize: 14 }}>{stops.length} зупинок</span>
-            <span>{expanded ? '▲' : '▼'}</span>
-          </button>
-        )}
-
-        {expanded && stops.map((s: any, i: number) => {
-          const isTransfer = Number(s.transfer) === 1
-          const stopDT = splitDateTime(s.time_out || s.time_in)
+        {rows.map((row, i) => {
+          const first = i === 0, last = i === rows.length - 1
+          const showTime = row.type === 'dep' || row.type === 'arr'
           return (
-            <div key={i} style={{ display: 'flex', gap: 14, marginBottom: 14 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                {isTransfer
-                  ? <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#FFF3DC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>🔄</div>
-                  : <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#DDD' }} />
-                }
+            <div key={i} style={{ display: 'flex', gap: 12, minHeight: 58 }}>
+              <Rail row={row} first={first} last={last} />
+              <div style={{ flex: 1, paddingBottom: 14 }}>
+                {row.type === 'transfer' && <div style={{ color: ORange, fontSize: 14, fontWeight: 700, marginBottom: 1 }}>Пересадка: <span style={{ color: '#1A1A1A' }}>{row.city}</span></div>}
+                {row.type !== 'transfer' && <div style={{ fontSize: 15, fontWeight: 700, color: '#1A1A1A' }}>{row.city}</div>}
+                <div style={{ fontSize: 13, color: Gray, lineHeight: 1.35, marginTop: 1 }}>{row.addr}</div>
               </div>
-              <div style={{ flex: 1 }}>
-                {isTransfer && <div style={{ color: ORange, fontSize: 12, fontWeight: 700 }}>Пересадка</div>}
-                <div style={{ fontWeight: isTransfer ? 400 : 500, fontSize: 14 }}>{s.city_ua || s.city}</div>
-                <div style={{ color: Gray, fontSize: 12 }}>{s.name}</div>
-              </div>
-              <div style={{ color: Gray, fontSize: 13 }}>{stopDT.time}</div>
+              {showTime && <div style={{ fontSize: 16, fontWeight: 700, color: '#1A1A1A', paddingTop: 2 }}>{row.time}</div>}
             </div>
           )
         })}
 
-        <div style={{ display: 'flex', gap: 14, marginTop: 4 }}>
-          <div style={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid #DDD', background: '#fff', marginTop: 4 }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>{arr?.city_ua || arr?.city}</div>
-            <div style={{ color: Gray, fontSize: 13 }}>{arr?.name}</div>
-          </div>
-          <div style={{ fontWeight: 700 }}>{arrDT.time}</div>
-        </div>
-
-        <div style={{ display: 'flex', gap: 10, marginTop: 20, paddingTop: 16, borderTop: '1px solid #F5F5F5', alignItems: 'center' }}>
-          {trip.option?.includes('WiFi') && <Wifi size={15} color={Gray} />}
-          {trip.option?.includes('USB розетки') && <Zap size={15} color={Gray} />}
-          <Bus size={15} color={Gray} />
+        <div style={{ display: 'flex', gap: 10, marginTop: 8, paddingTop: 16, borderTop: '1px solid #F0F0F0', alignItems: 'center' }}>
+          {trip.option?.includes('WiFi') && <Wifi size={16} color={Gray} />}
+          {trip.option?.includes('USB розетки') && <Zap size={16} color={Gray} />}
+          <Bus size={16} color={Gray} />
           <span style={{ fontSize: 13, color: Gray }}>{hasTransfer ? 'Пересадка' : 'Прямий'}</span>
         </div>
 
-        <button onClick={onBook} style={{ width: '100%', padding: 18, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 800, fontSize: 17, cursor: 'pointer', marginTop: 20 }}>
-          Перейти до бронювання →
+        <button onClick={onBook} style={{ width: '100%', padding: 18, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 800, fontSize: 17, cursor: 'pointer', marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          Продовжити <span>›</span>
         </button>
       </div>
     </BottomSheet>
   )
 }
 
-// ─── Date Strip — без скролу, стрілки ліво/право ─────────────────────────
+// ─── Date Strip (стрілки, активна дата — повний місяць) ──────────────────────
 function DateStrip({ dates, activeDate, onPick, onPrev, onNext }: {
   dates: string[]; activeDate: string; onPick: (d: string) => void; onPrev: () => void; onNext: () => void
 }) {
-  const fmt = (iso: string) => {
-    const d = new Date(iso)
-    const mm = ['січ','лют','бер','кві','тра','чер','лип','сер','вер','жов','лис','гру']
-    return { day: d.getDate(), month: mm[d.getMonth()] }
-  }
   return (
     <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-      <button onClick={onPrev} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 18, padding: '0 8px', flexShrink: 0 }}>‹</button>
+      <button onClick={onPrev} aria-label="Раніше" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 20, padding: '0 6px', flexShrink: 0 }}>‹</button>
       <div style={{ display: 'flex', flex: 1 }}>
         {dates.map(iso => {
-          const { day, month } = fmt(iso)
+          const d = new Date(iso)
           const isActive = iso === activeDate
+          const label = isActive ? `${d.getDate()} ${MONTHS_FULL[d.getMonth()]}` : `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`
           return (
             <button key={iso} onClick={() => onPick(iso)} style={{
               flex: 1, minWidth: 0, padding: '8px 2px', background: 'none', border: 'none',
               borderBottom: isActive ? `3px solid ${ORange}` : '3px solid transparent',
               cursor: 'pointer', textAlign: 'center',
             }}>
-              <div style={{ fontSize: 11, color: isActive ? ORange : '#888', fontWeight: isActive ? 700 : 400, whiteSpace: 'nowrap' }}>
-                {day} {month}
+              <div style={{ fontSize: 12, color: isActive ? ORange : 'rgba(255,255,255,0.8)', fontWeight: isActive ? 800 : 500, whiteSpace: 'nowrap' }}>
+                {label}
               </div>
             </button>
           )
         })}
       </div>
-      <button onClick={onNext} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 18, padding: '0 8px', flexShrink: 0 }}>›</button>
+      <button onClick={onNext} aria-label="Пізніше" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 20, padding: '0 6px', flexShrink: 0 }}>›</button>
     </div>
   )
+}
+
+// Пошук найближчої дати з вільними місцями (вперед до 14 днів)
+async function findNearestAvailable(fromId: string, toId: string, startISO: string) {
+  for (let i = 1; i <= 14; i++) {
+    const d = new Date(startISO); d.setDate(d.getDate() + i)
+    const iso = d.toISOString().split('T')[0]
+    const [y, m, dd] = iso.split('-')
+    try {
+      const data: any = await getRoutes(fromId, toId, `${dd}-${m}-${y}`)
+      const code = String(data.error ?? '0')
+      if (code === '102' || code === '103') return null // маршруту немає взагалі
+      const rts = data.routes || []
+      if (rts.filter(hasSeat).length > 0) return { date: iso, trips: rts }
+    } catch { /* пропускаємо день */ }
+  }
+  return null
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
 export default function Results() {
   const nav = useNavigate()
-  const { from, to, dateFrom } = useSearchStore()
+  const { from, to, dateFrom, passengerCategories } = useSearchStore()
   const { setTrip } = useBookingStore()
   const [trips, setTrips] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [noRoute, setNoRoute] = useState(false) // true = такого маршруту взагалі немає
+  const [noRoute, setNoRoute] = useState(false)
   const [infoTrip, setInfoTrip] = useState<any>(null)
-  const [stripStart, setStripStart] = useState(0) // індекс першого дня в стрічці
+  const [stripStart, setStripStart] = useState(0)
+  const [nearest, setNearest] = useState<{ date: string; trips: any[] } | null>(null)
+  const [searchingNearest, setSearchingNearest] = useState(false)
 
-  // Масив з 14 днів починаючи від dateFrom
-  const allDates = Array.from({length: 14}, (_, i) => {
+  const allDates = Array.from({ length: 30 }, (_, i) => {
     const d = new Date(dateFrom || new Date())
     d.setDate(d.getDate() + i)
     return d.toISOString().split('T')[0]
@@ -262,102 +314,103 @@ export default function Results() {
   const visibleDates = allDates.slice(stripStart, stripStart + 5)
   const [activeDate, setActiveDate] = useState(dateFrom || allDates[0])
 
-  const handlePrev = () => {
-    if (stripStart > 0) {
-      setStripStart(s => s - 1)
-      setActiveDate(allDates[Math.max(0, stripStart - 1)])
-    }
-  }
-  const handleNext = () => {
-    if (stripStart + 5 < allDates.length) {
-      setStripStart(s => s + 1)
-      setActiveDate(allDates[Math.min(allDates.length - 1, stripStart + 5)])
-    }
-  }
+  const handlePrev = () => { if (stripStart > 0) setStripStart(s => s - 1) }
+  const handleNext = () => { if (stripStart + 5 < allDates.length) setStripStart(s => s + 1) }
 
   useEffect(() => {
     if (!from || !to || !activeDate) return
-    setLoading(true); setError(''); setNoRoute(false)
+    let cancelled = false
+    setLoading(true); setError(''); setNoRoute(false); setNearest(null); setSearchingNearest(false)
     const [y, m, d] = activeDate.split('-')
-    const apiDate = `${d}-${m}-${y}`
-    getRoutes(from.id, to.id, apiDate)
-      .then(data => {
+    getRoutes(from.id, to.id, `${d}-${m}-${y}`)
+      .then(async (data: any) => {
+        if (cancelled) return
         const code = String(data.error ?? '0')
-        if (code === '102' || code === '103') {
-          // Маршруту взагалі не існує
-          setNoRoute(true)
-          setTrips([])
-        } else {
-          setTrips(data.routes || [])
+        if (code === '102' || code === '103') { setNoRoute(true); setTrips([]); setLoading(false); return }
+        const rts = data.routes || []
+        setTrips(rts); setLoading(false)
+        if (rts.filter(hasSeat).length === 0) {
+          setSearchingNearest(true)
+          const res = await findNearestAvailable(from.id, to.id, activeDate)
+          if (!cancelled) { setNearest(res); setSearchingNearest(false) }
         }
-        setLoading(false)
       })
-      .catch(() => {
-        setError('Не вдалося завантажити рейси. Перевірте з\'єднання.')
-        setLoading(false)
-      })
+      .catch(() => { if (!cancelled) { setError('Не вдалося завантажити рейси. Перевірте з\'єднання.'); setLoading(false) } })
+    return () => { cancelled = true }
   }, [from, to, activeDate])
 
+  const availableTrips = trips.filter(hasSeat)
+  const noneAvailable = !loading && !error && !noRoute && availableTrips.length === 0
+
+  const goToNearest = () => {
+    if (!nearest) return
+    // якщо дата поза видимим вікном — зсуваємо стрічку до неї
+    const idx = allDates.indexOf(nearest.date)
+    if (idx >= 0) setStripStart(Math.min(idx, Math.max(0, allDates.length - 5)))
+    setActiveDate(nearest.date)
+  }
+
   return (
-    <div style={{ minHeight: '100vh', background: '#1A1A1A', paddingBottom: 20 }}>
-      {/* Header */}
-      <div style={{ background: '#1A1A1A', padding: '16px 16px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-          <button onClick={() => nav(-1)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-            <ArrowLeft size={24} color="#fff" />
-          </button>
-          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Знайдені маршрути</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 14, color: '#fff' }}>
-          <span style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap' }}>{from?.name}</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
-            <div style={{ flex: 1, borderTop: '1.5px dashed #666' }} />
-            <Bus size={18} color="#888" />
-            <div style={{ flex: 1, borderTop: '1.5px dashed #666' }} />
+    <div style={{ minHeight: '100vh', background: '#F5F5F5', paddingBottom: 20 }}>
+      {/* Header — розмита hero */}
+      <div style={{ position: 'relative', overflow: 'hidden' }}>
+        <img src="/bus-hero.png" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(7px) brightness(0.7)', transform: 'scale(1.1)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,28,58,0.45)' }} />
+        <div style={{ position: 'relative', padding: '16px 16px 10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+            <button onClick={() => nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+              <ArrowLeft size={24} color="#fff" />
+            </button>
+            <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Знайдені маршрути</span>
           </div>
-          <span style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap' }}>{to?.name}</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 14, color: '#fff' }}>
+            <span style={{ fontWeight: 700, fontSize: 16, whiteSpace: 'nowrap' }}>{from?.name}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', border: '1.5px solid #fff', flexShrink: 0 }} />
+              <div style={{ flex: 1, borderTop: '1.5px dashed rgba(255,255,255,0.6)' }} />
+              <Bus size={18} color="#fff" />
+              <div style={{ flex: 1, borderTop: '1.5px dashed rgba(255,255,255,0.6)' }} />
+              <div style={{ width: 6, height: 6, borderRadius: '50%', border: '1.5px solid #fff', flexShrink: 0 }} />
+            </div>
+            <span style={{ fontWeight: 700, fontSize: 16, whiteSpace: 'nowrap' }}>{to?.name}</span>
+          </div>
+          <DateStrip
+            dates={visibleDates}
+            activeDate={activeDate}
+            onPick={setActiveDate}
+            onPrev={handlePrev}
+            onNext={handleNext}
+          />
         </div>
-        <DateStrip
-          dates={visibleDates}
-          activeDate={activeDate}
-          onPick={setActiveDate}
-          onPrev={handlePrev}
-          onNext={handleNext}
-        />
       </div>
 
       {/* Results */}
-      <div style={{ padding: '16px 16px 0', background: '#F5F5F5', minHeight: 'calc(100vh - 160px)' }}>
+      <div style={{ padding: '16px 16px 0', minHeight: 'calc(100vh - 200px)' }}>
         {loading && <div style={{ textAlign: 'center', color: '#888', padding: 40 }}>Завантаження...</div>}
 
         {!loading && error && (
           <div style={{ textAlign: 'center', padding: '40px 20px' }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>📡</div>
-            <div style={{ color: '#ff6b6b', fontSize: 15, marginBottom: 16 }}>{error}</div>
+            <div style={{ color: '#E53935', fontSize: 15, marginBottom: 16 }}>{error}</div>
             <button onClick={() => setActiveDate(d => d)} style={{ padding: '10px 24px', background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
               Спробувати ще раз
             </button>
           </div>
         )}
 
-        {/* Такого маршруту взагалі немає */}
+        {/* Маршруту взагалі немає */}
         {!loading && !error && noRoute && (
           <div style={{ background: '#fff', borderRadius: 20, padding: 24, marginTop: 8, textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>🚌</div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: '#1A1A1A', marginBottom: 8 }}>
-              Цей маршрут наразі недоступний
-            </div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: '#1A1A1A', marginBottom: 8 }}>Цей маршрут наразі недоступний</div>
             <div style={{ fontSize: 14, color: Gray, marginBottom: 24, lineHeight: 1.5 }}>
-              На жаль, рейси за маршрутом <strong>{from?.name} → {to?.name}</strong> наразі не виконуються. Спробуйте змінити міста відправлення або прибуття.
+              На жаль, рейси за маршрутом <strong>{from?.name} → {to?.name}</strong> наразі не виконуються. Спробуйте змінити міста.
             </div>
             <div style={{ background: '#F9F9F9', borderRadius: 16, padding: 20, textAlign: 'left' }}>
               <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Потрібна допомога?</div>
-              <div style={{ fontSize: 13, color: Gray, marginBottom: 16, lineHeight: 1.5 }}>
-                Наш менеджер допоможе підібрати оптимальний маршрут або повідомить коли рейс з'явиться.
-              </div>
+              <div style={{ fontSize: 13, color: Gray, marginBottom: 16, lineHeight: 1.5 }}>Менеджер підбере оптимальний маршрут або повідомить, коли рейс з'явиться.</div>
               <button style={{ width: '100%', padding: '14px 0', background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <MessageCircle size={18} />
-                Розпочати чат
+                <MessageCircle size={18} /> Розпочати чат
               </button>
             </div>
             <button onClick={() => nav(-1)} style={{ marginTop: 16, padding: '12px 24px', background: 'none', border: `2px solid ${ORange}`, borderRadius: 12, color: ORange, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
@@ -366,29 +419,36 @@ export default function Results() {
           </div>
         )}
 
-        {/* Рейсів на цю дату немає */}
-        {!loading && !error && !noRoute && trips.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+        {/* Немає вільних місць/рейсів на дату → пропонуємо найближчий доступний */}
+        {noneAvailable && (
+          <div style={{ background: '#fff', borderRadius: 20, padding: 24, marginTop: 8, textAlign: 'center' }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>🗓</div>
-            <div style={{ color: '#1A1A1A', fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-              На жаль, на обрану вами дату рейсів немає
+            <div style={{ color: '#1A1A1A', fontSize: 16, fontWeight: 700, marginBottom: 6 }}>
+              На {fmtLongISO(activeDate)} {trips.length > 0 ? 'вільних місць немає' : 'рейсів немає'}
             </div>
-            <div style={{ color: Gray, fontSize: 13, marginBottom: 20, lineHeight: 1.5 }}>
-              Але ви можете обрати найближчі доступні дати:
-            </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              <button onClick={handlePrev} style={{ padding: '10px 18px', background: '#2A2A2A', color: '#fff', border: '1px solid #444', borderRadius: 12, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-                ‹ Попередній день
-              </button>
-              <button onClick={handleNext} style={{ padding: '10px 18px', background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-                Наступний день ›
-              </button>
-            </div>
+            {searchingNearest && (
+              <div style={{ color: Gray, fontSize: 14, padding: '12px 0' }}>Шукаємо найближчий доступний рейс…</div>
+            )}
+            {!searchingNearest && nearest && (
+              <>
+                <div style={{ color: Gray, fontSize: 14, marginBottom: 16, lineHeight: 1.5 }}>
+                  Найближчий доступний рейс — <strong style={{ color: '#1A1A1A' }}>{fmtLongISO(nearest.date)}</strong>
+                </div>
+                <button onClick={goToNearest} style={{ width: '100%', padding: '14px 0', background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
+                  Показати рейси на {fmtLongISO(nearest.date)} →
+                </button>
+              </>
+            )}
+            {!searchingNearest && !nearest && (
+              <div style={{ color: Gray, fontSize: 14, lineHeight: 1.5 }}>
+                Найближчими днями рейсів із вільними місцями теж немає. Спробуйте інші дати або зверніться до менеджера.
+              </div>
+            )}
           </div>
         )}
 
-        {trips.map((trip, i) => (
-          <TripCard key={trip.id || i} trip={trip}
+        {availableTrips.map((trip, i) => (
+          <TripCard key={trip.id || i} trip={trip} cats={passengerCategories}
             onInfo={() => setInfoTrip(trip)}
             onBook={() => { setTrip(trip); nav('/booking') }}
           />

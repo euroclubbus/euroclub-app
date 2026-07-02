@@ -9,94 +9,6 @@ import SeatMap from './SeatMap'
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
 
-// Baggage Sheet
-function BaggageSheet({ open, onClose, extra, oversize, setExtra, setOversize }: any) {
-  const totalExtra = extra * 79
-  const totalOversize = oversize * 119
-  return (
-    <BottomSheet open={open} onClose={onClose} title="Додати багаж">
-      <div style={{ padding: '8px 20px 24px' }}>
-        {[
-          { label: 'Додатковий багаж', sub: '20 кг (80×50×30 см)', price: '+ 79,00₴', val: extra, set: setExtra },
-          { label: 'Наднормовий багаж', sub: '30 кг  240 см (x + y +z)', price: '+ 119,00₴', val: oversize, set: setOversize },
-        ].map((item, i) => (
-          <div key={i} style={{ border: '1.5px solid #EEE', borderRadius: 14, padding: 16, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 24 }}>🧳</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 15 }}>{item.label}</div>
-              <div style={{ color: Gray, fontSize: 13 }}>{item.sub}</div>
-              <div style={{ color: ORange, fontWeight: 700, marginTop: 4 }}>{item.price}</div>
-            </div>
-            <button onClick={() => item.set(Math.max(0, item.val-1))} style={{ width: 28, height: 28, borderRadius: '50%', border: '1.5px solid #DDD', background: 'none', cursor: 'pointer', fontSize: 18 }}>−</button>
-            <span style={{ width: 24, textAlign: 'center', fontWeight: 700 }}>{item.val}</span>
-            <button onClick={() => item.set(item.val+1)} style={{ width: 28, height: 28, borderRadius: '50%', border: '1.5px solid #DDD', background: 'none', cursor: 'pointer', fontSize: 18 }}>+</button>
-          </div>
-        ))}
-        {(extra > 0 || oversize > 0) && (
-          <div style={{ marginTop: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 16, marginBottom: 6 }}>
-              <span>Усього</span><span>{totalExtra + totalOversize},00₴</span>
-            </div>
-            {extra > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: Gray, fontSize: 14 }}><span>{extra} Додатковий багаж</span><span>{totalExtra},00₴</span></div>}
-            {oversize > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: Gray, fontSize: 14 }}><span>{oversize} Наднормовий багаж</span><span>{totalOversize},00₴</span></div>}
-          </div>
-        )}
-        <button onClick={onClose} style={{ width: '100%', marginTop: 20, padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>Підтвердити</button>
-      </div>
-    </BottomSheet>
-  )
-}
-
-// Insurance Sheet (заглушка)
-function InsuranceSheet({ open, onClose, passengerCount }: any) {
-  const [active, setActive] = useState(0)
-  return (
-    <BottomSheet open={open} onClose={onClose} title="Страхування пасажирів">
-      <div style={{ padding: '8px 20px 32px' }}>
-        <div style={{ display: 'flex', gap: 20, marginBottom: 20 }}>
-          {Array.from({length: passengerCount}, (_,i) => (
-            <button key={i} onClick={() => setActive(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 15, color: active===i ? ORange : Gray, borderBottom: active===i ? `2px solid ${ORange}` : 'none', paddingBottom: 4 }}>
-              Пасажир {i+1}
-            </button>
-          ))}
-        </div>
-        {[
-          { label: "Прізвище та ім'я", placeholder: 'Олександр Олійник' },
-          { label: 'Контактний телефон', placeholder: '+380 63 281 65 71' },
-          { label: 'Серія закордонного паспорту', placeholder: 'WH' },
-          { label: 'Номер закордонного паспорту', placeholder: 'WH765864' },
-          { label: 'Адреса місця прописки', placeholder: 'Україна м.Київ вул. Симона Петлюри 32' },
-          { label: 'Дата народження', placeholder: '22.11.1999' },
-          { label: 'Індифікаційний код', placeholder: '1234567891' },
-          { label: 'Вид страхового поліса', placeholder: 'Туристичний' },
-        ].map((f, i) => (
-          <div key={i} style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 12, color: Gray, display: 'block', marginBottom: 6 }}>{f.label}</label>
-            <input placeholder={f.placeholder} style={{ width: '100%', padding: '13px 16px', border: '1.5px solid #EEE', borderRadius: 12, fontSize: 15, outline: 'none' }} />
-          </div>
-        ))}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-          <div style={{ flex: 1 }}>
-            <label style={{ fontSize: 12, color: Gray, display: 'block', marginBottom: 6 }}>Старт страховки</label>
-            <input type="date" style={{ width: '100%', padding: '13px 12px', border: '1.5px solid #EEE', borderRadius: 12, fontSize: 14, outline: 'none' }} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label style={{ fontSize: 12, color: Gray, display: 'block', marginBottom: 6 }}>Кінець страховки</label>
-            <input type="date" style={{ width: '100%', padding: '13px 12px', border: '1.5px solid #EEE', borderRadius: 12, fontSize: 14, outline: 'none' }} />
-          </div>
-        </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, cursor: 'pointer' }}>
-          <input type="checkbox" style={{ width: 20, height: 20 }} />
-          <span style={{ fontSize: 14 }}>Я даю згоду на обробку персональних даних.</span>
-        </label>
-        <button onClick={() => { alert('Заявку прийнято! Ми зв\'яжемося з вами найближчим часом.'); onClose() }} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
-          Подати заявку на страхування
-        </button>
-      </div>
-    </BottomSheet>
-  )
-}
-
 // Calculate duration from real API "DD.MM.YYYY HH:mm" departure/arrival strings
 function calcDuration(depStr?: string, arrStr?: string): string {
   if (!depStr || !arrStr) return ''
@@ -117,13 +29,10 @@ function calcDuration(depStr?: string, arrStr?: string): string {
 
 export default function Booking() {
   const nav = useNavigate()
-  const { from, to, dateFrom, passengerCount } = useSearchStore()
+  const { from, to, dateFrom, passengerCount, passengerCategories } = useSearchStore()
   const { selectedTrip, selectedSeats, passengerNames, passengerDiscounts, contactEmail, contactPhone, contactPhone2, promoCode, setSeats, setPassengerName, setPassengerDiscount, setContact, setPromo, setOrderResult } = useBookingStore()
   const [showSeats, setShowSeats] = useState(false)
-  const [showBaggage, setShowBaggage] = useState(false)
-  const [showInsurance, setShowInsurance] = useState(false)
-  const [extraBag, setExtraBag] = useState(0)
-  const [oversizeBag, setOversizeBag] = useState(0)
+  const [attempted, setAttempted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -146,17 +55,26 @@ export default function Booking() {
   const defaultDiscount = discountOptions.find(d => d.default === 1) || discountOptions[0]
   const currencySign = (trip?.currency || 'uah').toLowerCase() === 'eur' ? '€' : '₴'
 
+  // Знижка пасажира: ручний вибір → категорія зі складу пошуку (якщо діє на рейсі) → повний тариф
+  const effectiveDiscountId = (idx: number) => {
+    if (passengerDiscounts[idx] != null) return String(passengerDiscounts[idx])
+    const catId = passengerCategories[idx]
+    if (catId && discountOptions.some(d => String(d.id) === String(catId))) return String(catId)
+    return String(defaultDiscount?.id ?? 0)
+  }
+
   const getPassengerPrice = (idx: number) => {
-    const discountId = passengerDiscounts[idx] ?? String(defaultDiscount?.id ?? 0)
+    const discountId = effectiveDiscountId(idx)
     const opt = discountOptions.find(d => String(d.id) === discountId)
     return opt?.price ?? Number(trip?.price ?? 0)
   }
 
   const subtotal = Array.from({ length: totalPax }, (_, i) => getPassengerPrice(i)).reduce((s, p) => s + p, 0)
-  const total = subtotal + extraBag * 79 + oversizeBag * 119
+  const total = subtotal
 
   const handleBook = async () => {
     if (!trip || !from || !to) return
+    setAttempted(true)
     const missingName = Array.from({ length: totalPax }).some((_, i) => !passengerNames[i]?.trim())
     if (missingName) { setError("Заповніть прізвище та ім'я для всіх пасажирів (латиницею)"); return }
     if (!contactPhone.trim()) { setError('Вкажіть номер телефону'); return }
@@ -174,7 +92,7 @@ export default function Booking() {
       }
       for (let i = 0; i < totalPax; i++) {
         params[`name[${i}]`] = (passengerNames[i] || '').trim().toUpperCase()
-        params[`discount[${i}]`] = String(passengerDiscounts[i] ?? defaultDiscount?.id ?? 0)
+        params[`discount[${i}]`] = effectiveDiscountId(i)
         if (selectedSeats[i] != null) params[`place[${i}]`] = String(selectedSeats[i])
       }
       const result = await createOrder(params)
@@ -196,11 +114,15 @@ export default function Booking() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#1A1A1A', paddingBottom: 20 }}>
-      <div style={{ background: '#1A1A1A', padding: '16px 16px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <button onClick={() => nav(-1)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-          <ArrowLeft size={24} color="#fff" />
-        </button>
-        <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Бронювання</span>
+      <div style={{ position: 'relative', overflow: 'hidden' }}>
+        <img src="/bus-hero.png" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(7px) brightness(0.7)', transform: 'scale(1.1)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,28,58,0.45)' }} />
+        <div style={{ position: 'relative', padding: '16px 16px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={() => nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            <ArrowLeft size={24} color="#fff" />
+          </button>
+          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Бронювання</span>
+        </div>
       </div>
 
       <div style={{ background: '#F5F5F5', minHeight: 'calc(100vh - 60px)', padding: '16px 16px 40px' }}>
@@ -208,7 +130,7 @@ export default function Booking() {
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12 }}>
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 14 }}>Пасажири</div>
           {Array.from({ length: totalPax }, (_, idx) => {
-            const currentDiscountId = passengerDiscounts[idx] ?? String(defaultDiscount?.id ?? 0)
+            const currentDiscountId = effectiveDiscountId(idx)
             const currentDiscount = discountOptions.find(d => String(d.id) === currentDiscountId)
             const isEditing = showDiscountFor === idx
             return (
@@ -224,7 +146,7 @@ export default function Booking() {
                   placeholder="Прізвище та ім'я латиницею (IVANOV IVAN)"
                   value={passengerNames[idx] || ''}
                   onChange={e => setPassengerName(idx, e.target.value)}
-                  style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #EEE', borderRadius: 12, fontSize: 14, outline: 'none', marginBottom: 8 }}
+                  style={{ width: '100%', padding: '12px 14px', border: attempted && !passengerNames[idx]?.trim() ? '1.5px solid #E53935' : '1.5px solid #EEE', borderRadius: 12, fontSize: 14, outline: 'none', marginBottom: 8 }}
                 />
                 {/* Поточна знижка */}
                 {currentDiscount && !isEditing && (
@@ -269,35 +191,18 @@ export default function Booking() {
         </div>
         )}
 
-        {/* Extra services */}
-        <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12 }}>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Додаткові послуги</div>
-          {[
-            { icon: '🧳', label: 'Додатковий багаж', sub: 'Багаж — 20 кг (80×50×30 см)', action: () => setShowBaggage(true) },
-            { icon: '🛡', label: 'Страхування пасажирів', sub: 'Ведуться технічні роботи', action: () => setShowInsurance(true) },
-          ].map((s,i) => (
-            <button key={i} onClick={s.action} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 0', background: 'none', border: 'none', borderBottom: i<1 ? '1px solid #F5F5F5' : 'none', cursor: 'pointer', textAlign: 'left' }}>
-              <span style={{ fontSize: 22 }}>{s.icon}</span>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{s.label}</div>
-                {s.sub && <div style={{ color: Gray, fontSize: 12, marginTop: 2, lineHeight: 1.4 }}>{s.sub}</div>}
-              </div>
-            </button>
-          ))}
-        </div>
-
         {/* Contacts */}
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12 }}>
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Контакти</div>
           {[
-            { label: 'Адреса ел. пошти', val: contactEmail, set: (v: string) => setContact('email', v), placeholder: 'your@email.com' },
-            { label: 'Номер телефону', val: contactPhone, set: (v: string) => setContact('phone', v), placeholder: '+380...' },
-            { label: 'Додатковий номер телефону', val: contactPhone2, set: (v: string) => setContact('phone2', v), placeholder: '+380...' },
+            { label: 'Адреса ел. пошти', val: contactEmail, set: (v: string) => setContact('email', v), placeholder: 'your@email.com', required: false },
+            { label: 'Номер телефону', val: contactPhone, set: (v: string) => setContact('phone', v), placeholder: '+380...', required: true },
+            { label: 'Додатковий номер телефону', val: contactPhone2, set: (v: string) => setContact('phone2', v), placeholder: '+380...', required: false },
           ].map((f, i) => (
             <div key={i} style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 12, color: Gray, display: 'block', marginBottom: 6 }}>{f.label}</label>
               <input value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.placeholder}
-                style={{ width: '100%', padding: '13px 16px', border: '1.5px solid #EEE', borderRadius: 12, fontSize: 15, outline: 'none' }} />
+                style={{ width: '100%', padding: '13px 16px', border: attempted && f.required && !f.val.trim() ? '1.5px solid #E53935' : '1.5px solid #EEE', borderRadius: 12, fontSize: 15, outline: 'none' }} />
             </div>
           ))}
         </div>
@@ -360,16 +265,6 @@ export default function Booking() {
               <span>{totalPax} {totalPax === 1 ? 'пасажир' : 'пасажири'}</span>
               <span>{subtotal} {currencySign}</span>
             </div>
-            {extraBag > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: Gray, fontSize: 14 }}>
-                <span>{extraBag} Додатковий багаж</span><span>{extraBag * 79} ₴</span>
-              </div>
-            )}
-            {oversizeBag > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: Gray, fontSize: 14 }}>
-                <span>{oversizeBag} Наднормовий багаж</span><span>{oversizeBag * 119} ₴</span>
-              </div>
-            )}
           </div>
         </div>
 
@@ -386,13 +281,9 @@ export default function Booking() {
 
       {/* Seat Map */}
       {showSeats && (
-        <SeatMap trip={trip} totalPax={totalPax} onClose={() => setShowSeats(false)}
+        <SeatMap trip={trip} totalPax={totalPax} totalPrice={subtotal} currencySign={currencySign} onClose={() => setShowSeats(false)}
           onConfirm={(seats: number[]) => { setSeats(seats); setShowSeats(false) }} />
       )}
-      <BaggageSheet open={showBaggage} onClose={() => setShowBaggage(false)}
-        extra={extraBag} oversize={oversizeBag}
-        setExtra={setExtraBag} setOversize={setOversizeBag} />
-      <InsuranceSheet open={showInsurance} onClose={() => setShowInsurance(false)} passengerCount={totalPax} />
     </div>
   )
 }

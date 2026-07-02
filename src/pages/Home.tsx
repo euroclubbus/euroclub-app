@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowUpDown, MapPin, Navigation, Calendar, Users } from 'lucide-react'
 import { useSearchStore } from '../store'
-import { getCities } from '../api/euroclub'
+import { getCities, getDiscounts } from '../api/euroclub'
 import BottomSheet from '../components/BottomSheet'
 
 const ORange = '#F5A623'
@@ -92,18 +92,63 @@ function Calendar_({ value, onChange, minDate, onConfirm, departureSel, isOpen, 
 
 // ─── Passengers Sheet ─────────────────────────────────────────────────────────
 function PassengersSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { passengerCount, setPassengerCount } = useSearchStore()
+  const { passengerCategories, setPassengerCategories } = useSearchStore()
+  const [cats, setCats] = useState<any[]>([])
+
+  // Глобальний каталог категорій пасажира (id спільні з trip.discounts)
+  useEffect(() => {
+    if (!open) return
+    getDiscounts().then((data: any) => {
+      const raw = data.discount || data.discounts || data || {}
+      const arr = Array.isArray(raw) ? raw : Object.values(raw)
+      const clean = arr.filter((d: any) => d && d.id !== undefined && d.name)
+      setCats(clean)
+    }).catch(() => setCats([]))
+  }, [open])
+
+  // Насіння: якщо склад порожній — 1 пасажир категорії за замовчуванням
+  useEffect(() => {
+    if (!open || cats.length === 0 || passengerCategories.length > 0) return
+    const def = cats.find((d: any) => d.default === 1 || d.default === '1') || cats[0]
+    if (def) setPassengerCategories([String(def.id)])
+  }, [open, cats])
+
+  const counts: Record<string, number> = {}
+  passengerCategories.forEach(id => { counts[id] = (counts[id] || 0) + 1 })
+  const total = passengerCategories.length
+
+  const change = (id: string, delta: number) => {
+    const cur = counts[id] || 0
+    const next = Math.max(0, cur + delta)
+    const others = passengerCategories.filter(c => c !== id)
+    const rebuilt = [...others, ...Array(next).fill(id)]
+    if (rebuilt.length < 1) return // мінімум 1 пасажир
+    setPassengerCategories(rebuilt)
+  }
+
   return (
     <BottomSheet open={open} onClose={onClose} title="Пасажири">
-      <div style={{ padding: '8px 20px 24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '20px 0' }}>
-          <button onClick={() => setPassengerCount(passengerCount - 1)} style={{ width: 44, height: 44, borderRadius: '50%', border: '1.5px solid #DDD', background: 'none', cursor: 'pointer', fontSize: 24, color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
-          <span style={{ width: 56, textAlign: 'center', fontWeight: 800, fontSize: 32 }}>{passengerCount}</span>
-          <button onClick={() => setPassengerCount(passengerCount + 1)} style={{ width: 44, height: 44, borderRadius: '50%', border: '1.5px solid #DDD', background: 'none', cursor: 'pointer', fontSize: 24, color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+      <div style={{ padding: '4px 20px 24px' }}>
+        {cats.length === 0 && <div style={{ textAlign: 'center', color: Gray, padding: 24 }}>Завантаження...</div>}
+        {cats.map((d: any) => {
+          const id = String(d.id)
+          const n = counts[id] || 0
+          return (
+            <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #F2F2F2' }}>
+              <span style={{ fontSize: 15, fontWeight: 600, color: '#1A1A1A' }}>{d.name}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <button onClick={() => change(id, -1)} disabled={n === 0} style={{ width: 36, height: 36, borderRadius: '50%', border: '1.5px solid #DDD', background: 'none', cursor: n === 0 ? 'default' : 'pointer', fontSize: 20, color: n === 0 ? '#DDD' : '#555', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                <span style={{ width: 20, textAlign: 'center', fontWeight: 700, fontSize: 18 }}>{n}</span>
+                <button onClick={() => change(id, 1)} style={{ width: 36, height: 36, borderRadius: '50%', border: `1.5px solid ${ORange}`, background: 'none', cursor: 'pointer', fontSize: 20, color: ORange, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+              </div>
+            </div>
+          )
+        })}
+        <div style={{ color: Gray, fontSize: 13, textAlign: 'center', margin: '16px 0', lineHeight: 1.5 }}>
+          Всього пасажирів: <strong style={{ color: '#1A1A1A' }}>{total}</strong>. Вартість зі знижками з'явиться на результатах пошуку — по кожному рейсу окремо.
         </div>
-        <div style={{ color: Gray, fontSize: 13, textAlign: 'center', marginBottom: 20, lineHeight: 1.5 }}>Знижки вибираються для кожного пасажира окремо на кроці бронювання</div>
         <button onClick={onClose} style={{
-          width: '100%', marginTop: 12, padding: 16, background: ORange, color: '#fff',
+          width: '100%', padding: 16, background: ORange, color: '#fff',
           border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer'
         }}>Підтвердити</button>
       </div>
@@ -127,10 +172,11 @@ function CityPicker({ open, onClose }: { open: boolean; onClose: () => void }) {
 
   useEffect(() => {
     if (!open) return
+    setActiveField(from ? 'to' : 'from')
+    setQuery('')
     getCities().then((data: any) => {
       const raw = data.cities || data || {}
       const arr = Array.isArray(raw) ? raw : Object.values(raw)
-      // фільтруємо тільки міста з українською назвою, сортуємо за алфавітом
       const sorted = arr
         .filter((c: any) => c && c.uk)
         .sort((a: any, b: any) => a.uk.localeCompare(b.uk, 'uk'))
@@ -138,62 +184,73 @@ function CityPicker({ open, onClose }: { open: boolean; onClose: () => void }) {
     }).catch(() => setCities([]))
   }, [open])
 
+  // Субтитр: регіон + країна, якщо API віддає поле регіону; інакше — лише країна
+  const subtitleOf = (c: any) => COUNTRY_NAMES[c.i2] || c.i2 || ''
+
   const filtered = cities.filter((c: any) =>
     (c.uk || '').toLowerCase().includes(query.toLowerCase())
   )
 
   if (!open) return null
 
-  return (
-    <div style={{ position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 430, height: '100%', zIndex: 300, background: '#1A1A1A', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
-      <div style={{ padding: '20px 20px 0', flexShrink: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <span style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>Вибір міста</span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, color: '#fff', cursor: 'pointer' }}>✕</button>
-        </div>
-        {/* From/To fields */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-          {(['from', 'to'] as const).map(f => (
-            <button key={f} onClick={() => { setActiveField(f); setQuery('') }} style={{
-              background: activeField === f ? '#fff' : 'rgba(255,255,255,0.08)',
-              border: activeField === f ? 'none' : '1px solid rgba(255,255,255,0.12)',
-              borderRadius: 12, padding: '12px 16px', textAlign: 'left', cursor: 'pointer'
-            }}>
-              <div style={{ fontSize: 11, color: activeField === f ? Gray : 'rgba(255,255,255,0.5)', marginBottom: 2 }}>
-                {f === 'from' ? 'Відправлення' : 'Прибуття'}
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: activeField === f ? '#1A1A1A' : (f === 'from' ? (from?.name ? '#fff' : 'rgba(255,255,255,0.4)') : (to?.name ? '#fff' : 'rgba(255,255,255,0.4)')) }}>
-                {f === 'from' ? (from?.name || 'Введіть місто') : (to?.name || 'Введіть місто')}
-              </div>
-            </button>
-          ))}
-        </div>
-        {/* Search */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '10px 14px', marginBottom: 8 }}>
-          <span style={{ color: ORange }}>🔍</span>
+  const renderField = (f: 'from'|'to') => {
+    const active = activeField === f
+    const city = f === 'from' ? from : to
+    return (
+      <div onClick={() => { setActiveField(f); setQuery('') }} style={{
+        border: active ? `1.5px solid ${ORange}` : '1px solid #E6E6E6',
+        background: active ? '#FFF7EC' : '#fff',
+        borderRadius: 12, padding: '10px 16px', cursor: 'pointer',
+        boxShadow: active ? '0 0 0 3px rgba(245,166,35,0.12)' : 'none',
+      }}>
+        <div style={{ fontSize: 12, color: Gray, marginBottom: 2 }}>{f === 'from' ? 'Відправлення' : 'Прибуття'}</div>
+        {active ? (
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Пошук міста..."
+            placeholder={city?.name || 'Введіть місто'}
             autoFocus
-            style={{ border: 'none', background: 'none', outline: 'none', fontSize: 15, flex: 1, color: '#fff' }}
+            style={{ border: 'none', background: 'none', outline: 'none', fontSize: 17, fontWeight: 600, color: '#1A1A1A', width: '100%', caretColor: ORange, padding: 0 }}
           />
+        ) : (
+          <div style={{ fontSize: 17, fontWeight: 600, color: city?.name ? '#1A1A1A' : '#BDBDBD' }}>{city?.name || 'Оберіть місто'}</div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 430, height: '100%', zIndex: 300, background: '#fff', display: 'flex', flexDirection: 'column' }}>
+      {/* Розмита hero-шапка */}
+      <div style={{ position: 'relative', height: 120, flexShrink: 0, overflow: 'hidden' }}>
+        <img src="/bus-hero.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(6px) brightness(0.8)', transform: 'scale(1.1)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,28,58,0.25)' }} />
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px' }}>
+          <span style={{ fontSize: 20, fontWeight: 800, color: '#fff', textShadow: '0 1px 6px rgba(0,0,0,0.4)' }}>Вибір міста</span>
+          <button onClick={onClose} aria-label="Закрити" style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', fontSize: 26, color: '#fff', cursor: 'pointer', lineHeight: 1 }}>✕</button>
         </div>
       </div>
-      {/* List */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        {cities.length === 0 && <div style={{ textAlign: 'center', color: Gray, padding: 40 }}>Завантаження...</div>}
-        {filtered.map((c: any) => (
-          <button key={c.id} onClick={() => {
-            const cityObj = { id: String(c.id), name: c.uk, country: COUNTRY_NAMES[c.i2] || c.i2 }
-            if (activeField === 'from') { setFrom(cityObj); setActiveField('to'); setQuery('') }
-            else { setTo(cityObj); setQuery(''); onClose() }
-          }} style={{ width: '100%', display: 'flex', flexDirection: 'column', padding: '8px 20px', background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', textAlign: 'left' }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>{c.uk}</span>
-            <span style={{ fontSize: 11, color: Gray, marginTop: 1 }}>{COUNTRY_NAMES[c.i2] || c.i2}</span>
-          </button>
-        ))}
+
+      {/* Білий лист */}
+      <div style={{ marginTop: -18, background: '#fff', borderRadius: '20px 20px 0 0', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
+        <div style={{ padding: '18px 16px 8px', display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
+          {renderField('from')}
+          {renderField('to')}
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0 20px' }}>
+          {cities.length === 0 && <div style={{ textAlign: 'center', color: Gray, padding: 40 }}>Завантаження...</div>}
+          {cities.length > 0 && filtered.length === 0 && <div style={{ textAlign: 'center', color: Gray, padding: 30 }}>Нічого не знайдено</div>}
+          {filtered.map((c: any) => (
+            <button key={c.id} onClick={() => {
+              const cityObj = { id: String(c.id), name: c.uk, country: COUNTRY_NAMES[c.i2] || c.i2 }
+              if (activeField === 'from') { setFrom(cityObj); setActiveField('to'); setQuery('') }
+              else { setTo(cityObj); setQuery(''); onClose() }
+            }} style={{ width: '100%', display: 'flex', flexDirection: 'column', padding: '12px 20px', background: 'none', border: 'none', borderBottom: '1px solid #F0F0F0', cursor: 'pointer', textAlign: 'left' }}>
+              <span style={{ fontSize: 16, fontWeight: 600, color: '#1A1A1A' }}>{c.uk}</span>
+              <span style={{ fontSize: 12, color: Gray, marginTop: 2 }}>{subtitleOf(c)}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -217,17 +274,35 @@ export default function Home() {
 
   const canSearch = !!from && !!to && !!dateFrom
 
+  // ── наскрізний патерн: підсвітка наступного кроку + підказка про незаповнене ──
+  const [tried, setTried] = useState(false)
+  const nextField: 'from' | 'to' | 'dateFrom' | null =
+    !from ? 'from' : !to ? 'to' : !dateFrom ? 'dateFrom' : null
+  const missingMsg =
+    nextField === 'from' ? 'Оберіть місто відправлення' :
+    nextField === 'to' ? 'Оберіть місто прибуття' :
+    nextField === 'dateFrom' ? 'Оберіть дату відправлення' : ''
+  const ring = (f: 'from' | 'to' | 'dateFrom') =>
+    nextField === f
+      ? { border: `1.5px solid ${ORange}`, background: '#FFF7EC', boxShadow: '0 0 0 3px rgba(245,166,35,0.12)' }
+      : {}
+
   return (
     <div style={{ minHeight: '100vh', background: '#F0F0F0', paddingBottom: 80 }}>
       {/* Hero */}
-      <div style={{ width: '100%', height: 220, overflow: 'hidden', position: 'relative' }}>
-        <img src="/bus-hero.png" alt="EuroClub" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.background = '#1B4F8A' }} />
+      <div style={{ width: '100%', position: 'relative', lineHeight: 0 }}>
+        <img src="/bus-hero.png" alt="EuroClub — автобусні квитки Україна — Європа" style={{ width: '100%', height: 'auto', display: 'block' }} onError={e => { (e.target as HTMLImageElement).style.background = '#1B4F8A' }} />
+        {/* scrim для читабельності H1 */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '60%', background: 'linear-gradient(180deg, rgba(8,28,58,0.55) 0%, rgba(8,28,58,0.18) 55%, rgba(8,28,58,0) 100%)', pointerEvents: 'none' }} />
+        <h1 style={{ position: 'absolute', top: 14, left: 18, right: 18, margin: 0, color: '#fff', fontSize: 18, fontWeight: 800, lineHeight: 1.28, textShadow: '0 1px 6px rgba(0,0,0,0.4)' }}>
+          Пошук квитків на автобус по Україні та Європі
+        </h1>
       </div>
 
       {/* Search Card */}
       <div style={{ margin: '-30px 16px 0', background: '#fff', borderRadius: 20, padding: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.1)', position: 'relative', zIndex: 10 }}>
         {/* From */}
-        <button onClick={() => setShowCity(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer', marginBottom: 10 }}>
+        <button onClick={() => setShowCity(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer', marginBottom: 10, ...ring('from') }}>
           <Navigation size={18} color={ORange} />
           <div style={{ flex: 1, textAlign: 'left' }}>
             {from?.name && <div style={{ fontSize: 11, color: Gray }}>Відправлення</div>}
@@ -239,7 +314,7 @@ export default function Home() {
         </button>
 
         {/* To */}
-        <button onClick={() => setShowCity(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer', marginBottom: 10 }}>
+        <button onClick={() => setShowCity(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer', marginBottom: 10, ...ring('to') }}>
           <MapPin size={18} color={Gray} />
           <div style={{ flex: 1, textAlign: 'left' }}>
             {to?.name && <div style={{ fontSize: 11, color: Gray }}>Прибуття</div>}
@@ -249,7 +324,7 @@ export default function Home() {
 
         {/* Date From */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-          <button onClick={() => setShowDateFrom(true)} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '14px 12px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer' }}>
+          <button onClick={() => setShowDateFrom(true)} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '14px 12px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer', ...ring('dateFrom') }}>
             <Calendar size={16} color={Gray} />
             <div style={{ textAlign: 'left' }}>
               {dateFrom && <div style={{ fontSize: 11, color: Gray }}>Відправлення</div>}
@@ -301,11 +376,21 @@ export default function Home() {
         </button>
 
         {/* Search button */}
-        <button onClick={() => canSearch && nav('/results')} disabled={!canSearch} style={{
+        <button onClick={() => { if (canSearch) nav('/results'); else setTried(true) }} style={{
           width: '100%', padding: 18, background: canSearch ? ORange : '#FFD89B',
           color: '#fff', border: 'none', borderRadius: 14, fontWeight: 800,
-          fontSize: 17, cursor: canSearch ? 'pointer' : 'default', letterSpacing: 0.3
+          fontSize: 17, cursor: 'pointer', letterSpacing: 0.3
         }}>Знайти</button>
+        {tried && nextField && (
+          <div style={{ marginTop: 10, textAlign: 'center', color: '#E53935', fontSize: 13, fontWeight: 600 }}>
+            {missingMsg}
+          </div>
+        )}
+      </div>
+
+      {/* Tagline */}
+      <div style={{ textAlign: 'center', marginTop: 28, padding: '0 24px', fontSize: 15, fontWeight: 600, color: '#8A8A8A' }}>
+        <span style={{ color: ORange, fontWeight: 800 }}>Euroclub</span> — твій надійний перевізник!
       </div>
 
       <CityPicker open={showCity} onClose={() => setShowCity(false)} />

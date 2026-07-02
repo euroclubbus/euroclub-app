@@ -6,10 +6,12 @@ interface SearchState {
   from: City | null; to: City | null
   dateFrom: string; dateTo: string; isOpenReturn: boolean
   passengerCount: number
+  passengerCategories: string[] // склад по категоріях (id з глобального discount)
   setFrom: (c: City | null) => void; setTo: (c: City | null) => void
   setDateFrom: (d: string) => void; setDateTo: (d: string) => void
   setOpenReturn: (v: boolean) => void
   setPassengerCount: (n: number) => void
+  setPassengerCategories: (c: string[]) => void
   swap: () => void; reset: () => void
 }
 
@@ -40,14 +42,16 @@ interface BookingState {
 export const useSearchStore = create<SearchState>((set) => ({
   from: null, to: null, dateFrom: '', dateTo: '', isOpenReturn: false,
   passengerCount: 1,
+  passengerCategories: [],
   setFrom: from => set({ from }),
   setTo: to => set({ to }),
   setDateFrom: dateFrom => set({ dateFrom }),
   setDateTo: dateTo => set({ dateTo }),
   setOpenReturn: isOpenReturn => set({ isOpenReturn }),
   setPassengerCount: (n) => set({ passengerCount: Math.max(1, n) }),
+  setPassengerCategories: (c) => set({ passengerCategories: c, passengerCount: Math.max(1, c.length) }),
   swap: () => set(s => ({ from: s.to, to: s.from })),
-  reset: () => set({ from: null, to: null, dateFrom: '', dateTo: '', passengerCount: 1 }),
+  reset: () => set({ from: null, to: null, dateFrom: '', dateTo: '', passengerCount: 1, passengerCategories: [] }),
 }))
 
 export const useBookingStore = create<BookingState>((set) => ({

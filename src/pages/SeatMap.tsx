@@ -103,19 +103,28 @@ function buildDefaultLayout(totalSeats: number): Array<Array<Seat | null>> {
   return rows
 }
 
-export default function SeatMap({ trip, totalPax, onClose, onConfirm }: Props) {
+function seatWord(n: number) {
+  const m10 = n % 10, m100 = n % 100
+  if (m10 === 1 && m100 !== 11) return 'обране місце'
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'обрані місця'
+  return 'обраних місць'
+}
+
+interface Props2 extends Props { totalPrice?: number; currencySign?: string }
+
+export default function SeatMap({ trip, totalPax, onClose, onConfirm, totalPrice, currencySign = '₴' }: Props2) {
   const [selected, setSelected] = useState<number[]>([])
 
   const placesMap = trip?.places_map
   const totalSeats = Number(trip?.places || 0)
 
-  // Use real map if available, fallback to generated layout
   let rows = parsePlacesMap(placesMap)
-  if (rows.length === 0 && totalSeats > 0) {
-    rows = buildDefaultLayout(totalSeats)
-  } else if (rows.length === 0) {
-    rows = buildDefaultLayout(50)
-  }
+  if (rows.length === 0 && totalSeats > 0) rows = buildDefaultLayout(totalSeats)
+  else if (rows.length === 0) rows = buildDefaultLayout(50)
+
+  const displayPrice = totalPrice != null ? totalPrice : totalPax * Number(trip?.price || 0)
+  const priceStr = Number(displayPrice).toFixed(2).replace('.', ',')
+  const enough = selected.length === totalPax
 
   const toggleSeat = (nmr: number, free: boolean) => {
     if (!free) return
@@ -127,81 +136,75 @@ export default function SeatMap({ trip, totalPax, onClose, onConfirm }: Props) {
   }
 
   const renderCell = (seat: Seat | null, key: string) => {
-    if (!seat) return <div key={key} style={{ width: 44, height: 44 }} />
+    if (!seat) return <div key={key} style={{ width: 48, height: 48 }} />
     if (seat.isWC) return (
-      <div key={key} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🚻</div>
+      <div key={key} style={{ width: 48, height: 48, borderRadius: 12, background: '#F1F1F1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: '#B5B5B5' }}>🚻</div>
     )
     const isSel = selected.includes(seat.nmr)
     const isFree = seat.free
     return (
-      <button key={key} onClick={() => toggleSeat(seat.nmr, isFree)} style={{
-        width: 44, height: 44, borderRadius: 10,
-        border: isSel ? 'none' : isFree ? `2px solid ${ORange}` : '2px solid #EEE',
-        background: isSel ? ORange : '#fff',
+      <button key={key} onClick={() => toggleSeat(seat.nmr, isFree)} disabled={!isFree} style={{
+        width: 48, height: 48, borderRadius: 12,
+        border: isSel ? 'none' : isFree ? `2px solid ${ORange}` : '2px solid #F1F1F1',
+        background: isSel ? ORange : isFree ? '#fff' : '#F1F1F1',
         cursor: isFree ? 'pointer' : 'default',
-        fontWeight: 700, fontSize: 13,
-        color: isSel ? '#fff' : isFree ? '#1A1A1A' : '#CCC',
+        fontWeight: 700, fontSize: 14,
+        color: isSel ? '#fff' : isFree ? '#1A1A1A' : '#C4C4C4',
         flexShrink: 0,
       }}>{seat.nmr}</button>
     )
   }
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)',
-      width: '100%', maxWidth: 430, height: '100%', zIndex: 400, background: 'rgba(0,0,0,0.9)',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 12px', color: '#fff' }}>
-        <span style={{ fontSize: 20, fontWeight: 700 }}>Виберіть місця</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24} /></button>
+    <div style={{ position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 430, height: '100%', zIndex: 400, background: '#fff', display: 'flex', flexDirection: 'column' }}>
+      {/* Розмита hero-шапка */}
+      <div style={{ position: 'relative', height: 120, flexShrink: 0, overflow: 'hidden' }}>
+        <img src="/bus-hero.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(6px) brightness(0.8)', transform: 'scale(1.1)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,28,58,0.35)' }} />
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '18px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ fontSize: 20, fontWeight: 800, color: '#fff', textShadow: '0 1px 6px rgba(0,0,0,0.4)' }}>Виберіть місця</span>
+          <button onClick={onClose} aria-label="Закрити" style={{ position: 'absolute', right: 16, top: 16, background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24} /></button>
+        </div>
+        <div style={{ position: 'absolute', left: 20, bottom: 26, color: 'rgba(255,255,255,0.9)', fontSize: 14, fontWeight: 500 }}>
+          Оберіть {totalPax} {(() => { const m10 = totalPax % 10, m100 = totalPax % 100; if (m10 === 1 && m100 !== 11) return 'місце'; if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'місця'; return 'місць' })()}
+        </div>
       </div>
 
-      <div style={{ background: '#fff', borderRadius: '20px 20px 0 0', height: 'calc(100vh - 68px)', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '16px 20px 4px', color: Gray, fontSize: 14 }}>
-          Оберіть {totalPax} {totalPax === 1 ? 'місце' : 'місця'}
-        </div>
-
-        {/* Legend */}
-        <div style={{ display: 'flex', gap: 16, padding: '0 20px 12px' }}>
-          {[
-            { color: 'transparent', border: `2px solid ${ORange}`, label: 'Вільне' },
-            { color: ORange, border: 'none', label: 'Вибране' },
-            { color: '#EEE', border: 'none', label: 'Зайняте' },
-          ].map((l,i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 18, height: 18, borderRadius: 5, background: l.color, border: l.border }} />
-              <span style={{ fontSize: 11, color: Gray }}>{l.label}</span>
+      {/* Білий лист */}
+      <div style={{ marginTop: -18, background: '#fff', borderRadius: '20px 20px 0 0', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 16px' }}>
+          {/* Кермо (водій) */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#EDEDED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#8A8A8A" strokeWidth="1.6" strokeLinecap="round">
+                <circle cx="12" cy="12" r="9" />
+                <circle cx="12" cy="12" r="2.4" />
+                <line x1="12" y1="3.2" x2="12" y2="9.6" />
+                <line x1="4.3" y1="16.6" x2="9.9" y2="13.3" />
+                <line x1="19.7" y1="16.6" x2="14.1" y2="13.3" />
+              </svg>
             </div>
-          ))}
-        </div>
+          </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px' }}>
-          {/* Steering wheel */}
-          <div style={{ marginBottom: 12, fontSize: 26 }}>🎡</div>
-
-          {/* Seat grid */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Сітка місць */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {rows.map((row, ri) => {
-              // row has 4 or 5 cols: [left-win, left-aisle, null(aisle), right-aisle, right-win]
-              // or 5-seat last row
-              const isWideRow = row.length === 5 && row[2] !== null // last row with center seat
+              const isWideRow = row.length === 5 && row[2] !== null
               if (isWideRow) {
                 return (
-                  <div key={ri} style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                  <div key={ri} style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                     {row.map((seat, ci) => renderCell(seat, `${ri}-${ci}`))}
                   </div>
                 )
               }
-              // Normal row: [win, aisle | aisle, win] with gap in middle
               const left = [row[0], row[1]]
               const right = [row[3], row[4]]
               return (
-                <div key={ri} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                <div key={ri} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
                     {left.map((seat, ci) => renderCell(seat, `${ri}-L${ci}`))}
                   </div>
-                  <div style={{ width: 16 }} />
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
                     {right.map((seat, ci) => renderCell(seat, `${ri}-R${ci}`))}
                   </div>
                 </div>
@@ -210,20 +213,18 @@ export default function SeatMap({ trip, totalPax, onClose, onConfirm }: Props) {
           </div>
         </div>
 
-        {/* Confirm button */}
-        <div style={{ padding: '12px 20px 20px', borderTop: '1px solid #EEE' }}>
-          {selected.length > 0 ? (
-            <button onClick={() => onConfirm(selected)} style={{
-              width: '100%', padding: 16, background: ORange, color: '#fff',
-              border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer'
-            }}>
-              Підтвердити місця: {selected.join(', ')} ({selected.length}/{totalPax})
-            </button>
-          ) : (
-            <div style={{ textAlign: 'center', color: Gray, fontSize: 14, padding: '8px 0' }}>
-              Торкніться вільного місця щоб вибрати
-            </div>
-          )}
+        {/* Футер */}
+        <div style={{ borderTop: '1px solid #EEE', padding: '12px 20px 18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontSize: 14, color: Gray }}>
+              {selected.length > 0 ? `${selected.length} ${seatWord(selected.length)}` : `Оберіть місце (0/${totalPax})`}
+            </span>
+            <span style={{ fontSize: 18, fontWeight: 800, color: '#1A1A1A' }}>{priceStr} {currencySign}</span>
+          </div>
+          <button onClick={() => enough && onConfirm(selected)} disabled={!enough} style={{
+            width: '100%', padding: 16, background: enough ? ORange : '#FFD89B', color: '#fff',
+            border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: enough ? 'pointer' : 'default',
+          }}>Обрати{!enough ? ` (${selected.length}/${totalPax})` : ''}</button>
         </div>
       </div>
     </div>
