@@ -15,21 +15,24 @@ import { useLocation } from 'react-router-dom'
 
 function AppRoutes() {
   const loc = useLocation()
-  const showNav = ['/', '/tickets', '/profile', '/more'].includes(loc.pathname)
+  // Меню на всіх сторінках (ховаємо лише на квитку, де воно заважає)
+  const showNav = loc.pathname !== '/ticket'
   return (
     <>
       <InstallPrompt />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/results" element={<Results />} />
-        <Route path="/booking" element={<Booking />} />
-        <Route path="/order-success" element={<OrderSuccess />} />
-        <Route path="/payment" element={<Payment />} />
-        <Route path="/ticket" element={<Ticket />} />
-        <Route path="/tickets" element={<MyTickets />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="*" element={<Home />} />
-      </Routes>
+      <div style={{ paddingBottom: showNav ? 64 : 0 }}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/results" element={<Results />} />
+          <Route path="/booking" element={<Booking />} />
+          <Route path="/order-success" element={<OrderSuccess />} />
+          <Route path="/payment" element={<Payment />} />
+          <Route path="/ticket" element={<Ticket />} />
+          <Route path="/tickets" element={<MyTickets />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="*" element={<Home />} />
+        </Routes>
+      </div>
       {showNav && <BottomNav />}
     </>
   )

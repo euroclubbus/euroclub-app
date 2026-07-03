@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBookingStore } from '../store'
-import { cancelOrder, restoreOrder } from '../api/euroclub'
+import { cancelOrder, restoreOrder, getOrderInfo } from '../api/euroclub'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -28,9 +28,11 @@ function calcDuration(depStr?: string, arrStr?: string): string {
 
 export default function OrderSuccess() {
   const nav = useNavigate()
-  const { orderHash, orderData, selectedTrip, selectedSeats } = useBookingStore()
+  const { orderHash, orderData, selectedTrip, selectedSeats, setOrderResult } = useBookingStore()
   const [status, setStatus] = useState<'active'|'cancelled'>('active')
   const [loading, setLoading] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshedAt, setRefreshedAt] = useState('')
 
   const trip = selectedTrip as any
   const data = orderData as any
@@ -55,6 +57,26 @@ export default function OrderSuccess() {
   const summ = data?.summ ?? price
   const passengers = data?.passangers || []
 
+  const handleRefresh = async () => {
+    if (!hash) return
+    setRefreshing(true)
+    try {
+      const res: any = await getOrderInfo(hash)
+      const fresh = res.orders?.[0] || res
+      if (fresh && (fresh.hash || fresh.from_city || fresh.price)) {
+        setOrderResult(hash, fresh)
+        if (fresh.status && String(fresh.status).toLowerCase().includes('cancel')) setStatus('cancelled')
+        else if (fresh.status) setStatus('active')
+        const d = new Date()
+        setRefreshedAt(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`)
+      }
+    } catch {
+      alert('Не вдалося оновити дані. Спробуйте ще раз.')
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   const handleCancel = async () => {
     if (!hash || !window.confirm('Скасувати замовлення?')) return
     setLoading(true)
@@ -76,7 +98,7 @@ export default function OrderSuccess() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#1A1A1A', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '30px 16px' }}>
+    <div style={{ minHeight: '100vh', background: '#F5F5F5', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '30px 16px' }}>
       <div style={{ background: '#fff', borderRadius: 24, padding: 24, width: '100%', maxWidth: 400 }}>
         {/* Status icon */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
@@ -90,6 +112,12 @@ export default function OrderSuccess() {
           <div style={{ color: ORange, fontWeight: 800, fontSize: 20, marginBottom: status === 'cancelled' ? 6 : 0 }}>order #{displayOrder}</div>
           {status === 'cancelled' && <div style={{ color: '#E53935', fontWeight: 700, fontSize: 15 }}>Скасовано</div>}
         </div>
+
+        <button onClick={handleRefresh} disabled={refreshing} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, margin: '0 auto 16px', padding: '8px 16px', background: '#F5F5F5', border: 'none', borderRadius: 20, color: '#555', fontWeight: 600, fontSize: 13, cursor: refreshing ? 'default' : 'pointer' }}>
+          <span style={{ display: 'inline-block', transform: refreshing ? 'rotate(360deg)' : 'none', transition: 'transform 0.6s' }}>↻</span>
+          {refreshing ? 'Оновлення…' : 'Оновити дані'}
+          {refreshedAt && !refreshing && <span style={{ color: Gray, fontWeight: 400 }}>· {refreshedAt}</span>}
+        </button>
 
         {/* Trip card */}
         <div style={{ border: '1.5px solid #EEE', borderRadius: 16, padding: 16, marginBottom: 16 }}>

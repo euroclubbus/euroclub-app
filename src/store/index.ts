@@ -12,6 +12,8 @@ interface SearchState {
   setOpenReturn: (v: boolean) => void
   setPassengerCount: (n: number) => void
   setPassengerCategories: (c: string[]) => void
+  addPassengerCategory: (catId: string) => void
+  removePassengerCategoryAt: (idx: number) => void
   swap: () => void; reset: () => void
 }
 
@@ -32,6 +34,7 @@ interface BookingState {
   setSeats: (s: number[]) => void
   setPassengerName: (idx: number, name: string) => void
   setPassengerDiscount: (idx: number, discountId: string) => void
+  removePassengerDataAt: (idx: number) => void
   setContact: (field: 'email'|'phone'|'phone2', val: string) => void
   setPromo: (p: string) => void
   setBaggage: (type: 'extra'|'oversize', val: number) => void
@@ -50,6 +53,8 @@ export const useSearchStore = create<SearchState>((set) => ({
   setOpenReturn: isOpenReturn => set({ isOpenReturn }),
   setPassengerCount: (n) => set({ passengerCount: Math.max(1, n) }),
   setPassengerCategories: (c) => set({ passengerCategories: c, passengerCount: Math.max(1, c.length) }),
+  addPassengerCategory: (catId) => set(s => { const c = [...s.passengerCategories, catId]; return { passengerCategories: c, passengerCount: c.length } }),
+  removePassengerCategoryAt: (idx) => set(s => { const c = s.passengerCategories.filter((_, i) => i !== idx); return { passengerCategories: c, passengerCount: Math.max(1, c.length) } }),
   swap: () => set(s => ({ from: s.to, to: s.from })),
   reset: () => set({ from: null, to: null, dateFrom: '', dateTo: '', passengerCount: 1, passengerCategories: [] }),
 }))
@@ -63,6 +68,21 @@ export const useBookingStore = create<BookingState>((set) => ({
   setSeats: s => set({ selectedSeats: s }),
   setPassengerName: (idx, name) => set(s => ({ passengerNames: { ...s.passengerNames, [idx]: name } })),
   setPassengerDiscount: (idx, discountId) => set(s => ({ passengerDiscounts: { ...s.passengerDiscounts, [idx]: discountId } })),
+  removePassengerDataAt: (idx) => set(s => {
+    const remap = (obj: Record<number, string>) => {
+      const keys = Object.keys(obj).map(Number)
+      const maxK = keys.length ? Math.max(...keys) : -1
+      const out: Record<number, string> = {}
+      let j = 0
+      for (let i = 0; i <= maxK; i++) {
+        if (i === idx) continue
+        if (obj[i] != null) out[j] = obj[i]
+        j++
+      }
+      return out
+    }
+    return { passengerNames: remap(s.passengerNames), passengerDiscounts: remap(s.passengerDiscounts) }
+  }),
   setContact: (field, val) => set(field === 'email' ? { contactEmail: val } : field === 'phone' ? { contactPhone: val } : { contactPhone2: val }),
   setPromo: promoCode => set({ promoCode }),
   setBaggage: (type, val) => type === 'extra' ? set({ extraBaggage: val }) : set({ oversizeBaggage: val }),

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Pencil } from 'lucide-react'
+import { ArrowLeft, Pencil, X, Plus } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { createOrder, saveOrderLocally } from '../api/euroclub'
 import BottomSheet from '../components/BottomSheet'
@@ -29,8 +29,8 @@ function calcDuration(depStr?: string, arrStr?: string): string {
 
 export default function Booking() {
   const nav = useNavigate()
-  const { from, to, dateFrom, passengerCount, passengerCategories } = useSearchStore()
-  const { selectedTrip, selectedSeats, passengerNames, passengerDiscounts, contactEmail, contactPhone, contactPhone2, promoCode, setSeats, setPassengerName, setPassengerDiscount, setContact, setPromo, setOrderResult } = useBookingStore()
+  const { from, to, dateFrom, passengerCount, passengerCategories, addPassengerCategory, removePassengerCategoryAt } = useSearchStore()
+  const { selectedTrip, selectedSeats, passengerNames, passengerDiscounts, contactEmail, contactPhone, contactPhone2, promoCode, setSeats, setPassengerName, setPassengerDiscount, removePassengerDataAt, setContact, setPromo, setOrderResult } = useBookingStore()
   const [showSeats, setShowSeats] = useState(false)
   const [attempted, setAttempted] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -43,6 +43,15 @@ export default function Booking() {
   // Real discounts come from the selected trip itself (trip.discounts), e.g. id 0 = full fare, 4 = senior, etc.
   const discountOptions: Array<{ id: number; default: number; name: string; discount: number; price: number }> = trip?.discounts || []
   const [showDiscountFor, setShowDiscountFor] = useState<number | null>(null)
+  const [showAddPicker, setShowAddPicker] = useState(false)
+
+  const removePassenger = (idx: number) => {
+    if (totalPax <= 1) return
+    removePassengerCategoryAt(idx)
+    removePassengerDataAt(idx)
+    if (showDiscountFor === idx) setShowDiscountFor(null)
+  }
+  const addPassenger = (catId: string) => { addPassengerCategory(catId); setShowAddPicker(false) }
   const [promoTab, setPromoTab] = useState<'promo'|'cashback'>('promo')
   const [promoMsg, setPromoMsg] = useState('')
 
@@ -138,10 +147,17 @@ export default function Booking() {
               <div key={idx} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: idx < totalPax - 1 ? '1px solid #F5F5F5' : 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <span style={{ fontWeight: 700, fontSize: 14 }}>Пасажир {idx + 1}</span>
-                  <button onClick={() => setShowDiscountFor(isEditing ? null : idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isEditing ? ORange : Gray, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Pencil size={15} color={isEditing ? ORange : Gray} />
-                    <span style={{ fontSize: 12, color: isEditing ? ORange : Gray }}>Знижка</span>
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <button onClick={() => setShowDiscountFor(isEditing ? null : idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isEditing ? ORange : Gray, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Pencil size={15} color={isEditing ? ORange : Gray} />
+                      <span style={{ fontSize: 12, color: isEditing ? ORange : Gray }}>Знижка</span>
+                    </button>
+                    {totalPax > 1 && (
+                      <button onClick={() => removePassenger(idx)} aria-label="Видалити пасажира" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <X size={17} color="#C4C4C4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <input
                   placeholder="Прізвище та ім'я латиницею (IVANOV IVAN)"
@@ -175,6 +191,31 @@ export default function Booking() {
               </div>
             )
           })}
+
+          {/* Додати пасажира */}
+          {!showAddPicker ? (
+            <button onClick={() => setShowAddPicker(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 0', marginTop: 4, background: '#FFF7EC', border: `1.5px dashed ${ORange}`, borderRadius: 12, color: ORange, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+              <Plus size={17} /> Додати пасажира
+            </button>
+          ) : (
+            <div style={{ background: '#F9F9F9', borderRadius: 12, padding: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: 12, color: Gray, fontWeight: 600 }}>Оберіть категорію пасажира:</span>
+                <button onClick={() => setShowAddPicker(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={16} color={Gray} /></button>
+              </div>
+              {discountOptions.length === 0 && <div style={{ fontSize: 13, color: Gray, padding: 8 }}>Немає доступних категорій</div>}
+              {discountOptions.map(d => (
+                <button key={d.id} onClick={() => addPassenger(String(d.id))} style={{
+                  width: '100%', padding: '10px 14px', background: '#fff', border: '1.5px solid #EEE',
+                  borderRadius: 10, cursor: 'pointer', textAlign: 'left', marginBottom: 6,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: 13 }}>{d.name}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{d.price} {currencySign}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Seat selection — only show if place_select === 1 */}
@@ -194,7 +235,7 @@ export default function Booking() {
 
         {/* Contacts */}
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12 }}>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Контакти</div>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Дані платника</div>
           {[
             { label: 'Адреса ел. пошти', val: contactEmail, set: (v: string) => setContact('email', v), placeholder: 'your@email.com', required: false },
             { label: 'Номер телефону', val: contactPhone, set: (v: string) => setContact('phone', v), placeholder: '+380...', required: true },
