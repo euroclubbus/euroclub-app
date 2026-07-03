@@ -356,7 +356,7 @@ export default function Results() {
       <div style={{ position: 'relative', overflow: 'hidden' }}>
         <img src="/bus-hero.png" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(7px) brightness(0.7)', transform: 'scale(1.1)' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,28,58,0.45)' }} />
-        <div style={{ position: 'relative', padding: '16px 16px 10px' }}>
+        <div style={{ position: 'relative', padding: 'calc(env(safe-area-inset-top) + 20px) 16px 10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
             <button onClick={() => nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
               <ArrowLeft size={24} color="#fff" />

@@ -1,4 +1,5 @@
-const CACHE_NAME = 'euroclub-v1';
+// v2 — network-first: нові деплої підхоплюються автоматично, кеш лише як офлайн-запас.
+const CACHE_NAME = 'euroclub-v2';
 const ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (event) => {
@@ -18,18 +19,20 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Never cache API calls — always go to network
-  if (event.request.url.includes('/api/')) return;
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  // Тільки свій домен; API/Worker йдуть напряму в мережу
+  if (url.origin !== self.location.origin) return;
 
+  // Network-first: завжди пробуємо свіже з мережі, кеш — запас для офлайну
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return cached || fetch(event.request).then((response) => {
-        if (response.ok && event.request.method === 'GET') {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        }
-        return response;
-      }).catch(() => cached);
-    })
+    fetch(req).then((response) => {
+      if (response && response.ok) {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
+      }
+      return response;
+    }).catch(() => caches.match(req).then((c) => c || caches.match('/index.html')))
   );
 });

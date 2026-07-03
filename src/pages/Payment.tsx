@@ -1,130 +1,112 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, ShieldCheck, Loader2, X, CreditCard } from 'lucide-react'
 import { useBookingStore } from '../store'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
 
-const METHODS = [
-  { id: 'ua', label: 'Оплата в Українському банку', needsAddress: false },
-  { id: 'de', label: 'Оплата в Німецькому банку', needsAddress: true },
-  { id: 'at', label: 'Оплата в Австрійському банку', needsAddress: false },
-  { id: 'uah_card', label: 'Оплата гривневою картою', needsAddress: false },
-  { id: 'eur_card', label: 'Оплата євровою картою', needsAddress: false },
-]
+// iOS → link2 (Apple Pay), інакше (Android/веб) → link1 (Google Pay)
+const isIOS = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent)
+const WALLET = isIOS ? 'Apple Pay' : 'Google Pay'
 
 export default function Payment() {
   const nav = useNavigate()
   const { orderData, selectedTrip, orderHash } = useBookingStore()
-  const [selected, setSelected] = useState<string>('')
-  const [name, setName] = useState('')
-  const [city, setCity] = useState('')
-  const [zip, setZip] = useState('')
-  const [street, setStreet] = useState('')
-  const [house, setHouse] = useState('')
+  const [paying, setPaying] = useState(false)
 
   const trip = selectedTrip as any
   const data = orderData as any
-  const price = data?.price ?? trip?.price ?? 0
-  const total = data?.summ ?? price
+  const total = data?.summ ?? data?.price ?? trip?.price ?? 0
   const currencySign = (data?.crc || trip?.currency || 'uah').toLowerCase() === 'eur' ? '€' : '₴'
-  const method = METHODS.find(m => m.id === selected)
+
+  // Посилання на оплату з відповіді order_new. Порожні = замовлення скасоване.
+  const payUrl = (isIOS ? data?.link2 : data?.link1) || ''
+  const canPay = !!payUrl
 
   const handlePay = () => {
-    alert('Оплата буде доступна найближчим часом. Ваше замовлення збережено.')
-    nav('/')
+    if (!payUrl) return
+    setPaying(true)
+    // PWA: відкриваємо у новій вкладці. В APK тут буде Capacitor Browser (Custom Tab / Safari View).
+    window.open(payUrl, '_blank')
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#1A1A1A', paddingBottom: 40 }}>
-      <div style={{ background: '#1A1A1A', padding: '16px 16px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <button onClick={() => nav(-1)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-          <ArrowLeft size={24} color="#fff" />
-        </button>
-        <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Оплата</span>
+    <div style={{ minHeight: '100vh', background: '#F5F5F5', paddingBottom: 40 }}>
+      {/* Header */}
+      <div style={{ position: 'relative', overflow: 'hidden' }}>
+        <img src="/bus-hero.png" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(7px) brightness(0.7)', transform: 'scale(1.1)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,28,58,0.45)' }} />
+        <div style={{ position: 'relative', padding: 'calc(env(safe-area-inset-top) + 22px) 16px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={() => nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            <ArrowLeft size={24} color="#fff" />
+          </button>
+          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Оплата</span>
+        </div>
       </div>
 
-      <div style={{ background: '#fff', margin: 16, borderRadius: 20, padding: 20 }}>
-        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 16 }}>Банківський переказ</div>
-
-        {METHODS.slice(0,3).map(m => (
-          <div key={m.id}>
-            <button onClick={() => setSelected(m.id)} style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-              padding: '16px', background: selected===m.id ? '#FFF8EE' : '#F9F9F9',
-              border: selected===m.id ? `2px solid ${ORange}` : '2px solid #EEE',
-              borderRadius: 14, cursor: 'pointer', marginBottom: 10, textAlign: 'left'
-            }}>
-              <span style={{ fontSize: 20 }}>💳</span>
-              <span style={{ fontWeight: 600, fontSize: 15 }}>{m.label}</span>
-            </button>
-
-            {selected === m.id && m.needsAddress && (
-              <div style={{ padding: '0 4px 16px' }}>
-                <p style={{ fontSize: 12, color: Gray, marginBottom: 12, lineHeight: 1.5 }}>
-                  Будь ласка, вкажіть адресу проживання платника - це обов'язкова умова для формування інвойсу при оплаті на німецький рахунок
-                </p>
-                {[
-                  { label: "Прізвище та ім'я", val: name, set: setName, placeholder: 'Олександр Олійник' },
-                  { label: 'Місто', val: city, set: setCity, placeholder: 'Мюнхен', half: true },
-                  { label: 'індекс', val: zip, set: setZip, placeholder: '123', half: true },
-                  { label: 'Вулиця', val: street, set: setStreet, placeholder: 'Мюнхен', half: true },
-                  { label: 'Будинок', val: house, set: setHouse, placeholder: '123', half: true },
-                ].reduce((rows: any[], field, i, arr) => {
-                  if (field.half) {
-                    if (i % 2 === 1 || !arr[i+1]?.half) rows.push([field])
-                    else if (arr[i+1]?.half) rows.push([field, arr[i+1]])
-                  } else rows.push([field])
-                  return rows
-                }, []).filter((r,i,a) => {
-                  // dedupe pairs
-                  if (r.length === 2) return !a.slice(0,i).some((prev:any[]) => prev.includes(r[1]))
-                  return true
-                }).map((rowFields: any[], ri) => (
-                  <div key={ri} style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-                    {rowFields.map((f: any) => (
-                      <div key={f.label} style={{ flex: 1 }}>
-                        <label style={{ fontSize: 12, color: Gray, display: 'block', marginBottom: 5 }}>{f.label}</label>
-                        <input value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.placeholder}
-                          style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #EEE', borderRadius: 12, fontSize: 14, outline: 'none' }} />
-                      </div>
-                    ))}
-                  </div>
-                ))}
-                <button onClick={handlePay} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
-                  Запросити рахунок
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
-
-        <div style={{ fontWeight: 700, fontSize: 17, margin: '8px 0 16px' }}>Оплата карткою</div>
-        {METHODS.slice(3).map(m => (
-          <button key={m.id} onClick={() => setSelected(m.id)} style={{
-            width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-            padding: '16px', background: selected===m.id ? '#FFF8EE' : '#F9F9F9',
-            border: selected===m.id ? `2px solid ${ORange}` : '2px solid #EEE',
-            borderRadius: 14, cursor: 'pointer', marginBottom: 10, textAlign: 'left'
-          }}>
-            <span style={{ fontSize: 20 }}>💳</span>
-            <span style={{ fontWeight: 600, fontSize: 15 }}>{m.label}</span>
-          </button>
-        ))}
-
-        <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 16, marginTop: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 18 }}>
-            <span>Усього до сплати</span><span>{total} {currencySign}</span>
-          </div>
+      {/* Підсумок */}
+      <div style={{ background: '#fff', margin: '16px 16px 0', borderRadius: 20, padding: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 14, color: Gray }}>До сплати</span>
+          <span style={{ fontSize: 26, fontWeight: 800, color: '#1A1A1A' }}>{total} {currencySign}</span>
         </div>
+        {orderHash && <div style={{ fontSize: 12, color: Gray, marginTop: 4 }}>Замовлення 000{String(orderHash).slice(-6).toUpperCase()}</div>}
+      </div>
 
-        {selected && !method?.needsAddress && (
-          <button onClick={handlePay} style={{ width: '100%', marginTop: 20, padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
-            Оплатити {total} {currencySign}
-          </button>
+      {/* Оплата */}
+      <div style={{ background: '#fff', margin: '16px', borderRadius: 20, padding: 20 }}>
+        {!canPay ? (
+          <div style={{ textAlign: 'center', padding: '12px 0' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#E53935', marginBottom: 6 }}>Оплата недоступна</div>
+            <div style={{ fontSize: 13, color: Gray, lineHeight: 1.5 }}>Замовлення скасоване або посилання на оплату ще не сформоване. Поверніться назад і оформіть замовлення знову.</div>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 0 16px' }}>
+              <span style={{ width: 42, height: 42, borderRadius: 10, background: '#FFF3DC', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CreditCard size={20} color={ORange} />
+              </span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#1A1A1A' }}>Оплата карткою</div>
+                <div style={{ fontSize: 13, color: Gray }}>Картка, {WALLET}, PayPal — на захищеній сторінці</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: Gray, fontSize: 12, marginBottom: 16 }}>
+              <ShieldCheck size={15} color="#4CAF50" />
+              Дані картки в додатку не зберігаються.
+            </div>
+
+            <button onClick={handlePay} style={{
+              width: '100%', padding: 17, background: ORange, color: '#fff', border: 'none',
+              borderRadius: 14, fontWeight: 800, fontSize: 17, cursor: 'pointer',
+            }}>
+              Оплатити {total} {currencySign}
+            </button>
+          </>
         )}
       </div>
+
+      {/* Overlay передачі в захищений браузер */}
+      {paying && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(8,28,58,0.55)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: '#fff', borderRadius: 24, padding: '28px 24px', width: '100%', maxWidth: 340, textAlign: 'center', position: 'relative' }}>
+            <button onClick={() => setPaying(false)} aria-label="Закрити" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', cursor: 'pointer', color: Gray }}><X size={20} /></button>
+            <div style={{ width: 56, height: 56, margin: '4px auto 16px', borderRadius: '50%', background: '#FFF3DC', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Loader2 size={28} color={ORange} style={{ animation: 'spin 1s linear infinite' }} />
+            </div>
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 8 }}>Оплата відкрита в новому вікні</div>
+            <div style={{ fontSize: 14, color: Gray, lineHeight: 1.5, marginBottom: 18 }}>
+              Завершіть оплату на захищеній сторінці. Після успішної оплати сформуємо квиток.
+            </div>
+            <button onClick={() => nav('/order-success')} style={{ width: '100%', padding: 14, background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
+              Перевірити оплату
+            </button>
+            <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

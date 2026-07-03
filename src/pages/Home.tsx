@@ -294,9 +294,11 @@ export default function Home() {
         <img src="/bus-hero.png" alt="EuroClub — автобусні квитки Україна — Європа" style={{ width: '100%', height: 'auto', display: 'block' }} onError={e => { (e.target as HTMLImageElement).style.background = '#1B4F8A' }} />
         {/* scrim для читабельності H1 */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '60%', background: 'linear-gradient(180deg, rgba(8,28,58,0.55) 0%, rgba(8,28,58,0.18) 55%, rgba(8,28,58,0) 100%)', pointerEvents: 'none' }} />
-        <h1 style={{ position: 'absolute', top: 14, left: 18, right: 18, margin: 0, color: '#fff', fontSize: 18, fontWeight: 800, lineHeight: 1.28, textShadow: '0 1px 6px rgba(0,0,0,0.4)' }}>
-          Пошук квитків на автобус по Україні та Європі
-        </h1>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px', pointerEvents: 'none' }}>
+          <h1 style={{ margin: 0, textAlign: 'center', color: '#fff', fontSize: 15, fontWeight: 800, lineHeight: 1.35, maxWidth: 260, WebkitTextStroke: '0.6px #000', textShadow: '0 1px 3px rgba(0,0,0,0.55)' }}>
+            Пошук квитків на автобус<br />по Україні та Європі
+          </h1>
+        </div>
       </div>
 
       {/* Search Card */}
