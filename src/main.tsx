@@ -11,6 +11,7 @@ import Payment from './pages/Payment'
 import Ticket from './pages/Ticket'
 import MyTickets from './pages/MyTickets'
 import Profile from './pages/Profile'
+import Notifications from './pages/Notifications'
 import { useLocation } from 'react-router-dom'
 
 function AppRoutes() {
@@ -30,6 +31,7 @@ function AppRoutes() {
           <Route path="/ticket" element={<Ticket />} />
           <Route path="/tickets" element={<MyTickets />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="*" element={<Home />} />
         </Routes>
       </div>
