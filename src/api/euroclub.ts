@@ -4,8 +4,11 @@ const BASE = 'https://curly-voice-8a71.eclubbus21.workers.dev/v1/json'
 async function call(method: string, params: Record<string,string> = {}) {
   const qs = new URLSearchParams(params).toString()
   const url = `${BASE}/${method}/${qs ? '?' + qs : ''}`
+  console.log('[EuroClub API] →', url)
   const res = await fetch(url)
-  return res.json()
+  const json = await res.json()
+  console.log('[EuroClub API] ←', method, json)
+  return json
 }
 
 export const getCities = (p?: Record<string,string>) => call('cities', p)
@@ -22,8 +25,11 @@ export const getOrderInfo = (hash: string) => call('order_info', { hash })
 export async function createOrder(params: Record<string,string>) {
   const qs = new URLSearchParams(params).toString()
   const url = `${BASE}/order_new/?${qs}`
+  console.log('[EuroClub API] → (order_new)', url)
   const res = await fetch(url)
-  return res.json()
+  const json = await res.json()
+  console.log('[EuroClub API] ← order_new', json)
+  return json
 }
 
 export function saveOrderLocally(hash: string, data: Record<string,unknown>) {

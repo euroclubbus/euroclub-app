@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ShieldCheck, Loader2, X, CreditCard } from 'lucide-react'
 import { useBookingStore } from '../store'
+import { Browser } from '@capacitor/browser'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -30,11 +31,11 @@ export default function Payment() {
     return orderHash ? '000' + String(orderHash).slice(-6).toUpperCase() : ''
   })()
 
-  const handlePay = () => {
+  const handlePay = async () => {
     if (!payUrl) return
     setPaying(true)
-    // PWA: відкриваємо у новій вкладці. В APK тут буде Capacitor Browser (Custom Tab / Safari View).
-    window.open(payUrl, '_blank')
+    // APK: Custom Tab (Android) / Safari View (iOS). PWA: нова вкладка.
+    try { await Browser.open({ url: payUrl }) } catch { window.open(payUrl, '_blank') }
   }
 
   return (
