@@ -39,8 +39,10 @@ export default function Ticket() {
   // Пасажири: з відповіді замовлення або зі стору
   const paxCount = Math.max(selectedSeats.length, Object.keys(passengerNames).length)
   const passengers = (data?.passangers && data.passangers.length)
-    ? data.passangers.map((p: any) => ({ name: p.name, place: p.place }))
-    : Array.from({ length: paxCount }).map((_, i) => ({ name: passengerNames[i] || '—', place: selectedSeats[i] }))
+    ? data.passangers.map((p: any) => ({ name: p.name, place: p.place, ticket: p.ticket }))
+    : Array.from({ length: paxCount }).map((_, i) => ({ name: passengerNames[i] || '—', place: selectedSeats[i], ticket: undefined }))
+
+  const ticketPdf: string = data?.ticket || ''
 
   const notch = { position: 'absolute' as const, width: 22, height: 22, borderRadius: '50%', background: '#0B2E5E', top: '50%', transform: 'translateY(-50%)' }
 
@@ -94,8 +96,11 @@ export default function Ticket() {
         <div style={{ padding: '4px 20px 12px' }}>
           {passengers.map((p: any, i: number) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: i < passengers.length - 1 ? '1px solid #F2F2F2' : 'none' }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A' }}>{p.name || '—'}</span>
-              <span style={{ fontSize: 13, color: Gray }}>Місце <strong style={{ color: ORange, fontSize: 15 }}>{p.place ?? '—'}</strong></span>
+              <span style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A' }}>{p.name || '—'}</span>
+                {p.ticket && <span style={{ fontSize: 11, color: Gray }}>Квиток № {p.ticket}</span>}
+              </span>
+              <span style={{ fontSize: 13, color: Gray }}>Місце <strong style={{ color: ORange, fontSize: 15 }}>{p.place && p.place !== '0' ? p.place : '—'}</strong></span>
             </div>
           ))}
         </div>
@@ -116,8 +121,8 @@ export default function Ticket() {
 
       {/* Дії (не друкуються) */}
       <div className="no-print" style={{ padding: '8px 16px 0' }}>
-        <button onClick={() => window.print()} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <Download size={18} /> Зберегти квиток
+        <button onClick={() => ticketPdf ? window.open(ticketPdf, '_blank') : window.print()} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <Download size={18} /> {ticketPdf ? 'Завантажити квиток (PDF)' : 'Зберегти квиток'}
         </button>
       </div>
 

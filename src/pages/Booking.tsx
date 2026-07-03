@@ -96,11 +96,12 @@ export default function Booking() {
         if (selectedSeats[i] != null) params[`place[${i}]`] = String(selectedSeats[i])
       }
       const result = await createOrder(params)
-      // API повертає або result.hash або result.orders[0].hash
-      const hash = result.hash || result.orders?.[0]?.hash
+      // Усі дані замовлення огорнуті в orders[0]; беремо саме його
+      const order = result.orders?.[0] || result
+      const hash = order.hash || result.hash
       if (hash) {
-        saveOrderLocally(hash, result)
-        setOrderResult(hash, result)
+        saveOrderLocally(hash, order)
+        setOrderResult(hash, order)
         nav('/order-success')
       } else {
         setError('Помилка бронювання: ' + (result.error_message || `код помилки ${result.error}`))
