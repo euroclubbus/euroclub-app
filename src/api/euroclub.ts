@@ -1,11 +1,9 @@
-const API_KEY = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_KEY) || 'apitest_joieerv65v6j'
-// Use Vite dev proxy (configured in vite.config.ts) to bypass CORS during development.
-// In production (Vercel), this needs server-side proxy too — see vercel.json rewrites.
+// Ключ API більше НЕ у фронтенді — його підставляє Cloudflare Worker із секрету EUROCLUB_KEY.
 const BASE = 'https://curly-voice-8a71.eclubbus21.workers.dev/v1/json'
 
 async function call(method: string, params: Record<string,string> = {}) {
   const qs = new URLSearchParams(params).toString()
-  const url = `${BASE}/${method}/${API_KEY}/${qs ? '?' + qs : ''}`
+  const url = `${BASE}/${method}/${qs ? '?' + qs : ''}`
   const res = await fetch(url)
   return res.json()
 }
@@ -23,7 +21,7 @@ export const getOrderInfo = (hash: string) => call('order_info', { hash })
 
 export async function createOrder(params: Record<string,string>) {
   const qs = new URLSearchParams(params).toString()
-  const url = `${BASE}/order_new/${API_KEY}/?${qs}`
+  const url = `${BASE}/order_new/?${qs}`
   const res = await fetch(url)
   return res.json()
 }
