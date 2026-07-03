@@ -23,6 +23,12 @@ export default function Payment() {
   // Посилання на оплату з відповіді order_new. Порожні = замовлення скасоване.
   const payUrl = (isIOS ? data?.link2 : data?.link1) || ''
   const canPay = !!payUrl
+  const orderNo = (() => {
+    const src = String(data?.ticket || data?.link1 || data?.link2 || '')
+    const m = src.match(/\/orders?\/(\d+)/)
+    if (m) return '000' + m[1]
+    return orderHash ? '000' + String(orderHash).slice(-6).toUpperCase() : ''
+  })()
 
   const handlePay = () => {
     if (!payUrl) return
@@ -51,7 +57,7 @@ export default function Payment() {
           <span style={{ fontSize: 14, color: Gray }}>До сплати</span>
           <span style={{ fontSize: 26, fontWeight: 800, color: '#1A1A1A' }}>{total} {currencySign}</span>
         </div>
-        {orderHash && <div style={{ fontSize: 12, color: Gray, marginTop: 4 }}>Замовлення 000{String(orderHash).slice(-6).toUpperCase()}</div>}
+        {orderNo && <div style={{ fontSize: 12, color: Gray, marginTop: 4 }}>Замовлення {orderNo}</div>}
       </div>
 
       {/* Оплата */}

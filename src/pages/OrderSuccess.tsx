@@ -44,7 +44,12 @@ export default function OrderSuccess() {
   const transferStop = trip?.stopping?.find((s: any) => Number(s.transfer) === 1)
 
   const hash = orderHash || data?.hash || ''
-  const displayOrder = hash ? '000' + hash.slice(-6).toUpperCase() : '000000000'
+  const displayOrder = (() => {
+    const src = String(data?.ticket || data?.link1 || data?.link2 || '')
+    const m = src.match(/\/orders?\/(\d+)/)
+    if (m) return '000' + m[1]
+    return hash ? '000' + hash.slice(-6).toUpperCase() : '000000000'
+  })()
   const currencySign = (data?.crc || trip?.currency || 'uah').toLowerCase() === 'eur' ? '€' : '₴'
   const price = data?.price ?? trip?.price ?? 0
   const summ = data?.summ ?? price

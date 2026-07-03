@@ -33,8 +33,15 @@ export default function Ticket() {
   const hasTransfer = Number(trip?.transfer) === 1
 
   const hash = orderHash || data?.hash || ''
-  const orderNo = hash ? '000' + hash.slice(-6).toUpperCase() : '000000000'
-  const ticketNo = `${orderNo} · APP · ${platformTag()}`
+  // Номер замовлення = 000 + системний id (996546) з URL відповіді
+  const orderNo = (() => {
+    const src = String(data?.ticket || data?.link1 || data?.link2 || '')
+    const m = src.match(/\/orders?\/(\d+)/)
+    if (m) return '000' + m[1]
+    return hash ? '000' + hash.slice(-6).toUpperCase() : '000000000'
+  })()
+  const suffix = platformTag() === 'iOS' ? 'API' : 'PAG' // Android/веб → PAG, iOS → API
+  const ticketNo = `Замовлення ${orderNo}`
 
   // Пасажири: з відповіді замовлення або зі стору
   const paxCount = Math.max(selectedSeats.length, Object.keys(passengerNames).length)
@@ -98,7 +105,7 @@ export default function Ticket() {
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: i < passengers.length - 1 ? '1px solid #F2F2F2' : 'none' }}>
               <span style={{ display: 'flex', flexDirection: 'column' }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A' }}>{p.name || '—'}</span>
-                {p.ticket && <span style={{ fontSize: 11, color: Gray }}>Квиток № {p.ticket}</span>}
+                {p.ticket && <span style={{ fontSize: 11, color: Gray }}>Квиток № {p.ticket}{suffix}</span>}
               </span>
               <span style={{ fontSize: 13, color: Gray }}>Місце <strong style={{ color: ORange, fontSize: 15 }}>{p.place && p.place !== '0' ? p.place : '—'}</strong></span>
             </div>
