@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBookingStore } from '../store'
 import { cancelOrder, restoreOrder, getOrderInfo } from '../api/euroclub'
+import { isPaid, statusLabel } from '../orderStatus'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -176,9 +177,15 @@ export default function OrderSuccess() {
 
         {status === 'active' ? (
           <>
-            <button onClick={() => nav('/payment')} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: 12 }}>
-              Перейти до оплати
-            </button>
+            {isPaid(data?.status) ? (
+              <button onClick={() => nav('/ticket')} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: 12 }}>
+                Показати квиток
+              </button>
+            ) : (
+              <button onClick={() => nav('/payment')} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: 12 }}>
+                Перейти до оплати
+              </button>
+            )}
             <button onClick={handleCancel} disabled={loading} style={{ width: '100%', padding: 12, background: 'none', border: 'none', color: Gray, fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
               {loading ? '...' : 'Скасувати замовлення'}
             </button>

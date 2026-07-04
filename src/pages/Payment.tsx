@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ShieldCheck, Loader2, X, CreditCard } from 'lucide-react'
 import { useBookingStore } from '../store'
 import { Browser } from '@capacitor/browser'
+import { getOrderInfo } from '../api/euroclub'
+import { isPaid } from '../orderStatus'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -13,7 +15,7 @@ const WALLET = isIOS ? 'Apple Pay' : 'Google Pay'
 
 export default function Payment() {
   const nav = useNavigate()
-  const { orderData, selectedTrip, orderHash } = useBookingStore()
+  const { orderData, selectedTrip, orderHash, setOrderResult } = useBookingStore()
   const [paying, setPaying] = useState(false)
 
   const trip = selectedTrip as any
@@ -24,6 +26,7 @@ export default function Payment() {
   // Посилання на оплату з відповіді order_new. Порожні = замовлення скасоване.
   const payUrl = (isIOS ? data?.link2 : data?.link1) || ''
   const canPay = !!payUrl
+  const hash = orderHash || data?.hash || ''
   const orderNo = (() => {
     const src = String(data?.ticket || data?.link1 || data?.link2 || '')
     const m = src.match(/\/orders?\/(\d+)/)
@@ -31,11 +34,33 @@ export default function Payment() {
     return orderHash ? '000' + String(orderHash).slice(-6).toUpperCase() : ''
   })()
 
+  const checkPaid = async () => {
+    if (!hash) { setPaying(false); return }
+    try {
+      const res: any = await getOrderInfo(hash)
+      const o = res.orders?.[0] || res
+      if (o && (o.hash || o.status)) setOrderResult(hash, o)
+      if (isPaid(o?.status)) { nav('/ticket'); return }
+    } catch {}
+    setPaying(false)
+  }
+
   const handlePay = async () => {
     if (!payUrl) return
     setPaying(true)
-    // APK: Custom Tab (Android) / Safari View (iOS). PWA: нова вкладка.
-    try { await Browser.open({ url: payUrl }) } catch { window.open(payUrl, '_blank') }
+    // APK: Custom Tab (Android) / Safari View (iOS) — накладене вікно поверх додатка.
+    try {
+      let done = false
+      const sub = await Browser.addListener('browserFinished', async () => {
+        if (done) return; done = true
+        try { await (sub as any).remove?.() } catch {}
+        await checkPaid()   // повернувся з оплати → перевіряємо статус
+      })
+      await Browser.open({ url: payUrl })
+    } catch {
+      // PWA / фолбек: нова вкладка
+      window.open(payUrl, '_blank')
+    }
   }
 
   return (
@@ -107,7 +132,7 @@ export default function Payment() {
             <div style={{ fontSize: 14, color: Gray, lineHeight: 1.5, marginBottom: 18 }}>
               Завершіть оплату на захищеній сторінці. Після успішної оплати сформуємо квиток.
             </div>
-            <button onClick={() => nav('/order-success')} style={{ width: '100%', padding: 14, background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
+            <button onClick={checkPaid} style={{ width: '100%', padding: 14, background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
               Перевірити оплату
             </button>
             <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>

@@ -203,8 +203,8 @@ export default function Booking() {
                 <span style={{ fontSize: 12, color: Gray, fontWeight: 600 }}>Оберіть категорію пасажира:</span>
                 <button onClick={() => setShowAddPicker(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={16} color={Gray} /></button>
               </div>
-              {discountOptions.length === 0 && <div style={{ fontSize: 13, color: Gray, padding: 8 }}>Немає доступних категорій</div>}
-              {discountOptions.map(d => (
+              {discountOptions.filter(d => d.default !== 1 && String(d.id) !== '0').length === 0 && <div style={{ fontSize: 13, color: Gray, padding: 8 }}>Немає доступних знижок для цього рейсу</div>}
+              {discountOptions.filter(d => d.default !== 1 && String(d.id) !== '0').map(d => (
                 <button key={d.id} onClick={() => addPassenger(String(d.id))} style={{
                   width: '100%', padding: '10px 14px', background: '#fff', border: '1.5px solid #EEE',
                   borderRadius: 10, cursor: 'pointer', textAlign: 'left', marginBottom: 6,

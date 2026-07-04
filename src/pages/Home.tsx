@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import NotifPrompt from '../components/NotifPrompt'
 import { useNavigate } from 'react-router-dom'
 import { ArrowUpDown, MapPin, Navigation, Calendar, Users } from 'lucide-react'
 import { useSearchStore } from '../store'
@@ -257,6 +258,28 @@ function CityPicker({ open, onClose }: { open: boolean; onClose: () => void }) {
 }
 
 // ─── Home ─────────────────────────────────────────────────────────────────────
+const TAGLINES = ['Euroclub — твій надійний перевізник!', 'Ми знайдемо маршрут до вашого серця']
+
+function Typewriter() {
+  const [idx, setIdx] = useState(0)
+  const [text, setText] = useState('')
+  useEffect(() => {
+    const full = TAGLINES[idx]
+    let i = 0
+    const speed = Math.max(24, Math.floor(2000 / full.length)) // ~2с на друк
+    const typer = setInterval(() => {
+      i++
+      setText(full.slice(0, i))
+      if (i >= full.length) {
+        clearInterval(typer)
+        setTimeout(() => setIdx(p => (p + 1) % TAGLINES.length), 3000) // тримаємо ~3с → 5с на фразу
+      }
+    }, speed)
+    return () => clearInterval(typer)
+  }, [idx])
+  return <span>{text}<span style={{ opacity: 0.4, fontWeight: 400 }}>|</span></span>
+}
+
 export default function Home() {
   const nav = useNavigate()
   const { from, to, dateFrom, dateTo, isOpenReturn, passengerCount, setDateFrom, setDateTo, setOpenReturn, swap } = useSearchStore()
@@ -292,13 +315,6 @@ export default function Home() {
       {/* Hero */}
       <div style={{ width: '100%', position: 'relative', lineHeight: 0 }}>
         <img src="/bus-hero.png" alt="EuroClub — автобусні квитки Україна — Європа" style={{ width: '100%', height: 'auto', display: 'block' }} onError={e => { (e.target as HTMLImageElement).style.background = '#1B4F8A' }} />
-        {/* scrim для читабельності H1 */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '60%', background: 'linear-gradient(180deg, rgba(8,28,58,0.55) 0%, rgba(8,28,58,0.18) 55%, rgba(8,28,58,0) 100%)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px', pointerEvents: 'none' }}>
-          <h1 style={{ margin: 0, textAlign: 'center', color: '#fff', fontSize: 15, fontWeight: 800, lineHeight: 1.35, maxWidth: 260, WebkitTextStroke: '0.6px #000', textShadow: '0 1px 3px rgba(0,0,0,0.55)' }}>
-            Пошук квитків на автобус<br />по Україні та Європі
-          </h1>
-        </div>
       </div>
 
       {/* Search Card */}
@@ -390,9 +406,11 @@ export default function Home() {
         )}
       </div>
 
-      {/* Tagline */}
-      <div style={{ textAlign: 'center', marginTop: 28, padding: '0 24px', fontSize: 15, fontWeight: 600, color: '#8A8A8A' }}>
-        <span style={{ color: ORange, fontWeight: 800 }}>Euroclub</span> — твій надійний перевізник!
+      <NotifPrompt />
+
+      {/* Tagline (друкований, чергується) */}
+      <div style={{ textAlign: 'center', marginTop: 28, padding: '0 24px', fontSize: 15, fontWeight: 700, color: '#8A8A8A', minHeight: 22 }}>
+        <Typewriter />
       </div>
 
       <CityPicker open={showCity} onClose={() => setShowCity(false)} />

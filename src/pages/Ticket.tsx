@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Download } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
+import { isPaid } from '../orderStatus'
 
 const ORange = '#F5A623'
 const Navy = '#0B2E5E'
@@ -17,6 +18,18 @@ export default function Ticket() {
   const { orderHash, orderData, selectedTrip, selectedSeats, passengerNames } = useBookingStore()
   const trip = selectedTrip as any
   const data = orderData as any
+
+  // Квиток доступний лише після оплати
+  if (data?.status && !isPaid(data.status)) {
+    return (
+      <div style={{ minHeight: '100vh', background: Navy, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
+        <div style={{ fontSize: 44, marginBottom: 16 }}>🔒</div>
+        <div style={{ color: '#fff', fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Квиток ще недоступний</div>
+        <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, lineHeight: 1.5, marginBottom: 24, maxWidth: 300 }}>Квиток з'явиться одразу після оплати замовлення.</div>
+        <button onClick={() => nav('/payment')} style={{ padding: '14px 28px', background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>Перейти до оплати</button>
+      </div>
+    )
+  }
 
   const hash = orderHash || data?.hash || ''
   const suffix = platformSuffix()

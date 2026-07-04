@@ -1,4 +1,6 @@
 // Ключ API більше НЕ у фронтенді — його підставляє Cloudflare Worker із секрету EUROCLUB_KEY.
+import { currentUidKey } from '../authStore'
+
 const BASE = 'https://curly-voice-8a71.eclubbus21.workers.dev/v1/json'
 
 async function call(method: string, params: Record<string,string> = {}) {
@@ -23,6 +25,7 @@ export const restoreOrder = (hash: string) => call('order_restore', { hash })
 export const getOrderInfo = (hash: string) => call('order_info', { hash })
 
 export async function createOrder(params: Record<string,string>) {
+  if (!params.uidkey) params.uidkey = currentUidKey()
   const qs = new URLSearchParams(params).toString()
   const url = `${BASE}/order_new/?${qs}`
   console.log('[EuroClub API] → (order_new)', url)

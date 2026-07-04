@@ -12,6 +12,11 @@ import Ticket from './pages/Ticket'
 import MyTickets from './pages/MyTickets'
 import Profile from './pages/Profile'
 import Notifications from './pages/Notifications'
+import Auth from './pages/Auth'
+import Splash from './pages/Splash'
+import CookieBanner from './components/CookieBanner'
+import { useAuthStore } from './authStore'
+import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
 
 function AppRoutes() {
@@ -40,11 +45,30 @@ function AppRoutes() {
   )
 }
 
+const REQUIRE_LOGIN = true  // обов'язковий вхід; постав false, щоб дозволити користуватись без акаунта
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore(s => s.user)
+  if (REQUIRE_LOGIN && !user) return <Auth />
+  return <>{children}</>
+}
+
+function Root() {
+  const [splashDone, setSplashDone] = useState(false)
+  if (!splashDone) return <Splash onDone={() => setSplashDone(true)} />
+  return (
+    <AuthGate>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </AuthGate>
+  )
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <AppRoutes />
-    </BrowserRouter>
+    <Root />
+    <CookieBanner />
   </React.StrictMode>
 )
 
