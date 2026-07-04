@@ -48,17 +48,23 @@ export default function Payment() {
   const handlePay = async () => {
     if (!payUrl) return
     setPaying(true)
-    // APK: Custom Tab (Android) / Safari View (iOS) — накладене вікно поверх додатка.
+    // APK: WebView у рамці додатка (Cordova InAppBrowser)
+    const iab = (window as any).cordova?.InAppBrowser
+    if (iab?.open) {
+      const ref = iab.open(payUrl, '_blank', 'location=no,toolbar=yes,hidenavigationbuttons=yes,closebuttoncaption=Готово,toolbarcolor=#0A4684,closebuttoncolor=#ffffff,navigationbuttoncolor=#ffffff')
+      try { ref.addEventListener('exit', () => checkPaid()) } catch {}
+      return
+    }
+    // Фолбек (PWA / якщо плагіна нема): Custom Tab → нова вкладка
     try {
       let done = false
       const sub = await Browser.addListener('browserFinished', async () => {
         if (done) return; done = true
         try { await (sub as any).remove?.() } catch {}
-        await checkPaid()   // повернувся з оплати → перевіряємо статус
+        await checkPaid()
       })
       await Browser.open({ url: payUrl })
     } catch {
-      // PWA / фолбек: нова вкладка
       window.open(payUrl, '_blank')
     }
   }
