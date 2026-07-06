@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Download } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
-import { isPaid } from '../orderStatus'
+import { ticketAvailable, payInfo } from '../orderStatus'
 
 const ORange = '#F5A623'
 const Navy = '#0B2E5E'
@@ -18,9 +18,10 @@ export default function Ticket() {
   const { orderHash, orderData, selectedTrip, selectedSeats, passengerNames } = useBookingStore()
   const trip = selectedTrip as any
   const data = orderData as any
+  const hash = orderHash || data?.hash || ''
 
   // Квиток доступний лише після оплати
-  if (data?.status && !isPaid(data.status)) {
+  if (data && !ticketAvailable(data, hash)) {
     return (
       <div style={{ minHeight: '100vh', background: Navy, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
         <div style={{ fontSize: 44, marginBottom: 16 }}>🔒</div>
@@ -31,7 +32,6 @@ export default function Ticket() {
     )
   }
 
-  const hash = orderHash || data?.hash || ''
   const suffix = platformSuffix()
 
   // Номер замовлення = 000 + системний id з URL
@@ -129,6 +129,16 @@ export default function Ticket() {
             <span style={{ fontSize: 15, fontWeight: 700 }}>Разом</span>
             <span style={{ fontSize: 18, fontWeight: 800 }}>{data?.summ ?? data?.price ?? trip?.price} {currency}</span>
           </div>
+          {(() => { const pi = payInfo(data); return pi.remainder > 0 ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#E07B00' }}>Доплата</span>
+              <span style={{ fontSize: 16, fontWeight: 800, color: '#E07B00' }}>{pi.remainder} {currency}</span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#2E7D32' }}>Оплачено повністю</span>
+            </div>
+          ) })()}
         </div>
       </div>
 

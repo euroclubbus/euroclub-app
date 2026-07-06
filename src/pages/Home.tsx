@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import NotifPrompt from '../components/NotifPrompt'
+import SideMenu from '../components/SideMenu'
+import { Menu } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowUpDown, MapPin, Navigation, Calendar, Users } from 'lucide-react'
 import { useSearchStore } from '../store'
@@ -281,6 +283,7 @@ function Typewriter() {
 }
 
 export default function Home() {
+  const [menuOpen, setMenuOpen] = useState(false)
   const nav = useNavigate()
   const { from, to, dateFrom, dateTo, isOpenReturn, passengerCount, setDateFrom, setDateTo, setOpenReturn, swap } = useSearchStore()
   const [showCity, setShowCity] = useState(false)
@@ -405,6 +408,9 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      <button onClick={() => setMenuOpen(true)} aria-label="Меню" style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top) + 12px)', left: 14, zIndex: 20, width: 40, height: 40, borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Menu size={22} color="#fff" /></button>
+      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
 
       <NotifPrompt />
 

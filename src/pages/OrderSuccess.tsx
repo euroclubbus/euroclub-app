@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBookingStore } from '../store'
 import { cancelOrder, restoreOrder, getOrderInfo } from '../api/euroclub'
-import { isPaid, statusLabel } from '../orderStatus'
+import { ticketAvailable, statusLabel, payInfo, needsPolling, currencySign as curSign } from '../orderStatus'
+import { useOrderPolling } from '../useOrderPolling'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -57,6 +58,8 @@ export default function OrderSuccess() {
   const price = data?.price ?? trip?.price ?? 0
   const summ = data?.summ ?? price
   const passengers = data?.passangers || []
+
+  useOrderPolling(hash, needsPolling(data), (o) => setOrderResult(hash, o))
 
   const handleRefresh = async () => {
     if (!hash) return
@@ -120,6 +123,16 @@ export default function OrderSuccess() {
           {refreshedAt && !refreshing && <span style={{ color: Gray, fontWeight: 400 }}>· {refreshedAt}</span>}
         </button>
 
+        {(() => {
+          const st = statusLabel(data); const pi = payInfo(data)
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, padding: '5px 14px', borderRadius: 20, background: st.bg, color: st.color }}>{st.text}</span>
+              {pi.ticketReady && pi.remainder > 0 && <span style={{ fontSize: 13, color: '#E07B00', fontWeight: 600 }}>Доплата: {pi.remainder} {curSign(data)}</span>}
+            </div>
+          )
+        })()}
+
         {/* Trip card */}
         <div style={{ border: '1.5px solid #EEE', borderRadius: 16, padding: 16, marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, marginBottom: 10 }}>
@@ -177,7 +190,7 @@ export default function OrderSuccess() {
 
         {status === 'active' ? (
           <>
-            {isPaid(data?.status) ? (
+            {ticketAvailable(data, hash) ? (
               <button onClick={() => nav('/ticket')} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: 12 }}>
                 Показати квиток
               </button>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getLocalOrders, getOrderInfo } from '../api/euroclub'
 import { useBookingStore } from '../store'
-import { isPaid, statusLabel } from '../orderStatus'
+import { ticketAvailable, statusLabel, payInfo } from '../orderStatus'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -56,8 +56,8 @@ export default function MyTickets() {
           </div>
         )}
         {orders.map((o, i) => {
-          const st = statusLabel(o.status)
-          const paid = isPaid(o.status)
+          const st = statusLabel(o)
+          const paid = ticketAvailable(o, o.hash)
           const cur = (o.crc || 'uah').toLowerCase() === 'eur' ? '€' : '₴'
           return (
             <div key={i} style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
