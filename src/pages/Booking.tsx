@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Pencil, X, Plus } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
+import { useAuthStore } from '../authStore'
 import { createOrder, saveOrderLocally } from '../api/euroclub'
 import BottomSheet from '../components/BottomSheet'
 import SeatMap from './SeatMap'
@@ -43,11 +44,14 @@ export default function Booking() {
   // Real discounts come from the selected trip itself (trip.discounts), e.g. id 0 = full fare, 4 = senior, etc.
   const discountOptions: Array<{ id: number; default: number; name: string; discount: number; price: number }> = trip?.discounts || []
   // Повний тариф — першим у списку вибору категорії
-  const fullFare = discountOptions.find(d => d.default === 1 || String(d.id) === '0')
-  const orderedDiscounts = [ ...(fullFare ? [fullFare] : []), ...discountOptions.filter(d => d !== fullFare) ]
+  const isFull = (d: any) => d && (d.default === 1 || d.default === '1' || String(d.id) === '0')
+  const fullFare: any = discountOptions.find(isFull) || { id: 0, default: 1, name: 'Повний тариф', discount: 0, price: Number(trip?.price ?? 0) }
+  const orderedDiscounts = [ fullFare, ...discountOptions.filter(d => !isFull(d)) ]
   const catName = (d: any) => d.name && d.name.trim() ? d.name : 'Повний тариф'
   const [showDiscountFor, setShowDiscountFor] = useState<number | null>(null)
   const [showAddPicker, setShowAddPicker] = useState(false)
+  const { user } = useAuthStore()
+  useEffect(() => { if (user?.email && !contactEmail) setContact('email', user.email) }, [user])
 
   const removePassenger = (idx: number) => {
     if (totalPax <= 1) return
@@ -83,6 +87,7 @@ export default function Booking() {
     setAttempted(true)
     const missingName = Array.from({ length: totalPax }).some((_, i) => !passengerNames[i]?.trim())
     if (missingName) { setError("Заповніть прізвище та ім'я для всіх пасажирів (латиницею)"); return }
+    if (Number(trip?.place_select) === 1 && selectedSeats.filter((x: any) => x != null).length < totalPax) { setError('Оберіть місце для кожного пасажира'); return }
     if (!contactPhone.trim()) { setError('Вкажіть номер телефону'); return }
     setError('')
     setLoading(true)
