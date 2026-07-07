@@ -30,7 +30,7 @@ function calcDuration(depStr?: string, arrStr?: string): string {
 export default function Booking() {
   const nav = useNavigate()
   const { from, to, dateFrom, passengerCount, passengerCategories, addPassengerCategory, removePassengerCategoryAt } = useSearchStore()
-  const { selectedTrip, selectedSeats, passengerNames, passengerDiscounts, contactEmail, contactPhone, contactPhone2, promoCode, setSeats, setPassengerName, setPassengerDiscount, removePassengerDataAt, setContact, setPromo, setOrderResult } = useBookingStore()
+  const { selectedTrip, selectedSeats, passengerNames, passengerDiscounts, contactEmail, contactPhone, contactPhone2, setSeats, setPassengerName, setPassengerDiscount, removePassengerDataAt, setContact, setOrderResult } = useBookingStore()
   const [showSeats, setShowSeats] = useState(false)
   const [attempted, setAttempted] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -42,6 +42,10 @@ export default function Booking() {
   const totalPax = passengerCount
   // Real discounts come from the selected trip itself (trip.discounts), e.g. id 0 = full fare, 4 = senior, etc.
   const discountOptions: Array<{ id: number; default: number; name: string; discount: number; price: number }> = trip?.discounts || []
+  // Повний тариф — першим у списку вибору категорії
+  const fullFare = discountOptions.find(d => d.default === 1 || String(d.id) === '0')
+  const orderedDiscounts = [ ...(fullFare ? [fullFare] : []), ...discountOptions.filter(d => d !== fullFare) ]
+  const catName = (d: any) => d.name && d.name.trim() ? d.name : 'Повний тариф'
   const [showDiscountFor, setShowDiscountFor] = useState<number | null>(null)
   const [showAddPicker, setShowAddPicker] = useState(false)
 
@@ -52,14 +56,7 @@ export default function Booking() {
     if (showDiscountFor === idx) setShowDiscountFor(null)
   }
   const addPassenger = (catId: string) => { addPassengerCategory(catId); setShowAddPicker(false) }
-  const [promoTab, setPromoTab] = useState<'promo'|'cashback'>('promo')
-  const [promoMsg, setPromoMsg] = useState('')
 
-  const handleActivatePromo = () => {
-    if (!promoCode.trim()) return
-    // Заглушка — реальна перевірка буде через API
-    setPromoMsg('Промокод не активний або термін його дії закінчився')
-  }
 
   const defaultDiscount = discountOptions.find(d => d.default === 1) || discountOptions[0]
   const currencySign = (trip?.currency || 'uah').toLowerCase() === 'eur' ? '€' : '₴'
@@ -175,14 +172,14 @@ export default function Booking() {
                 {isEditing && discountOptions.length > 0 && (
                   <div style={{ background: '#F9F9F9', borderRadius: 12, padding: 12, marginBottom: 8 }}>
                     <div style={{ fontSize: 12, color: Gray, marginBottom: 8, fontWeight: 600 }}>Оберіть категорію:</div>
-                    {discountOptions.map(d => (
+                    {orderedDiscounts.map(d => (
                       <button key={d.id} onClick={() => { setPassengerDiscount(idx, String(d.id)); setShowDiscountFor(null) }} style={{
                         width: '100%', padding: '10px 14px', background: String(d.id) === currentDiscountId ? '#FFF3DC' : '#fff',
                         border: String(d.id) === currentDiscountId ? `1.5px solid ${ORange}` : '1.5px solid #EEE',
                         borderRadius: 10, cursor: 'pointer', textAlign: 'left', marginBottom: 6,
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                       }}>
-                        <span style={{ fontSize: 13, fontWeight: String(d.id) === currentDiscountId ? 700 : 400 }}>{d.name}</span>
+                        <span style={{ fontSize: 13, fontWeight: String(d.id) === currentDiscountId ? 700 : 400 }}>{catName(d)}</span>
                         <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{d.price} {currencySign}</span>
                       </button>
                     ))}
@@ -203,14 +200,14 @@ export default function Booking() {
                 <span style={{ fontSize: 12, color: Gray, fontWeight: 600 }}>Оберіть категорію пасажира:</span>
                 <button onClick={() => setShowAddPicker(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={16} color={Gray} /></button>
               </div>
-              {discountOptions.filter(d => d.default !== 1 && String(d.id) !== '0').length === 0 && <div style={{ fontSize: 13, color: Gray, padding: 8 }}>Немає доступних знижок для цього рейсу</div>}
-              {discountOptions.filter(d => d.default !== 1 && String(d.id) !== '0').map(d => (
+              {orderedDiscounts.length === 0 && <div style={{ fontSize: 13, color: Gray, padding: 8 }}>Немає доступних категорій для цього рейсу</div>}
+              {orderedDiscounts.map(d => (
                 <button key={d.id} onClick={() => addPassenger(String(d.id))} style={{
                   width: '100%', padding: '10px 14px', background: '#fff', border: '1.5px solid #EEE',
                   borderRadius: 10, cursor: 'pointer', textAlign: 'left', marginBottom: 6,
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                 }}>
-                  <span style={{ fontSize: 13 }}>{d.name}</span>
+                  <span style={{ fontSize: 13 }}>{catName(d)}</span>
                   <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{d.price} {currencySign}</span>
                 </button>
               ))}
@@ -247,35 +244,6 @@ export default function Booking() {
                 style={{ width: '100%', padding: '13px 16px', border: attempted && f.required && !f.val.trim() ? '1.5px solid #E53935' : '1.5px solid #EEE', borderRadius: 12, fontSize: 15, outline: 'none' }} />
             </div>
           ))}
-        </div>
-
-        {/* Promo */}
-        <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12 }}>
-          <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '2px solid #F5F5F5' }}>
-            {(['promo', 'cashback'] as const).map(tab => (
-              <button key={tab} onClick={() => { setPromoTab(tab); setPromoMsg('') }} style={{
-                flex: 1, padding: '10px 0', background: 'none', border: 'none',
-                borderBottom: promoTab === tab ? `2px solid ${ORange}` : '2px solid transparent',
-                marginBottom: -2, cursor: 'pointer',
-                fontWeight: 700, fontSize: 15, color: promoTab === tab ? ORange : Gray,
-              }}>{tab === 'promo' ? 'Промокод' : 'Cash back'}</button>
-            ))}
-          </div>
-          {promoTab === 'promo' && (
-            <>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <input value={promoCode} onChange={e => { setPromo(e.target.value); setPromoMsg('') }} placeholder="🎟 Введіть промокод"
-                  style={{ flex: 1, padding: '13px 16px', border: '1.5px solid #EEE', borderRadius: 12, fontSize: 15, outline: 'none' }} />
-                <button onClick={handleActivatePromo} style={{ padding: '13px 20px', background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer' }}>Активувати</button>
-              </div>
-              {promoMsg && <div style={{ marginTop: 10, fontSize: 13, color: '#E53935', padding: '10px 14px', background: '#FDECEA', borderRadius: 10 }}>{promoMsg}</div>}
-            </>
-          )}
-          {promoTab === 'cashback' && (
-            <div style={{ textAlign: 'center', color: Gray, fontSize: 14, padding: '12px 0' }}>
-              Cash back програма буде доступна найближчим часом
-            </div>
-          )}
         </div>
 
         {/* Trip summary */}
