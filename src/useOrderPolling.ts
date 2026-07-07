@@ -17,7 +17,7 @@ export function useOrderPolling(hash: string, active: boolean, onUpdate: (order:
       } catch {}
     }
     tick()
-    const timer = setInterval(tick, 3000)
+    const timer = setInterval(tick, 1500)
     const onVis = () => { if (document.visibilityState === 'visible') tick() }
     document.addEventListener('visibilitychange', onVis)
     return () => { stopped = true; clearInterval(timer); document.removeEventListener('visibilitychange', onVis) }
