@@ -15,7 +15,7 @@ export default function Payment() {
   const nav = useNavigate()
   const { orderData, orderHash, setOrderResult } = useBookingStore()
   const data = orderData as any
-  const payUrl = (isIOS ? data?.link2 : data?.link1) || ''
+  const payUrl = data?.link_liqpay || (isIOS ? data?.link2 : data?.link1) || ''
   const hash = orderHash || data?.hash || ''
   const [checking, setChecking] = useState(false)
   const browserRef = useRef<any>(null)
