@@ -1,0 +1,299 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ArrowLeft, Pencil, X, Plus } from 'lucide-react'
+import { useSearchStore, useBookingStore } from '../store'
+import { createOrder, saveOrderLocally } from '../api/euroclub'
+import BottomSheet from '../components/BottomSheet'
+import SeatMap from './SeatMap'
+
+const ORange = '#F5A623'
+const Gray = '#9E9E9E'
+
+// Calculate duration from real API "DD.MM.YYYY HH:mm" departure/arrival strings
+function calcDuration(depStr?: string, arrStr?: string): string {
+  if (!depStr || !arrStr) return ''
+  const parse = (s: string) => {
+    const [datePart, timePart] = s.split(' ')
+    const [d, m, y] = datePart.split('.').map(Number)
+    const [h, min] = (timePart || '00:00').split(':').map(Number)
+    return new Date(y, m - 1, d, h, min)
+  }
+  const dep = parse(depStr)
+  const arr = parse(arrStr)
+  const diffMin = Math.round((arr.getTime() - dep.getTime()) / 60000)
+  if (diffMin <= 0) return ''
+  const h = Math.floor(diffMin / 60)
+  const m = diffMin % 60
+  return m > 0 ? `${h}г ${m}хв` : `${h}г`
+}
+
+export default function Booking() {
+  const nav = useNavigate()
+  const { from, to, dateFrom, passengerCount, passengerCategories, addPassengerCategory, removePassengerCategoryAt } = useSearchStore()
+  const { selectedTrip, selectedSeats, passengerNames, passengerDiscounts, contactEmail, contactPhone, contactPhone2, setSeats, setPassengerName, setPassengerDiscount, removePassengerDataAt, setContact, setOrderResult } = useBookingStore()
+  const [showSeats, setShowSeats] = useState(false)
+  const [attempted, setAttempted] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const trip = selectedTrip as any
+  const dep = trip?.departure?.[0]
+  const arr = trip?.arrival?.[0]
+  const totalPax = passengerCount
+  // Real discounts come from the selected trip itself (trip.discounts), e.g. id 0 = full fare, 4 = senior, etc.
+  const discountOptions: Array<{ id: number; default: number; name: string; discount: number; price: number }> = trip?.discounts || []
+  // Повний тариф — першим у списку вибору категорії
+  const fullFare = discountOptions.find(d => d.default === 1 || String(d.id) === '0')
+  const orderedDiscounts = [ ...(fullFare ? [fullFare] : []), ...discountOptions.filter(d => d !== fullFare) ]
+  const catName = (d: any) => d.name && d.name.trim() ? d.name : 'Повний тариф'
+  const [showDiscountFor, setShowDiscountFor] = useState<number | null>(null)
+  const [showAddPicker, setShowAddPicker] = useState(false)
+
+  const removePassenger = (idx: number) => {
+    if (totalPax <= 1) return
+    removePassengerCategoryAt(idx)
+    removePassengerDataAt(idx)
+    if (showDiscountFor === idx) setShowDiscountFor(null)
+  }
+  const addPassenger = (catId: string) => { addPassengerCategory(catId); setShowAddPicker(false) }
+
+
+  const defaultDiscount = discountOptions.find(d => d.default === 1) || discountOptions[0]
+  const currencySign = (trip?.currency || 'uah').toLowerCase() === 'eur' ? '€' : '₴'
+
+  // Знижка пасажира: ручний вибір → категорія зі складу пошуку (якщо діє на рейсі) → повний тариф
+  const effectiveDiscountId = (idx: number) => {
+    if (passengerDiscounts[idx] != null) return String(passengerDiscounts[idx])
+    const catId = passengerCategories[idx]
+    if (catId && discountOptions.some(d => String(d.id) === String(catId))) return String(catId)
+    return String(defaultDiscount?.id ?? 0)
+  }
+
+  const getPassengerPrice = (idx: number) => {
+    const discountId = effectiveDiscountId(idx)
+    const opt = discountOptions.find(d => String(d.id) === discountId)
+    return opt?.price ?? Number(trip?.price ?? 0)
+  }
+
+  const subtotal = Array.from({ length: totalPax }, (_, i) => getPassengerPrice(i)).reduce((s, p) => s + p, 0)
+  const total = subtotal
+
+  const handleBook = async () => {
+    if (!trip || !from || !to) return
+    setAttempted(true)
+    const missingName = Array.from({ length: totalPax }).some((_, i) => !passengerNames[i]?.trim())
+    if (missingName) { setError("Заповніть прізвище та ім'я для всіх пасажирів (латиницею)"); return }
+    if (!contactPhone.trim()) { setError('Вкажіть номер телефону'); return }
+    setError('')
+    setLoading(true)
+    try {
+      const params: Record<string,string> = {
+        routes: String(trip.id),
+        from: String(from.id),
+        to: String(to.id),
+        crc: 'auto',
+        mainname: (passengerNames[0] || '').trim().toUpperCase() || 'PASSENGER',
+        phone: contactPhone.trim(),
+        email: contactEmail.trim() || '',
+      }
+      for (let i = 0; i < totalPax; i++) {
+        params[`name[${i}]`] = (passengerNames[i] || '').trim().toUpperCase()
+        params[`discount[${i}]`] = effectiveDiscountId(i)
+        if (selectedSeats[i] != null) params[`place[${i}]`] = String(selectedSeats[i])
+      }
+      const result = await createOrder(params)
+      // Усі дані замовлення огорнуті в orders[0]; беремо саме його
+      const order = result.orders?.[0] || result
+      const hash = order.hash || result.hash
+      if (hash) {
+        saveOrderLocally(hash, order)
+        setOrderResult(hash, order)
+        nav('/order-success')
+      } else {
+        setError('Помилка бронювання: ' + (result.error_message || `код помилки ${result.error}`))
+      }
+    } catch {
+      setError('Помилка мережі. Перевірте з\'єднання і спробуйте ще раз.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#1A1A1A', paddingBottom: 20 }}>
+      <div style={{ position: 'relative', overflow: 'hidden' }}>
+        <img src="/bus-hero.png" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(7px) brightness(0.7)', transform: 'scale(1.1)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,28,58,0.45)' }} />
+        <div style={{ position: 'relative', padding: 'calc(env(safe-area-inset-top) + 22px) 16px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={() => nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            <ArrowLeft size={24} color="#fff" />
+          </button>
+          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Бронювання</span>
+        </div>
+      </div>
+
+      <div style={{ background: '#F5F5F5', minHeight: 'calc(100vh - 60px)', padding: '16px 16px 40px' }}>
+        {/* Passengers */}
+        <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 14 }}>Пасажири</div>
+          {Array.from({ length: totalPax }, (_, idx) => {
+            const currentDiscountId = effectiveDiscountId(idx)
+            const currentDiscount = discountOptions.find(d => String(d.id) === currentDiscountId)
+            const isEditing = showDiscountFor === idx
+            return (
+              <div key={idx} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: idx < totalPax - 1 ? '1px solid #F5F5F5' : 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontWeight: 700, fontSize: 14 }}>Пасажир {idx + 1}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <button onClick={() => setShowDiscountFor(isEditing ? null : idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isEditing ? ORange : Gray, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Pencil size={15} color={isEditing ? ORange : Gray} />
+                      <span style={{ fontSize: 12, color: isEditing ? ORange : Gray }}>Знижка</span>
+                    </button>
+                    {totalPax > 1 && (
+                      <button onClick={() => removePassenger(idx)} aria-label="Видалити пасажира" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <X size={17} color="#C4C4C4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <input
+                  placeholder="Прізвище та ім'я латиницею (IVANOV IVAN)"
+                  value={passengerNames[idx] || ''}
+                  onChange={e => setPassengerName(idx, e.target.value)}
+                  style={{ width: '100%', padding: '12px 14px', border: attempted && !passengerNames[idx]?.trim() ? '1.5px solid #E53935' : '1.5px solid #EEE', borderRadius: 12, fontSize: 14, outline: 'none', marginBottom: 8 }}
+                />
+                {/* Поточна знижка */}
+                {currentDiscount && !isEditing && (
+                  <div style={{ fontSize: 13, color: Gray, marginBottom: 4 }}>
+                    {currentDiscount.name} — <strong>{currentDiscount.price} {currencySign}</strong>
+                  </div>
+                )}
+                {/* Редагування знижки */}
+                {isEditing && discountOptions.length > 0 && (
+                  <div style={{ background: '#F9F9F9', borderRadius: 12, padding: 12, marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, color: Gray, marginBottom: 8, fontWeight: 600 }}>Оберіть категорію:</div>
+                    {orderedDiscounts.map(d => (
+                      <button key={d.id} onClick={() => { setPassengerDiscount(idx, String(d.id)); setShowDiscountFor(null) }} style={{
+                        width: '100%', padding: '10px 14px', background: String(d.id) === currentDiscountId ? '#FFF3DC' : '#fff',
+                        border: String(d.id) === currentDiscountId ? `1.5px solid ${ORange}` : '1.5px solid #EEE',
+                        borderRadius: 10, cursor: 'pointer', textAlign: 'left', marginBottom: 6,
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                      }}>
+                        <span style={{ fontSize: 13, fontWeight: String(d.id) === currentDiscountId ? 700 : 400 }}>{catName(d)}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{d.price} {currencySign}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+          {/* Додати пасажира */}
+          {!showAddPicker ? (
+            <button onClick={() => setShowAddPicker(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 0', marginTop: 4, background: '#FFF7EC', border: `1.5px dashed ${ORange}`, borderRadius: 12, color: ORange, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+              <Plus size={17} /> Додати пасажира
+            </button>
+          ) : (
+            <div style={{ background: '#F9F9F9', borderRadius: 12, padding: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: 12, color: Gray, fontWeight: 600 }}>Оберіть категорію пасажира:</span>
+                <button onClick={() => setShowAddPicker(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={16} color={Gray} /></button>
+              </div>
+              {orderedDiscounts.length === 0 && <div style={{ fontSize: 13, color: Gray, padding: 8 }}>Немає доступних категорій для цього рейсу</div>}
+              {orderedDiscounts.map(d => (
+                <button key={d.id} onClick={() => addPassenger(String(d.id))} style={{
+                  width: '100%', padding: '10px 14px', background: '#fff', border: '1.5px solid #EEE',
+                  borderRadius: 10, cursor: 'pointer', textAlign: 'left', marginBottom: 6,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: 13 }}>{catName(d)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{d.price} {currencySign}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Seat selection — only show if place_select === 1 */}
+        {Number(trip?.place_select) === 1 && (
+        <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Бронювання місця</div>
+          <button onClick={() => setShowSeats(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1.5px solid #EEE', cursor: 'pointer' }}>
+            <span style={{ fontSize: 20 }}>💺</span>
+            <div style={{ flex: 1, textAlign: 'left' }}>
+              <div style={{ fontWeight: 600, fontSize: 15 }}>{selectedSeats.length > 0 ? `Місця: ${selectedSeats.join(', ')}` : 'Виберіть місце'}</div>
+              <div style={{ color: Gray, fontSize: 12 }}>Перейти до вибору місця</div>
+            </div>
+            <span style={{ color: Gray }}>›</span>
+          </button>
+        </div>
+        )}
+
+        {/* Contacts */}
+        <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Дані платника</div>
+          {[
+            { label: 'Адреса ел. пошти', val: contactEmail, set: (v: string) => setContact('email', v), placeholder: 'your@email.com', required: false },
+            { label: 'Номер телефону', val: contactPhone, set: (v: string) => setContact('phone', v), placeholder: '+380...', required: true },
+            { label: 'Додатковий номер телефону', val: contactPhone2, set: (v: string) => setContact('phone2', v), placeholder: '+380...', required: false },
+          ].map((f, i) => (
+            <div key={i} style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, color: Gray, display: 'block', marginBottom: 6 }}>{f.label}</label>
+              <input value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.placeholder}
+                style={{ width: '100%', padding: '13px 16px', border: attempted && f.required && !f.val.trim() ? '1.5px solid #E53935' : '1.5px solid #EEE', borderRadius: 12, fontSize: 15, outline: 'none' }} />
+            </div>
+          ))}
+        </div>
+
+        {/* Trip summary */}
+        <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Ваше бронювання</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, marginBottom: 6 }}>
+            <span>{dep?.time?.split(' ')[0]} → {arr?.time?.split(' ')[0]}</span>
+            <span>⏱ {calcDuration(dep?.time, arr?.time)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 22 }}>{dep?.time?.split(' ')[1]}</div>
+              <div style={{ fontSize: 13 }}>{dep?.city}</div>
+              <div style={{ fontSize: 11, color: Gray }}>{dep?.name}</div>
+            </div>
+            <span style={{ fontSize: 24 }}>🚌</span>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: 800, fontSize: 22 }}>{arr?.time?.split(' ')[1]}</div>
+              <div style={{ fontSize: 13 }}>{arr?.city}</div>
+              <div style={{ fontSize: 11, color: Gray }}>{arr?.name}</div>
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 18, marginBottom: 8 }}>
+              <span>Усього</span>
+              <span>{total} {currencySign}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: Gray, fontSize: 14 }}>
+              <span>{totalPax} {totalPax === 1 ? 'пасажир' : 'пасажири'}</span>
+              <span>{subtotal} {currencySign}</span>
+            </div>
+          </div>
+        </div>
+
+        {error && (
+          <div style={{ background: '#FDECEA', color: '#C62828', borderRadius: 12, padding: 14, marginBottom: 16, fontSize: 14 }}>{error}</div>
+        )}
+
+        <button onClick={handleBook} disabled={loading} style={{
+          width: '100%', padding: 18, background: ORange, color: '#fff',
+          border: 'none', borderRadius: 14, fontWeight: 800, fontSize: 17,
+          cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1
+        }}>{loading ? 'Бронюємо...' : 'Забронювати'}</button>
+      </div>
+
+      {/* Seat Map */}
+      {showSeats && (
+        <SeatMap trip={trip} totalPax={totalPax} totalPrice={subtotal} currencySign={currencySign} onClose={() => setShowSeats(false)}
+          onConfirm={(seats: number[]) => { setSeats(seats); setShowSeats(false) }} />
+      )}
+    </div>
+  )
+}
