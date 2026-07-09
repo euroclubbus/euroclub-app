@@ -86,7 +86,7 @@ function computeGroupPrice(trip: any, cats: string[]) {
 }
 
 // ─── Trip Card ─────────────────────────────────────────────────────────────
-function TripCard({ trip, cats, onInfo, onBook, roundTripPrice, hidePrice }: { trip: any; cats: string[]; onInfo: () => void; onBook: () => void; roundTripPrice?: number | null; hidePrice?: boolean }) {
+function TripCard({ trip, cats, onBook, roundTripPrice, hidePrice, bookLabel }: { trip: any; cats: string[]; onBook: () => void; roundTripPrice?: number | null; hidePrice?: boolean; bookLabel: string }) {
   const dep = trip.departure?.[0]
   const arr = trip.arrival?.[0]
   const depDT = splitDateTime(dep?.time)
@@ -164,99 +164,15 @@ function TripCard({ trip, cats, onInfo, onBook, roundTripPrice, hidePrice }: { t
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-        <button onClick={onInfo} style={{ flex: 1, padding: '12px 0', background: 'none', border: `2px solid ${ORange}`, borderRadius: 12, color: ORange, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-          Інформація про рейс
-        </button>
-        <button onClick={onBook} style={{ flex: 1, padding: '12px 0', background: ORange, border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-          Бронювання
+      <div style={{ marginTop: 14 }}>
+        <button onClick={onBook} style={{ width: '100%', padding: '12px 0', background: ORange, border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+          {bookLabel}
         </button>
       </div>
     </div>
   )
 }
 
-// ─── Trip Info Sheet ───────────────────────────────────────────────────────
-function TripInfoSheet({ open, onClose, trip, onBook }: any) {
-  if (!trip) return null
-  const dep = trip.departure?.[0]
-  const arr = trip.arrival?.[0]
-  const depDT = splitDateTime(dep?.time)
-  const arrDT = splitDateTime(arr?.time)
-  const stops = trip.stopping || []
-  const hasTransfer = Number(trip.transfer) === 1
-  const duration = calcDuration(dep?.time, arr?.time)
-
-  type Row = { type: 'dep'|'arr'|'stop'|'transfer'; city: string; addr: string; time: string }
-  const rows: Row[] = [
-    { type: 'dep', city: dep?.city_ua || dep?.city || '', addr: dep?.name || '', time: depDT.time },
-    ...stops.map((s: any): Row => ({
-      type: Number(s.transfer) === 1 ? 'transfer' : 'stop',
-      city: s.city_ua || s.city || '',
-      addr: s.name || '',
-      time: splitDateTime(s.time_out || s.time_in).time,
-    })),
-    { type: 'arr', city: arr?.city_ua || arr?.city || '', addr: arr?.name || '', time: arrDT.time },
-  ]
-
-  const Rail = ({ row, first, last }: { row: Row; first: boolean; last: boolean }) => (
-    <div style={{ position: 'relative', width: 28, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
-      <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: first ? '11px' : 0, bottom: last ? 'calc(100% - 11px)' : 0, borderLeft: '2px dashed #E0E0E0' }} />
-      <div style={{ position: 'relative', zIndex: 1, marginTop: 3 }}>
-        {row.type === 'transfer' ? (
-          <span style={{ display: 'flex', alignItems: 'center' }}><Bus size={15} color={ORange} /><AlertTriangle size={11} color={ORange} /></span>
-        ) : row.type === 'stop' ? (
-          <div style={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid #CFCFCF', background: '#fff' }} />
-        ) : (
-          <div style={{ width: 11, height: 11, borderRadius: '50%', background: ORange }} />
-        )}
-      </div>
-    </div>
-  )
-
-  return (
-    <BottomSheet open={open} onClose={onClose}>
-      <div style={{ padding: '12px 20px 28px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700 }}>{fmtShortDate(depDT.date)} → {fmtShortDate(arrDT.date)}</div>
-            {duration && <div style={{ fontSize: 13, color: Gray, display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}><Clock size={13} /> В дорозі {duration}</div>}
-          </div>
-          <button onClick={onClose} aria-label="Закрити" style={{ background: 'none', border: 'none', color: Gray, fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>✕</button>
-        </div>
-
-        {rows.map((row, i) => {
-          const first = i === 0, last = i === rows.length - 1
-          const showTime = row.type === 'dep' || row.type === 'arr'
-          return (
-            <div key={i} style={{ display: 'flex', gap: 12, minHeight: 58 }}>
-              <Rail row={row} first={first} last={last} />
-              <div style={{ flex: 1, paddingBottom: 14 }}>
-                {row.type === 'transfer' && <div style={{ color: ORange, fontSize: 14, fontWeight: 700, marginBottom: 1 }}>Пересадка: <span style={{ color: '#1A1A1A' }}>{row.city}</span></div>}
-                {row.type !== 'transfer' && <div style={{ fontSize: 15, fontWeight: 700, color: '#1A1A1A' }}>{row.city}</div>}
-                <div style={{ fontSize: 13, color: Gray, lineHeight: 1.35, marginTop: 1 }}>{row.addr}</div>
-              </div>
-              {showTime && <div style={{ fontSize: 16, fontWeight: 700, color: '#1A1A1A', paddingTop: 2 }}>{row.time}</div>}
-            </div>
-          )
-        })}
-
-        <div style={{ display: 'flex', gap: 10, marginTop: 8, paddingTop: 16, borderTop: '1px solid #F0F0F0', alignItems: 'center' }}>
-          {trip.option?.includes('WiFi') && <Wifi size={16} color={Gray} />}
-          {trip.option?.includes('USB розетки') && <Zap size={16} color={Gray} />}
-          <Bus size={16} color={Gray} />
-          <span style={{ fontSize: 13, color: Gray }}>{hasTransfer ? 'Пересадка' : 'Прямий'}</span>
-        </div>
-
-        <button onClick={onBook} style={{ width: '100%', padding: 18, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 800, fontSize: 17, cursor: 'pointer', marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          Продовжити <span>›</span>
-        </button>
-      </div>
-    </BottomSheet>
-  )
-}
-
-// ─── Date Strip (стрілки, активна дата — повний місяць) ──────────────────────
 function DateStrip({ dates, activeDate, onPick, onPrev, onNext }: {
   dates: string[]; activeDate: string; onPick: (d: string) => void; onPrev: () => void; onNext: () => void
 }) {
@@ -324,7 +240,6 @@ export default function Results() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [noRoute, setNoRoute] = useState(false)
-  const [infoTrip, setInfoTrip] = useState<any>(null)
   const [stripStart, setStripStart] = useState(0)
   const [nearest, setNearest] = useState<{ date: string; trips: any[] } | null>(null)
   const [searchingNearest, setSearchingNearest] = useState(false)
@@ -387,8 +302,9 @@ export default function Results() {
     setActiveDate(nearest.date)
   }
 
-  // Вибір рейсу: якщо замовлення в два боки і ми ще на етапі "туди" — переходимо до пошуку "назад",
-  // інакше (одна поїздка, або вже обрали "назад") — одразу в бронювання.
+  // Вибір рейсу: якщо замовлення в два боки і ми ще на етапі "туди" — переходимо до пошуку "назад".
+  // Коли обрано і "назад" — на сторінку підсумку з обома рейсами (звідти вже в бронювання).
+  // Один напрямок (без round trip) — одразу в бронювання.
   const selectTrip = (trip: any) => {
     if (leg === 'out') {
       setTrip(trip)
@@ -396,7 +312,7 @@ export default function Results() {
       nav('/booking')
     } else {
       setTrip2(trip)
-      nav('/booking')
+      nav('/round-trip-summary')
     }
   }
 
@@ -520,19 +436,17 @@ export default function Results() {
           const cardTwoWay = (isRoundTrip && leg === 'out' && from && to)
             ? findTwoWayPrice(from.id, to.id, direction, computeGroupPrice(trip, passengerCategories).total)?.price ?? null
             : null
+          const bookLabel = isRoundTrip ? (leg === 'out' ? 'Обрати рейс 1' : 'Обрати рейс 2') : 'Бронювання'
           return (
             <TripCard key={trip.id || i} trip={trip} cats={passengerCategories}
-              onInfo={() => setInfoTrip(trip)}
               onBook={() => selectTrip(trip)}
               roundTripPrice={leg === 'out' ? cardTwoWay : null}
               hidePrice={leg === 'return'}
+              bookLabel={bookLabel}
             />
           )
         })}
       </div>
-
-      <TripInfoSheet open={!!infoTrip} onClose={() => setInfoTrip(null)} trip={infoTrip}
-        onBook={() => { selectTrip(infoTrip); setInfoTrip(null) }} />
     </div>
   )
 }

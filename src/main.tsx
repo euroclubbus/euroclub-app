@@ -6,6 +6,7 @@ import InstallPrompt from './components/InstallPrompt'
 import Home from './pages/Home'
 import Results from './pages/Results'
 import Booking from './pages/Booking'
+import RoundTripSummary from './pages/RoundTripSummary'
 import OrderSuccess from './pages/OrderSuccess'
 import Payment from './pages/Payment'
 import Ticket from './pages/Ticket'
@@ -35,6 +36,7 @@ function AppRoutes() {
           <Route path="/" element={<Home />} />
           <Route path="/results" element={<Results />} />
           <Route path="/booking" element={<Booking />} />
+          <Route path="/round-trip-summary" element={<RoundTripSummary />} />
           <Route path="/order-success" element={<OrderSuccess />} />
           <Route path="/payment" element={<Payment />} />
           <Route path="/ticket" element={<Ticket />} />
