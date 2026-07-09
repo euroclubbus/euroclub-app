@@ -180,7 +180,7 @@ export default function SeatMap({ trip, totalPax, onClose, onConfirm, totalPrice
       <div style={{ marginTop: -18, background: '#fff', borderRadius: '20px 20px 0 0', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 16px' }}>
           {/* Кермо (водій) */}
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 12 }}>
             <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#EDEDED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#8A8A8A" strokeWidth="1.6" strokeLinecap="round">
                 <circle cx="12" cy="12" r="9" />
@@ -190,6 +190,12 @@ export default function SeatMap({ trip, totalPax, onClose, onConfirm, totalPrice
                 <line x1="19.7" y1="16.6" x2="14.1" y2="13.3" />
               </svg>
             </div>
+          </div>
+
+          {/* Попередження: перший ряд (місця 1-4) заборонений дітям і тваринам */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: '#FFF9EF', borderRadius: 10, padding: '8px 10px', marginBottom: 14, fontSize: 11, lineHeight: 1.4, color: '#7A5A16' }}>
+            <span style={{ fontSize: 13 }}>⚠️</span>
+            <span>Місця 1–4 (перший ряд) — згідно з законодавством заборонено дітям до 16 років та пасажирам з тваринами.</span>
           </div>
 
           {/* Сітка місць */}

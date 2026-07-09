@@ -112,6 +112,16 @@ export default function Booking() {
   const fallbackTotal = subtotal + (trip2 ? convert(subtotal2, trip2?.currency, /eur/i.test(trip?.currency) ? 'EUR' : 'UAH') : 0)
   const total = isRoundTrip ? (twoWay?.price ?? fallbackTotal) : subtotal
 
+  // Категорія "тварина" вже є в каталозі знижок з API (не вигадуємо нову) —
+  // визначаємо чи вона обрана хоч у когось з пасажирів, щоб показати додатковий чекбокс.
+  const hasAnimalPax = Array.from({ length: totalPax }, (_, i) => effectiveDiscountId(i)).some(discountId => {
+    const opt = orderedDiscounts.find(d => String(d.id) === discountId) || discountOptions2.find((d: any) => String(d.id) === discountId)
+    return opt && /тварин/i.test(catName(opt))
+  })
+  const [consentPrivacy, setConsentPrivacy] = useState(false)
+  const [consentTerms, setConsentTerms] = useState(false)
+  const [consentAnimal, setConsentAnimal] = useState(false)
+
   const handleBook = async () => {
     if (!trip || !from || !to) return
     setAttempted(true)
@@ -120,6 +130,8 @@ export default function Booking() {
     if (Number(trip?.place_select) === 1 && selectedSeats.filter((x: any) => x != null).length < totalPax) { setError('Оберіть місце для рейсу туди для кожного пасажира'); return }
     if (isRoundTrip && Number(trip2?.place_select) === 1 && selectedSeats2.filter((x: any) => x != null).length < totalPax) { setError('Оберіть місце для рейсу назад для кожного пасажира'); return }
     if (!contactPhone.trim()) { setError('Вкажіть номер телефону'); return }
+    if (!consentPrivacy || !consentTerms) { setError('Потрібно погодитись з обробкою даних і умовами перевезення'); return }
+    if (hasAnimalPax && !consentAnimal) { setError('Потрібно підтвердити умови перевезення тварини'); return }
     setError('')
     setLoading(true)
     try {
@@ -366,6 +378,40 @@ export default function Booking() {
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Згоди */}
+        <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 16, fontSize: 13, lineHeight: 1.5 }}>
+          <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', marginBottom: 14 }}>
+            <input type="checkbox" checked={consentPrivacy} onChange={e => setConsentPrivacy(e.target.checked)} style={{ marginTop: 2, width: 18, height: 18, flexShrink: 0, accentColor: ORange }} />
+            <span>
+              Я даю свою <span onClick={(e) => { e.preventDefault(); nav('/agreement-privacy') }} style={{ color: ORange, fontWeight: 600, textDecoration: 'underline' }}>згоду</span> на обробку та використання моїх персональних даних для бронювання і покупки квитків на цьому сайті.<span style={{ color: '#E53935' }}>*</span>
+            </span>
+          </label>
+
+          <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
+            <input type="checkbox" checked={consentTerms} onChange={e => setConsentTerms(e.target.checked)} style={{ marginTop: 2, width: 18, height: 18, flexShrink: 0, accentColor: ORange }} />
+            <span>
+              Я ознайомлений та згоден з умовами оплати, повернення квитків і надання послуг, а також з Публічною Офертою та умовами{' '}
+              <span onClick={(e) => { e.preventDefault(); nav('/agreement-contract') }} style={{ color: ORange, fontWeight: 600, textDecoration: 'underline' }}>Договору перевезення</span> компанії «Євроклуб».<span style={{ color: '#E53935' }}>*</span>
+              <div style={{ marginTop: 6, color: Gray, fontSize: 12, lineHeight: 1.5 }}>
+                Пасажир зобов'язується самостійно уточнити інформацію для поїздки: документи, вакцинація, чинні обмеження — щоб переконатись у можливості в'їзду/виїзду. Компанія не відповідає за документи пасажира і зняття пасажира на кордоні.
+              </div>
+              <div style={{ marginTop: 6, color: '#C0392B', fontSize: 12, lineHeight: 1.5 }}>
+                ⚠ На кордоні можливі затримки, що не залежать від перевізника — плануйте поїздку з урахуванням цього фактора.
+              </div>
+              <div style={{ marginTop: 4, color: '#2E7D32', fontSize: 12, lineHeight: 1.5 }}>
+                Якщо Ви маєте статус біженця або легальне проживання в Європі — туристичне страхування не потрібне.
+              </div>
+            </span>
+          </label>
+
+          {hasAnimalPax && (
+            <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', marginTop: 14, paddingTop: 14, borderTop: '1px solid #F0F0F0' }}>
+              <input type="checkbox" checked={consentAnimal} onChange={e => setConsentAnimal(e.target.checked)} style={{ marginTop: 2, width: 18, height: 18, flexShrink: 0, accentColor: ORange }} />
+              <span>Я підтверджую, що тварина до 20 кг, та погоджуюсь з умовами перевезення тварин компанії «Євроклуб».<span style={{ color: '#E53935' }}>*</span></span>
+            </label>
+          )}
         </div>
 
         {error && (
