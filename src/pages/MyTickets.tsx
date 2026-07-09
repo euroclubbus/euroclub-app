@@ -21,7 +21,13 @@ export default function MyTickets() {
 
     getUserOrders()
       .then((res: any) => {
-        const remote = res.orders || []
+        // Формат відповіді user-orders ще не підтверджений на реальних даних —
+        // пробуємо кілька варіантів обгортки, щоб не впасти в порожній список даремно.
+        const remote = Array.isArray(res) ? res
+          : Array.isArray(res?.orders) ? res.orders
+          : Array.isArray(res?.data) ? res.data
+          : Array.isArray(res?.list) ? res.list
+          : []
         // Дедуп по hash: серверні дані пріоритетні (свіжіші), локальні лишаються для того, чого сервер ще не бачить
         const byHash: Record<string, any> = {}
         for (const o of Object.values(local)) if ((o as any).hash) byHash[(o as any).hash] = o
