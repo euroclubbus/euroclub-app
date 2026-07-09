@@ -107,9 +107,10 @@ function PassengersSheet({ open, onClose }: { open: boolean; onClose: () => void
       const arr = Array.isArray(raw) ? raw : Object.values(raw)
       const clean = arr.filter((d: any) => d && d.id !== undefined && d.name)
       const isFull = (d: any) => d.default === 1 || d.default === '1' || String(d.id) === '0'
-      clean.sort((a: any, b: any) => Number(isFull(b)) - Number(isFull(a)))
-      setCats(clean)
-    }).catch(() => setCats([]))
+      const fullFare = clean.find(isFull) || { id: 0, default: 1, name: 'Повний тариф' }
+      const rest = clean.filter((d: any) => !isFull(d))
+      setCats([fullFare, ...rest])
+    }).catch(() => setCats([{ id: 0, default: 1, name: 'Повний тариф' }]))
   }, [open])
 
   // Насіння: якщо склад порожній — 1 пасажир категорії за замовчуванням
