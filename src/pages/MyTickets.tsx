@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getLocalOrders, saveOrderLocally } from '../api/euroclub'
+import { getLocalOrders, saveOrderLocally, getOrderInfo } from '../api/euroclub'
 import { getUserOrders } from '../api/auth'
 import { useBookingStore } from '../store'
-import { ticketAvailable, statusLabel, payInfo } from '../orderStatus'
+import { ticketAvailable, statusLabel, payInfo, isCancelled } from '../orderStatus'
 import { useDisplayPrice } from '../currency'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
+function num(v: any): number { const n = parseFloat(String(v ?? '').replace(',', '.').trim()); return isNaN(n) ? 0 : n }
 
 export default function MyTickets() {
   const nav = useNavigate()
@@ -20,7 +21,7 @@ export default function MyTickets() {
     const local = getLocalOrders()
 
     getUserOrders()
-      .then((res: any) => {
+      .then(async (res: any) => {
         // Формат відповіді user-orders ще не підтверджений на реальних даних —
         // пробуємо кілька варіантів обгортки, щоб не впасти в порожній список даремно.
         const remote = Array.isArray(res) ? res
@@ -28,12 +29,31 @@ export default function MyTickets() {
           : Array.isArray(res?.data) ? res.data
           : Array.isArray(res?.list) ? res.list
           : []
-        // Дедуп по hash: серверні дані пріоритетні (свіжіші), локальні лишаються для того, чого сервер ще не бачить
+        // Дедуп по hash: зливаємо поля, а не замінюємо повністю — user-orders (список)
+        // може не містити pay_uah/pay_eur (це віддає лише order_info по конкретному hash),
+        // тож локально закешовані повні дані (звідки summ/pay_* вже відомі) не мають загубитись.
         const byHash: Record<string, any> = {}
-        for (const o of Object.values(local)) if ((o as any).hash) byHash[(o as any).hash] = o
-        for (const o of remote) if (o.hash) byHash[o.hash] = o
+        for (const o of Object.values(local)) if ((o as any).hash) byHash[(o as any).hash] = { ...(o as any) }
+        for (const o of remote) if (o.hash) byHash[o.hash] = { ...(byHash[o.hash] || {}), ...o }
 
-        const merged = Object.values(byHash)
+        let merged = Object.values(byHash)
+
+        // Страховка: якщо у замовлення активний статус, але жодних ознак оплати
+        // (ні з user-orders, ні з локального кешу) — точно звіряємо по order_info,
+        // бо user-orders міг просто не віддати pay_uah/pay_eur в списку.
+        const suspicious = merged.filter((o: any) =>
+          !isCancelled(o) && !num(o?.pay_uah) && !num(o?.pay_eur) && o?.hash
+        )
+        if (suspicious.length > 0) {
+          const fresh = await Promise.all(
+            suspicious.map((o: any) => getOrderInfo(o.hash).then((r: any) => r.orders?.[0] || r).catch(() => null))
+          )
+          fresh.forEach((f: any, i: number) => {
+            if (f) byHash[suspicious[i].hash] = { ...byHash[suspicious[i].hash], ...f }
+          })
+          merged = Object.values(byHash)
+        }
+
         merged.forEach((o: any) => saveOrderLocally(o.hash, o)) // кешуємо серверні дані локально
         merged.sort((a: any, b: any) => parseOrderDate(b.ftime) - parseOrderDate(a.ftime))
         setOrders(merged)
