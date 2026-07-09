@@ -1,8 +1,13 @@
 // Розрахунок ціни "в два боки" для замовлень з route2 (незадокументоване поле "price").
 // Бекенд/API повертає лише ціну "в один бік" (актуальну, живу).
 // Ціни "в два боки" беремо зі статичних шаблонів (Alt_1..4), знаходячи шаблон,
-// де ціна "в один бік" (EUR1/UAH1) для цього ж route id найближча до живої ціни з API,
+// де ціна "в один бік" (EUR1/UAH1) для цієї ж пари міст найближча до живої ціни з API,
 // і з нього беремо EUR2/UAH2.
+//
+// Зіставлення робимо по id міст відправлення/прибуття (cMin/cMax у шаблоні == from.id/to.id
+// з нашого пошуку — підтверджено звіркою з довідником /cities/: cMin=1 (Київ), cMax=3 (Ульм) і т.д.)
+// РАНІШЕ помилково зіставляли по колонці "Id" з xlsx — це виявився просто номер рядка
+// в таблиці, а не id рейсу з бекенду, тому збігів не було ніколи. Виправлено.
 //
 // TODO: тимчасове рішення. Коли прогер додасть офіційний метод розрахунку 2-way ціни
 // в API — цей файл прибрати, брати ціну напряму з відповіді.
@@ -10,7 +15,7 @@
 import templatesJson from './data/priceTemplates.json'
 
 interface TemplateRow { eur1: number | null; eur2: number | null; uah1: number | null; uah2: number | null }
-type Templates = Record<string, Record<string, TemplateRow>> // назва шаблону -> route id -> рядок
+type Templates = Record<string, Record<string, TemplateRow>> // назва шаблону -> "fromId-toId" -> рядок
 
 const templates = templatesJson as unknown as Templates
 
@@ -24,16 +29,18 @@ export interface TwoWayResult {
 
 /**
  * Знайти ціну "в два боки" для конкретного рейсу.
- * @param routeId   id рейсу (те саме, що приходить з API/route1)
- * @param direction напрямок першого відрізка: 'ua' (з України, ціна в UAH) або 'eu' (з Європи, ціна в EUR)
+ * @param fromCityId   id міста відправлення (from.id з нашого пошуку)
+ * @param toCityId     id міста призначення (to.id з нашого пошуку)
+ * @param direction    напрямок першого відрізка: 'ua' (з України, ціна в UAH) або 'eu' (з Європи, ціна в EUR)
  * @param liveOneWayPrice жива ціна "в один бік" з API (order_new/order_info) для цього рейсу
  */
 export function findTwoWayPrice(
-  routeId: string | number,
+  fromCityId: string | number,
+  toCityId: string | number,
   direction: Direction,
   liveOneWayPrice: number
 ): TwoWayResult | null {
-  const id = String(routeId)
+  const key = `${fromCityId}-${toCityId}`
   const field1 = direction === 'ua' ? 'uah1' : 'eur1'
   const field2 = direction === 'ua' ? 'uah2' : 'eur2'
 
@@ -41,7 +48,7 @@ export function findTwoWayPrice(
   let bestDiff = Infinity
 
   for (const tplName of Object.keys(templates)) {
-    const row = templates[tplName][id]
+    const row = templates[tplName][key]
     if (!row) continue
     const val1 = row[field1 as keyof TemplateRow]
     const val2 = row[field2 as keyof TemplateRow]

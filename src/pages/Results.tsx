@@ -344,8 +344,8 @@ export default function Results() {
   // Напрямок для підбору шаблону ціни: відправлення з України -> UAH, з Європи -> EUR
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
   // На кроці "назад" ціна вже зафіксована рейсом "туди" — рахуємо один раз і показуємо як банер
-  const lockedTwoWay = (leg === 'return' && selectedTrip)
-    ? findTwoWayPrice((selectedTrip as any).id, direction, computeGroupPrice(selectedTrip, passengerCategories).total)
+  const lockedTwoWay = (leg === 'return' && selectedTrip && from && to)
+    ? findTwoWayPrice(from.id, to.id, direction, computeGroupPrice(selectedTrip, passengerCategories).total)
     : null
 
   const handlePrev = () => { if (stripStart > 0) setStripStart(s => s - 1) }
@@ -513,8 +513,8 @@ export default function Results() {
         )}
 
         {availableTrips.map((trip, i) => {
-          const cardTwoWay = (isRoundTrip && leg === 'out')
-            ? findTwoWayPrice(trip.id, direction, computeGroupPrice(trip, passengerCategories).total)?.price ?? null
+          const cardTwoWay = (isRoundTrip && leg === 'out' && from && to)
+            ? findTwoWayPrice(from.id, to.id, direction, computeGroupPrice(trip, passengerCategories).total)?.price ?? null
             : null
           return (
             <TripCard key={trip.id || i} trip={trip} cats={passengerCategories}

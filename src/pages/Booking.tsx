@@ -105,7 +105,7 @@ export default function Booking() {
   // де EUR1/UAH1 (залежно від напрямку) співпадає (або найближче) з реальною ціною "туди" (subtotal),
   // і беремо звідти EUR2/UAH2. Напрямок визначаємо по стороні відправлення першого відрізка.
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
-  const twoWay = isRoundTrip && trip ? findTwoWayPrice(trip.id, direction, subtotal) : null
+  const twoWay = isRoundTrip && trip && from && to ? findTwoWayPrice(from.id, to.id, direction, subtotal) : null
   // Фолбек, якщо шаблон не знайшов збігу: рейси туди/назад можуть бути в РІЗНИХ валютах
   // (UA-рейс в UAH, EU-рейс в EUR) — перед сумуванням конвертуємо все у валюту рейсу "туди".
   const fallbackTotal = subtotal + (trip2 ? convert(subtotal2, trip2?.currency, /eur/i.test(trip?.currency) ? 'EUR' : 'UAH') : 0)
