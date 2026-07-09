@@ -9,6 +9,7 @@ import Booking from './pages/Booking'
 import OrderSuccess from './pages/OrderSuccess'
 import Payment from './pages/Payment'
 import Ticket from './pages/Ticket'
+import TicketDetails from './pages/TicketDetails'
 import MyTickets from './pages/MyTickets'
 import Profile from './pages/Profile'
 import Notifications from './pages/Notifications'
@@ -34,6 +35,7 @@ function AppRoutes() {
           <Route path="/order-success" element={<OrderSuccess />} />
           <Route path="/payment" element={<Payment />} />
           <Route path="/ticket" element={<Ticket />} />
+          <Route path="/ticket-details" element={<TicketDetails />} />
           <Route path="/tickets" element={<MyTickets />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/notifications" element={<Notifications />} />

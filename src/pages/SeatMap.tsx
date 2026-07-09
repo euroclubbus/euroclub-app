@@ -103,6 +103,11 @@ function buildDefaultLayout(totalSeats: number): Array<Array<Seat | null>> {
   return rows
 }
 
+// Місце №3 завжди недоступне — резерв водія (незалежно від того, що каже API)
+function blockDriverSeat(rows: Array<Array<Seat | null>>): Array<Array<Seat | null>> {
+  return rows.map(row => row.map(seat => (seat && !seat.isWC && seat.nmr === 3) ? { ...seat, free: false } : seat))
+}
+
 function seatWord(n: number) {
   const m10 = n % 10, m100 = n % 100
   if (m10 === 1 && m100 !== 11) return 'обране місце'
@@ -121,6 +126,7 @@ export default function SeatMap({ trip, totalPax, onClose, onConfirm, totalPrice
   let rows = parsePlacesMap(placesMap)
   if (rows.length === 0 && totalSeats > 0) rows = buildDefaultLayout(totalSeats)
   else if (rows.length === 0) rows = buildDefaultLayout(50)
+  rows = blockDriverSeat(rows)
 
   const displayPrice = totalPrice != null ? totalPrice : totalPax * Number(trip?.price || 0)
   const priceStr = Number(displayPrice).toFixed(2).replace('.', ',')
