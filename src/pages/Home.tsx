@@ -106,6 +106,8 @@ function PassengersSheet({ open, onClose }: { open: boolean; onClose: () => void
       const raw = data.discount || data.discounts || data || {}
       const arr = Array.isArray(raw) ? raw : Object.values(raw)
       const clean = arr.filter((d: any) => d && d.id !== undefined && d.name)
+      const isFull = (d: any) => d.default === 1 || d.default === '1' || String(d.id) === '0'
+      clean.sort((a: any, b: any) => Number(isFull(b)) - Number(isFull(a)))
       setCats(clean)
     }).catch(() => setCats([]))
   }, [open])

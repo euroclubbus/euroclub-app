@@ -5,6 +5,7 @@ import { useSearchStore, useBookingStore } from '../store'
 import { useAuthStore } from '../authStore'
 import { createOrder, saveOrderLocally } from '../api/euroclub'
 import { findTwoWayPrice } from '../priceEngine'
+import { convert } from '../currency'
 import BottomSheet from '../components/BottomSheet'
 import SeatMap from './SeatMap'
 
@@ -105,7 +106,10 @@ export default function Booking() {
   // і беремо звідти EUR2/UAH2. Напрямок визначаємо по стороні відправлення першого відрізка.
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
   const twoWay = isRoundTrip && trip ? findTwoWayPrice(trip.id, direction, subtotal) : null
-  const total = isRoundTrip ? (twoWay?.price ?? (subtotal + subtotal2)) : subtotal
+  // Фолбек, якщо шаблон не знайшов збігу: рейси туди/назад можуть бути в РІЗНИХ валютах
+  // (UA-рейс в UAH, EU-рейс в EUR) — перед сумуванням конвертуємо все у валюту рейсу "туди".
+  const fallbackTotal = subtotal + (trip2 ? convert(subtotal2, trip2?.currency, /eur/i.test(trip?.currency) ? 'EUR' : 'UAH') : 0)
+  const total = isRoundTrip ? (twoWay?.price ?? fallbackTotal) : subtotal
 
   const handleBook = async () => {
     if (!trip || !from || !to) return
@@ -178,7 +182,7 @@ export default function Booking() {
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 14 }}>Пасажири</div>
           {Array.from({ length: totalPax }, (_, idx) => {
             const currentDiscountId = effectiveDiscountId(idx)
-            const currentDiscount = discountOptions.find(d => String(d.id) === currentDiscountId)
+            const currentDiscount = orderedDiscounts.find(d => String(d.id) === currentDiscountId)
             const isEditing = showDiscountFor === idx
             return (
               <div key={idx} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: idx < totalPax - 1 ? '1px solid #F5F5F5' : 'none' }}>
@@ -209,7 +213,7 @@ export default function Booking() {
                   </div>
                 )}
                 {/* Редагування знижки */}
-                {isEditing && discountOptions.length > 0 && (
+                {isEditing && orderedDiscounts.length > 0 && (
                   <div style={{ background: '#F9F9F9', borderRadius: 12, padding: 12, marginBottom: 8 }}>
                     <div style={{ fontSize: 12, color: Gray, marginBottom: 8, fontWeight: 600 }}>Оберіть категорію:</div>
                     {orderedDiscounts.map(d => (
@@ -353,7 +357,11 @@ export default function Booking() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', color: Gray, fontSize: 14 }}>
               <span>{totalPax} {totalPax === 1 ? 'пасажир' : 'пасажири'}</span>
-              <span>{isRoundTrip ? `${subtotal} + ${subtotal2}` : subtotal} {currencySign}</span>
+              <span>
+                {isRoundTrip
+                  ? `${subtotal} ${currencySign} + ${subtotal2} ${(trip2?.currency || 'uah').toLowerCase() === 'eur' ? '€' : '₴'}`
+                  : `${subtotal} ${currencySign}`}
+              </span>
             </div>
           </div>
         </div>
