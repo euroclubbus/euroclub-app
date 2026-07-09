@@ -47,6 +47,20 @@ export function isCompleted(o: any): boolean {
   return d ? d.getTime() < Date.now() : false
 }
 
+// Годин до відправлення (null якщо дату не розпізнано)
+export function hoursUntilDeparture(o: any): number | null {
+  const d = parseDT(o?.ftime)
+  return d ? (d.getTime() - Date.now()) / 3600000 : null
+}
+
+// Відновити можна лише неоплачене і скасоване замовлення, і лише якщо до рейсу > 24 год
+export function canRestore(o: any): boolean {
+  if (!isCancelled(o)) return false
+  if (payInfo(o).paid > 0) return false
+  const h = hoursUntilDeparture(o)
+  return h !== null && h > 24
+}
+
 // --- «Квиток сформовано» — фіксація на пристрої (не зникає) ---
 function formedMap(): Record<string, number> {
   try { return JSON.parse(localStorage.getItem('eclub_ticket_formed') || '{}') } catch { return {} }

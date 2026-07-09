@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowUpDown, MapPin, Navigation, Calendar, Users } from 'lucide-react'
 import { useSearchStore } from '../store'
 import { getCities, getDiscounts } from '../api/euroclub'
+import { getAllowedCities } from '../cityRules'
 import BottomSheet from '../components/BottomSheet'
 
 const ORange = '#F5A623'
@@ -190,7 +191,14 @@ function CityPicker({ open, onClose }: { open: boolean; onClose: () => void }) {
   // Субтитр: регіон + країна, якщо API віддає поле регіону; інакше — лише країна
   const subtitleOf = (c: any) => COUNTRY_NAMES[c.i2] || c.i2 || ''
 
+  const otherCity = activeField === 'to' ? from : to
+  const otherIsFrom = activeField === 'to'
+  const ruleCities = cities.map((c: any) => ({ id: String(c.id), name: c.uk, i2: c.i2, _raw: c }))
+  const allowedIds = otherCity
+    ? new Set(getAllowedCities(ruleCities, { id: otherCity.id, name: otherCity.name, i2: otherCity.i2 }, otherIsFrom).map(c => c.id))
+    : null
   const filtered = cities.filter((c: any) =>
+    (!allowedIds || allowedIds.has(String(c.id))) &&
     (c.uk || '').toLowerCase().includes(query.toLowerCase())
   )
 
@@ -245,7 +253,7 @@ function CityPicker({ open, onClose }: { open: boolean; onClose: () => void }) {
           {cities.length > 0 && filtered.length === 0 && <div style={{ textAlign: 'center', color: Gray, padding: 30 }}>Нічого не знайдено</div>}
           {filtered.map((c: any) => (
             <button key={c.id} onClick={() => {
-              const cityObj = { id: String(c.id), name: c.uk, country: COUNTRY_NAMES[c.i2] || c.i2 }
+              const cityObj = { id: String(c.id), name: c.uk, country: COUNTRY_NAMES[c.i2] || c.i2, i2: c.i2 }
               if (activeField === 'from') { setFrom(cityObj); setActiveField('to'); setQuery('') }
               else { setTo(cityObj); setQuery(''); onClose() }
             }} style={{ width: '100%', display: 'flex', flexDirection: 'column', padding: '12px 20px', background: 'none', border: 'none', borderBottom: '1px solid #F0F0F0', cursor: 'pointer', textAlign: 'left' }}>

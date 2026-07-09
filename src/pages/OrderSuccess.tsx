@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useBookingStore } from '../store'
-import { cancelOrder, restoreOrder, getOrderInfo } from '../api/euroclub'
-import { ticketAvailable, statusLabel, payInfo, needsPolling, currencySign as curSign } from '../orderStatus'
+import { useBookingStore, useSearchStore } from '../store'
+import { cancelOrder, restoreOrder, getOrderInfo, getCities, getRoutes } from '../api/euroclub'
+import { ticketAvailable, statusLabel, payInfo, needsPolling, currencySign as curSign, canRestore } from '../orderStatus'
 import { useOrderPolling } from '../useOrderPolling'
+import SeatMap from './SeatMap'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -31,10 +32,16 @@ function calcDuration(depStr?: string, arrStr?: string): string {
 export default function OrderSuccess() {
   const nav = useNavigate()
   const { orderHash, orderData, selectedTrip, selectedSeats, setOrderResult } = useBookingStore()
+  const { setFrom, setTo } = useSearchStore()
   const [status, setStatus] = useState<'active'|'cancelled'>('active')
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [refreshedAt, setRefreshedAt] = useState('')
+  // Флоу відновлення неоплаченого скасованого замовлення
+  const [restorePhase, setRestorePhase] = useState<'idle'|'checking'|'available'|'unavailable'>('idle')
+  const [matchedTrip, setMatchedTrip] = useState<any>(null)
+  const [showSeatMap, setShowSeatMap] = useState(false)
+  const [chosenSeats, setChosenSeats] = useState<number[]>([])
 
   const trip = selectedTrip as any
   const data = orderData as any
@@ -60,6 +67,13 @@ export default function OrderSuccess() {
   const passengers = data?.passangers || []
 
   useOrderPolling(hash, needsPolling(data), (o) => setOrderResult(hash, o))
+
+  useEffect(() => {
+    if (data?.status) {
+      setStatus(String(data.status).toLowerCase().includes('cancel') ? 'cancelled' : 'active')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hash])
 
   const handleRefresh = async () => {
     if (!hash) return
@@ -99,6 +113,59 @@ export default function OrderSuccess() {
       setStatus('active')
     } catch { alert('Помилка') }
     finally { setLoading(false) }
+  }
+
+  // Перевірка вільних місць на тому самому рейсі перед відновленням неоплаченого замовлення
+  const checkSeatsAndRestore = async () => {
+    setRestorePhase('checking')
+    try {
+      const citiesRes: any = await getCities()
+      const raw = citiesRes.cities || citiesRes || {}
+      const list = Array.isArray(raw) ? raw : Object.values(raw)
+      const fromCity: any = list.find((c: any) => c.uk === data?.from_city)
+      const toCity: any = list.find((c: any) => c.uk === data?.to_city)
+      const dep = String(data?.ftime || '').split(' ')[0] // dd.mm.yyyy
+      const [dd, mm, yyyy] = dep.split('.')
+      if (!fromCity || !toCity || !dd) { setRestorePhase('unavailable'); return }
+
+      const res: any = await getRoutes(String(fromCity.id), String(toCity.id), `${dd}-${mm}-${yyyy}`)
+      const routes = res.routes || []
+      const match = routes.find((t: any) => t?.departure?.[0]?.time === data?.ftime) || routes[0]
+
+      if (match && Number(match.free) > 0) {
+        setMatchedTrip(match)
+        setRestorePhase('available')
+      } else {
+        setRestorePhase('unavailable')
+      }
+    } catch {
+      setRestorePhase('unavailable')
+    }
+  }
+
+  const finalizeRestore = async () => {
+    if (!hash) return
+    setLoading(true)
+    try {
+      await restoreOrder(hash)
+      setStatus('active')
+      setRestorePhase('idle')
+    } catch { alert('Помилка') }
+    finally { setLoading(false) }
+  }
+
+  // "Обрати інший день" — на головну з уже заповненими містами маршруту
+  const pickAnotherDay = async () => {
+    try {
+      const citiesRes: any = await getCities()
+      const raw = citiesRes.cities || citiesRes || {}
+      const list = Array.isArray(raw) ? raw : Object.values(raw)
+      const fromCity: any = list.find((c: any) => c.uk === data?.from_city)
+      const toCity: any = list.find((c: any) => c.uk === data?.to_city)
+      if (fromCity) setFrom({ id: String(fromCity.id), name: fromCity.uk, country: fromCity.i2, i2: fromCity.i2 })
+      if (toCity) setTo({ id: String(toCity.id), name: toCity.uk, country: toCity.i2, i2: toCity.i2 })
+    } catch { /* якщо не вдалось підтягнути - просто відкриється порожній пошук */ }
+    nav('/')
   }
 
   return (
@@ -142,8 +209,8 @@ export default function OrderSuccess() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <div>
               <div style={{ fontWeight: 800, fontSize: 22 }}>{depDT.time}</div>
-              <div style={{ fontSize: 13 }}>{dep?.city || data?.from_city}</div>
-              <div style={{ fontSize: 11, color: Gray }}>{dep?.name || data?.fstation}</div>
+              <div style={{ fontSize: 13 }}>{data?.from_city || dep?.city}</div>
+              <div style={{ fontSize: 11, color: Gray }}>{data?.fstation || dep?.name}</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
               <span style={{ fontSize: 16 }}>{hasTransfer ? '🚌→🔄' : '🚌'}</span>
@@ -151,8 +218,8 @@ export default function OrderSuccess() {
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontWeight: 800, fontSize: 22 }}>{arrDT.time}</div>
-              <div style={{ fontSize: 13 }}>{arr?.city || data?.to_city}</div>
-              <div style={{ fontSize: 11, color: Gray }}>{arr?.name || data?.tstation}</div>
+              <div style={{ fontSize: 13 }}>{data?.to_city || arr?.city}</div>
+              <div style={{ fontSize: 11, color: Gray }}>{data?.tstation || arr?.name}</div>
             </div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px dashed #EEE', alignItems: 'center' }}>
@@ -203,12 +270,57 @@ export default function OrderSuccess() {
               {loading ? '...' : 'Скасувати замовлення'}
             </button>
           </>
-        ) : (
+        ) : payInfo(data).paid > 0 ? (
+          // Скасовано, але була часткова/повна оплата — простий флоу без перевірки місць
           <button onClick={handleRestore} disabled={loading} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
             {loading ? '...' : 'Відновити замовлення'}
           </button>
+        ) : !canRestore(data) ? (
+          // Неоплачене, скасоване, до рейсу лишилось <=24 год — відновлення закрите
+          <div style={{ textAlign: 'center', color: Gray, fontSize: 14, padding: '10px 4px', lineHeight: 1.5 }}>
+            Відновлення недоступне — до рейсу залишилось менше 24 годин.
+          </div>
+        ) : restorePhase === 'idle' ? (
+          <button onClick={checkSeatsAndRestore} disabled={loading} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
+            Відновити замовлення
+          </button>
+        ) : restorePhase === 'checking' ? (
+          <div style={{ textAlign: 'center', color: Gray, fontSize: 14, padding: '16px 0' }}>Перевіряємо вільні місця…</div>
+        ) : restorePhase === 'available' ? (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14, lineHeight: 1.4 }}>
+              Вільні місця на рейсі ще доступні. Оберіть місце в автобусі
+            </div>
+            <button onClick={() => setShowSeatMap(true)} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: chosenSeats.length ? 12 : 0 }}>
+              {chosenSeats.length ? `Місце обрано: ${chosenSeats.join(', ')}` : 'Обрати місце'}
+            </button>
+            {chosenSeats.length > 0 && (
+              <button onClick={finalizeRestore} disabled={loading} style={{ width: '100%', padding: 16, background: '#0B2E5E', color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
+                {loading ? '...' : 'Відновити замовлення'}
+              </button>
+            )}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 18 }}>
+              Вільних місць на рейсі більше немає 😢
+            </div>
+            <div style={{ color: Gray, fontSize: 14, marginBottom: 10 }}>Обрати інший день</div>
+            <button onClick={pickAnotherDay} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
+              Обрати
+            </button>
+          </div>
         )}
       </div>
+
+      {showSeatMap && matchedTrip && (
+        <SeatMap
+          trip={matchedTrip}
+          totalPax={Math.max((data?.passangers?.length as number) || 1, 1)}
+          onClose={() => setShowSeatMap(false)}
+          onConfirm={(seats: number[]) => { setChosenSeats(seats); setShowSeatMap(false) }}
+        />
+      )}
     </div>
   )
 }

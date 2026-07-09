@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-interface City { id: string; name: string; country: string }
+interface City { id: string; name: string; country: string; i2: string }
 
 interface SearchState {
   from: City | null; to: City | null
