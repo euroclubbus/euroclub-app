@@ -134,7 +134,7 @@ function PassengersSheet({ open, onClose }: { open: boolean; onClose: () => void
   }
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="Пасажири">
+    <BottomSheet open={open} onClose={onClose} title="Оберіть кількість пасажирів та категорію квитка">
       <div style={{ padding: '4px 20px 24px' }}>
         {cats.length === 0 && <div style={{ textAlign: 'center', color: Gray, padding: 24 }}>Завантаження...</div>}
         {cats.map((d: any) => {
