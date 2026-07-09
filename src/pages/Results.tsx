@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Clock, Wifi, Zap, Bus, MessageCircle, AlertTriangle } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { getRoutes } from '../api/euroclub'
+import { findTwoWayPrice } from '../priceEngine'
 import BottomSheet from '../components/BottomSheet'
 
 const ORange = '#F5A623'
@@ -83,7 +84,7 @@ function computeGroupPrice(trip: any, cats: string[]) {
 }
 
 // ─── Trip Card ─────────────────────────────────────────────────────────────
-function TripCard({ trip, cats, onInfo, onBook }: { trip: any; cats: string[]; onInfo: () => void; onBook: () => void }) {
+function TripCard({ trip, cats, onInfo, onBook, roundTripPrice, hidePrice }: { trip: any; cats: string[]; onInfo: () => void; onBook: () => void; roundTripPrice?: number | null; hidePrice?: boolean }) {
   const dep = trip.departure?.[0]
   const arr = trip.arrival?.[0]
   const depDT = splitDateTime(dep?.time)
@@ -96,6 +97,7 @@ function TripCard({ trip, cats, onInfo, onBook }: { trip: any; cats: string[]; o
   const depCity = dep?.city_ua || dep?.city || ''
   const arrCity = arr?.city_ua || arr?.city || ''
   const { total, original, discounted, anyFallback } = computeGroupPrice(trip, cats)
+  const displayTotal = roundTripPrice ?? total
 
   return (
     <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 14, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
@@ -142,8 +144,15 @@ function TripCard({ trip, cats, onInfo, onBook }: { trip: any; cats: string[]; o
           )}
         </div>
         <div style={{ textAlign: 'right' }}>
-          {discounted && <div style={{ fontSize: 13, color: Gray, textDecoration: 'line-through' }}>{original} {currencySign}</div>}
-          <div style={{ fontSize: 20, fontWeight: 800, whiteSpace: 'nowrap' }}>{total} {currencySign}</div>
+          {hidePrice ? (
+            <div style={{ fontSize: 11, color: Gray, maxWidth: 120 }}>Ціна вже врахована у загальній вартості</div>
+          ) : (
+            <>
+              {discounted && !roundTripPrice && <div style={{ fontSize: 13, color: Gray, textDecoration: 'line-through' }}>{original} {currencySign}</div>}
+              <div style={{ fontSize: 20, fontWeight: 800, whiteSpace: 'nowrap' }}>{displayTotal} {currencySign}</div>
+              {roundTripPrice != null && <div style={{ fontSize: 11, color: ORange, fontWeight: 700 }}>за квиток у два боки</div>}
+            </>
+          )}
         </div>
       </div>
 
@@ -296,7 +305,7 @@ async function findNearestAvailable(fromId: string, toId: string, startISO: stri
 export default function Results() {
   const nav = useNavigate()
   const { from, to, dateFrom, dateTo, isOpenReturn, passengerCategories } = useSearchStore()
-  const { setTrip, setTrip2 } = useBookingStore()
+  const { setTrip, setTrip2, selectedTrip } = useBookingStore()
   // Двобічне замовлення: 'out' — рейс туди, 'return' — рейс назад (route2).
   // Вмикається якщо на Home обрана дата повернення або відмічена "Відкрита дата".
   const isRoundTrip = !!dateTo || isOpenReturn
@@ -331,6 +340,13 @@ export default function Results() {
     setStripStart(0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leg])
+
+  // Напрямок для підбору шаблону ціни: відправлення з України -> UAH, з Європи -> EUR
+  const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
+  // На кроці "назад" ціна вже зафіксована рейсом "туди" — рахуємо один раз і показуємо як банер
+  const lockedTwoWay = (leg === 'return' && selectedTrip)
+    ? findTwoWayPrice((selectedTrip as any).id, direction, computeGroupPrice(selectedTrip, passengerCategories).total)
+    : null
 
   const handlePrev = () => { if (stripStart > 0) setStripStart(s => s - 1) }
   const handleNext = () => { if (stripStart + 5 < allDates.length) setStripStart(s => s + 1) }
@@ -397,10 +413,20 @@ export default function Results() {
             </span>
           </div>
           {isRoundTrip && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 10 }}>
-              <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: leg === 'out' ? ORange : 'rgba(255,255,255,0.15)', color: '#fff' }}>1. Туди</span>
-              <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: leg === 'return' ? ORange : 'rgba(255,255,255,0.15)', color: '#fff' }}>2. Назад</span>
-            </div>
+            <>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: leg === 'out' ? ORange : 'rgba(255,255,255,0.15)', color: '#fff' }}>1. Туди</span>
+                <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: leg === 'return' ? ORange : 'rgba(255,255,255,0.15)', color: '#fff' }}>2. Назад</span>
+              </div>
+              <div style={{ textAlign: 'center', color: '#fff', fontWeight: 700, fontSize: 15, marginBottom: lockedTwoWay ? 4 : 10 }}>
+                {leg === 'out' ? 'Оберіть першу поїздку' : 'Оберіть другу поїздку'}
+              </div>
+              {leg === 'return' && lockedTwoWay && (
+                <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.85)', fontSize: 13, marginBottom: 10 }}>
+                  Загальна ціна за квиток у два боки: <strong style={{ color: '#fff' }}>{lockedTwoWay.price} {fmtCurrency((selectedTrip as any)?.currency)}</strong>
+                </div>
+              )}
+            </>
           )}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 14, color: '#fff' }}>
             <span style={{ fontWeight: 700, fontSize: 16, whiteSpace: 'nowrap' }}>{legFrom?.name}</span>
@@ -486,12 +512,19 @@ export default function Results() {
           </div>
         )}
 
-        {availableTrips.map((trip, i) => (
-          <TripCard key={trip.id || i} trip={trip} cats={passengerCategories}
-            onInfo={() => setInfoTrip(trip)}
-            onBook={() => selectTrip(trip)}
-          />
-        ))}
+        {availableTrips.map((trip, i) => {
+          const cardTwoWay = (isRoundTrip && leg === 'out')
+            ? findTwoWayPrice(trip.id, direction, computeGroupPrice(trip, passengerCategories).total)?.price ?? null
+            : null
+          return (
+            <TripCard key={trip.id || i} trip={trip} cats={passengerCategories}
+              onInfo={() => setInfoTrip(trip)}
+              onBook={() => selectTrip(trip)}
+              roundTripPrice={leg === 'out' ? cardTwoWay : null}
+              hidePrice={leg === 'return'}
+            />
+          )
+        })}
       </div>
 
       <TripInfoSheet open={!!infoTrip} onClose={() => setInfoTrip(null)} trip={infoTrip}
