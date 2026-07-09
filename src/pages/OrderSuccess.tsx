@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBookingStore, useSearchStore } from '../store'
 import { cancelOrder, restoreOrder, getOrderInfo, getCities, getRoutes } from '../api/euroclub'
-import { ticketAvailable, statusLabel, payInfo, needsPolling, currencySign as curSign, canRestore } from '../orderStatus'
+import { ticketAvailable, statusLabel, payInfo, needsPolling, canRestore } from '../orderStatus'
 import { useOrderPolling } from '../useOrderPolling'
+import { useDisplayPrice } from '../currency'
 import SeatMap from './SeatMap'
 
 const ORange = '#F5A623'
@@ -61,7 +62,8 @@ export default function OrderSuccess() {
     if (m) return '000' + m[1]
     return hash ? '000' + hash.slice(-6).toUpperCase() : '000000000'
   })()
-  const currencySign = (data?.crc || trip?.currency || 'uah').toLowerCase() === 'eur' ? '€' : '₴'
+  const currencyCode = data?.crc || trip?.currency || 'uah'
+  const { format } = useDisplayPrice()
   const price = data?.price ?? trip?.price ?? 0
   const summ = data?.summ ?? price
   const passengers = data?.passangers || []
@@ -195,7 +197,7 @@ export default function OrderSuccess() {
           return (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 14 }}>
               <span style={{ fontSize: 13, fontWeight: 700, padding: '5px 14px', borderRadius: 20, background: st.bg, color: st.color }}>{st.text}</span>
-              {pi.ticketReady && pi.remainder > 0 && <span style={{ fontSize: 13, color: '#E07B00', fontWeight: 600 }}>Доплата: {pi.remainder} {curSign(data)}</span>}
+              {pi.ticketReady && pi.remainder > 0 && <span style={{ fontSize: 13, color: '#E07B00', fontWeight: 600 }}>Доплата: {format(pi.remainder, currencyCode)}</span>}
             </div>
           )
         })()}
@@ -224,7 +226,7 @@ export default function OrderSuccess() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px dashed #EEE', alignItems: 'center' }}>
             <span style={{ fontSize: 13, color: Gray }}>{hasTransfer ? 'Пересадка' : 'Прямий'}</span>
-            <span style={{ fontWeight: 800, fontSize: 17 }}>{price} {currencySign}</span>
+            <span style={{ fontWeight: 800, fontSize: 17 }}>{format(price, currencyCode)}</span>
           </div>
         </div>
 
@@ -240,7 +242,7 @@ export default function OrderSuccess() {
                 <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                   <span>💺</span><span>{p.place}</span>
                 </div>
-                <div style={{ textAlign: 'right', fontWeight: 600 }}>{price} {currencySign}</div>
+                <div style={{ textAlign: 'right', fontWeight: 600 }}>{format(price, currencyCode)}</div>
               </div>
             ))}
           </div>
@@ -251,7 +253,7 @@ export default function OrderSuccess() {
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>До сплати</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 18 }}>
             <span>Усього</span>
-            <span>{summ} {currencySign}</span>
+            <span>{format(summ, currencyCode)}</span>
           </div>
         </div>
 

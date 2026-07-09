@@ -16,3 +16,17 @@ export function convert(amount: number, fromCurrency: string, toCurrency: 'UAH' 
   if (!isEur && toCurrency === 'EUR') return Math.round(amount / EUR_UAH_RATE)
   return amount
 }
+
+import { useUiStore } from './store'
+
+// Хук: повертає { displayCurrency, setDisplayCurrency, format }
+// format конвертує суму з валюти рейсу (trip.currency) у вибрану валюту показу і додає символ.
+export function useDisplayPrice() {
+  const { displayCurrency, setDisplayCurrency } = useUiStore()
+  const format = (amount: number, sourceCurrency?: string) => {
+    const converted = convert(amount, sourceCurrency || 'uah', displayCurrency)
+    const sign = displayCurrency === 'EUR' ? '€' : '₴'
+    return `${converted} ${sign}`
+  }
+  return { displayCurrency, setDisplayCurrency, format }
+}

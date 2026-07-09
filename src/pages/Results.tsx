@@ -4,7 +4,9 @@ import { ArrowLeft, Clock, Wifi, Zap, Bus, MessageCircle, AlertTriangle } from '
 import { useSearchStore, useBookingStore } from '../store'
 import { getRoutes } from '../api/euroclub'
 import { findTwoWayPrice } from '../priceEngine'
+import { useDisplayPrice } from '../currency'
 import BottomSheet from '../components/BottomSheet'
+import CurrencyToggle from '../components/CurrencyToggle'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -91,7 +93,7 @@ function TripCard({ trip, cats, onInfo, onBook, roundTripPrice, hidePrice }: { t
   const arrDT = splitDateTime(arr?.time)
   const hasTransfer = Number(trip.transfer) === 1
   const transferStop = trip.stopping?.find((s: any) => Number(s.transfer) === 1)
-  const currencySign = fmtCurrency(trip.currency)
+  const { format } = useDisplayPrice()
   const freeSeats = Number(trip.free)
   const duration = calcDuration(dep?.time, arr?.time)
   const depCity = dep?.city_ua || dep?.city || ''
@@ -148,8 +150,8 @@ function TripCard({ trip, cats, onInfo, onBook, roundTripPrice, hidePrice }: { t
             <div style={{ fontSize: 11, color: Gray, maxWidth: 120 }}>Ціна вже врахована у загальній вартості</div>
           ) : (
             <>
-              {discounted && !roundTripPrice && <div style={{ fontSize: 13, color: Gray, textDecoration: 'line-through' }}>{original} {currencySign}</div>}
-              <div style={{ fontSize: 20, fontWeight: 800, whiteSpace: 'nowrap' }}>{displayTotal} {currencySign}</div>
+              {discounted && !roundTripPrice && <div style={{ fontSize: 13, color: Gray, textDecoration: 'line-through' }}>{format(original, trip.currency)}</div>}
+              <div style={{ fontSize: 20, fontWeight: 800, whiteSpace: 'nowrap' }}>{format(displayTotal, trip.currency)}</div>
               {roundTripPrice != null && <div style={{ fontSize: 11, color: ORange, fontWeight: 700 }}>за квиток у два боки</div>}
             </>
           )}
@@ -306,6 +308,7 @@ export default function Results() {
   const nav = useNavigate()
   const { from, to, dateFrom, dateTo, isOpenReturn, passengerCategories } = useSearchStore()
   const { setTrip, setTrip2, selectedTrip } = useBookingStore()
+  const { format } = useDisplayPrice()
   // Двобічне замовлення: 'out' — рейс туди, 'return' — рейс назад (route2).
   // Вмикається якщо на Home обрана дата повернення або відмічена "Відкрита дата".
   const isRoundTrip = !!dateTo || isOpenReturn
@@ -408,9 +411,10 @@ export default function Results() {
             <button onClick={() => leg === 'return' ? setLeg('out') : nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
               <ArrowLeft size={24} color="#fff" />
             </button>
-            <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>
+            <span style={{ color: '#fff', fontSize: 20, fontWeight: 800, flex: 1 }}>
               Знайдені маршрути{isRoundTrip && (leg === 'out' ? ' · Туди' : ' · Назад')}
             </span>
+            <CurrencyToggle light />
           </div>
           {isRoundTrip && (
             <>
@@ -423,7 +427,7 @@ export default function Results() {
               </div>
               {leg === 'return' && lockedTwoWay && (
                 <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.85)', fontSize: 13, marginBottom: 10 }}>
-                  Загальна ціна за квиток у два боки: <strong style={{ color: '#fff' }}>{lockedTwoWay.price} {fmtCurrency((selectedTrip as any)?.currency)}</strong>
+                  Загальна ціна за квиток у два боки: <strong style={{ color: '#fff' }}>{format(lockedTwoWay.price, (selectedTrip as any)?.currency)}</strong>
                 </div>
               )}
             </>

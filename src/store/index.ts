@@ -47,6 +47,17 @@ interface BookingState {
   resetBooking: () => void
 }
 
+// Глобальний перемикач валюти відображення (не залежить від searchStore/bookingStore,
+// щоб не скидався при resetBooking() чи новому пошуку)
+interface UiState {
+  displayCurrency: 'UAH' | 'EUR'
+  setDisplayCurrency: (c: 'UAH' | 'EUR') => void
+}
+export const useUiStore = create<UiState>((set) => ({
+  displayCurrency: 'UAH',
+  setDisplayCurrency: displayCurrency => set({ displayCurrency }),
+}))
+
 export const useSearchStore = create<SearchState>((set) => ({
   from: null, to: null, dateFrom: '', dateTo: '', isOpenReturn: false,
   passengerCount: 1,

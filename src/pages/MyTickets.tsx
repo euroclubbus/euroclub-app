@@ -4,6 +4,7 @@ import { getLocalOrders, saveOrderLocally } from '../api/euroclub'
 import { getUserOrders } from '../api/auth'
 import { useBookingStore } from '../store'
 import { ticketAvailable, statusLabel, payInfo } from '../orderStatus'
+import { useDisplayPrice } from '../currency'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -11,6 +12,7 @@ const Gray = '#9E9E9E'
 export default function MyTickets() {
   const nav = useNavigate()
   const { setOrderResult } = useBookingStore()
+  const { format } = useDisplayPrice()
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -79,7 +81,6 @@ export default function MyTickets() {
         {orders.map((o, i) => {
           const st = statusLabel(o)
           const paid = ticketAvailable(o, o.hash)
-          const cur = (o.crc || 'uah').toLowerCase() === 'eur' ? '€' : '₴'
           return (
             <div key={i} style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -89,7 +90,7 @@ export default function MyTickets() {
               <div style={{ color: Gray, fontSize: 13, marginBottom: 10 }}>{o.ftime} → {o.ttime}</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #F5F5F5', paddingTop: 10 }}>
                 <span style={{ color: Gray, fontSize: 12 }}>{orderNo(o)}</span>
-                <span style={{ fontWeight: 800, fontSize: 17 }}>{o.summ ?? o.price} {cur}</span>
+                <span style={{ fontWeight: 800, fontSize: 17 }}>{format(o.summ ?? o.price, o.crc || 'uah')}</span>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
                 <button onClick={() => openOrder(o)} style={{ flex: 1, padding: '11px 0', background: 'none', border: `2px solid ${ORange}`, borderRadius: 12, color: ORange, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>

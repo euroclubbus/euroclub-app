@@ -5,8 +5,9 @@ import { useSearchStore, useBookingStore } from '../store'
 import { useAuthStore } from '../authStore'
 import { createOrder, saveOrderLocally } from '../api/euroclub'
 import { findTwoWayPrice } from '../priceEngine'
-import { convert } from '../currency'
+import { convert, useDisplayPrice } from '../currency'
 import BottomSheet from '../components/BottomSheet'
+import CurrencyToggle from '../components/CurrencyToggle'
 import SeatMap from './SeatMap'
 
 const ORange = '#F5A623'
@@ -74,7 +75,7 @@ export default function Booking() {
 
 
   const defaultDiscount = discountOptions.find(d => d.default === 1) || discountOptions[0]
-  const currencySign = (trip?.currency || 'uah').toLowerCase() === 'eur' ? '€' : '₴'
+  const { format, displayCurrency } = useDisplayPrice()
 
   // Знижка пасажира: ручний вибір → категорія зі складу пошуку (якщо діє на рейсі) → повний тариф
   const effectiveDiscountId = (idx: number) => {
@@ -172,7 +173,8 @@ export default function Booking() {
           <button onClick={() => nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
             <ArrowLeft size={24} color="#fff" />
           </button>
-          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Бронювання{isRoundTrip ? ' (в два боки)' : ''}</span>
+          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800, flex: 1 }}>Бронювання{isRoundTrip ? ' (в два боки)' : ''}</span>
+          <CurrencyToggle light />
         </div>
       </div>
 
@@ -209,7 +211,7 @@ export default function Booking() {
                 {/* Поточна знижка */}
                 {currentDiscount && !isEditing && (
                   <div style={{ fontSize: 13, color: Gray, marginBottom: 4 }}>
-                    {currentDiscount.name} — <strong>{currentDiscount.price} {currencySign}</strong>
+                    {currentDiscount.name} — <strong>{format(currentDiscount.price, trip?.currency)}</strong>
                   </div>
                 )}
                 {/* Редагування знижки */}
@@ -224,7 +226,7 @@ export default function Booking() {
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                       }}>
                         <span style={{ fontSize: 13, fontWeight: String(d.id) === currentDiscountId ? 700 : 400 }}>{catName(d)}</span>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{d.price} {currencySign}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(d.price, trip?.currency)}</span>
                       </button>
                     ))}
                   </div>
@@ -252,7 +254,7 @@ export default function Booking() {
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                 }}>
                   <span style={{ fontSize: 13 }}>{catName(d)}</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{d.price} {currencySign}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(d.price, trip?.currency)}</span>
                 </button>
               ))}
             </div>
@@ -353,14 +355,14 @@ export default function Booking() {
           <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 18, marginBottom: 8 }}>
               <span>Усього{isRoundTrip ? ' (в два боки)' : ''}</span>
-              <span>{total} {currencySign}</span>
+              <span>{format(total, trip?.currency)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', color: Gray, fontSize: 14 }}>
               <span>{totalPax} {totalPax === 1 ? 'пасажир' : 'пасажири'}</span>
               <span>
                 {isRoundTrip
-                  ? `${subtotal} ${currencySign} + ${subtotal2} ${(trip2?.currency || 'uah').toLowerCase() === 'eur' ? '€' : '₴'}`
-                  : `${subtotal} ${currencySign}`}
+                  ? `${format(subtotal, trip?.currency)} + ${format(subtotal2, trip2?.currency)}`
+                  : format(subtotal, trip?.currency)}
               </span>
             </div>
           </div>
@@ -379,12 +381,12 @@ export default function Booking() {
 
       {/* Seat Map — туди */}
       {showSeats && (
-        <SeatMap trip={trip} totalPax={totalPax} totalPrice={subtotal} currencySign={currencySign} onClose={() => setShowSeats(false)}
+        <SeatMap trip={trip} totalPax={totalPax} totalPrice={convert(subtotal, trip?.currency, displayCurrency)} currencySign={displayCurrency === 'EUR' ? '€' : '₴'} onClose={() => setShowSeats(false)}
           onConfirm={(seats: number[]) => { setSeats(seats); setShowSeats(false) }} />
       )}
       {/* Seat Map — назад */}
       {showSeats2 && trip2 && (
-        <SeatMap trip={trip2} totalPax={totalPax} totalPrice={subtotal2} currencySign={currencySign} onClose={() => setShowSeats2(false)}
+        <SeatMap trip={trip2} totalPax={totalPax} totalPrice={convert(subtotal2, trip2?.currency, displayCurrency)} currencySign={displayCurrency === 'EUR' ? '€' : '₴'} onClose={() => setShowSeats2(false)}
           onConfirm={(seats: number[]) => { setSeats2(seats); setShowSeats2(false) }} />
       )}
     </div>

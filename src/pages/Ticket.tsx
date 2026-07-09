@@ -3,6 +3,7 @@ import { ArrowLeft, Download } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
 import { ticketAvailable, payInfo } from '../orderStatus'
+import { useDisplayPrice } from '../currency'
 
 const ORange = '#F5A623'
 const Navy = '#0B2E5E'
@@ -50,6 +51,7 @@ export default function Ticket() {
   const fTime = data?.ftime || trip?.departure?.[0]?.time || ''
   const tTime = data?.ttime || trip?.arrival?.[0]?.time || ''
   const currency = (data?.crc || trip?.currency || 'uah').toLowerCase() === 'eur' ? 'EUR' : 'UAH'
+  const { format } = useDisplayPrice()
 
   // Пасажири
   const paxCount = Math.max(selectedSeats.length, Object.keys(passengerNames).length, 1)
@@ -122,12 +124,12 @@ export default function Ticket() {
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{p.name || '—'}</div>
                 {p.ticket && <div style={{ fontSize: 11, color: Gray }}>Квиток № {p.ticket}{suffix} · Місце {p.place && p.place !== '0' ? p.place : '—'}</div>}
               </div>
-              <div style={{ fontSize: 15, fontWeight: 700 }}>{p.price ?? data?.price} {currency}</div>
+              <div style={{ fontSize: 15, fontWeight: 700 }}>{format(p.price ?? data?.price, currency)}</div>
             </div>
           ))}
           <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12, marginTop: 4, borderTop: '1px solid #EEE' }}>
             <span style={{ fontSize: 15, fontWeight: 700 }}>Разом</span>
-            <span style={{ fontSize: 18, fontWeight: 800 }}>{data?.summ ?? data?.price ?? trip?.price} {currency}</span>
+            <span style={{ fontSize: 18, fontWeight: 800 }}>{format(data?.summ ?? data?.price ?? trip?.price, currency)}</span>
           </div>
           {(() => { const pi = payInfo(data); return pi.remainder > 0 ? (
             <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8 }}>
