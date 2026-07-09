@@ -392,7 +392,8 @@ export default function Booking() {
           <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
             <input type="checkbox" checked={consentTerms} onChange={e => setConsentTerms(e.target.checked)} style={{ marginTop: 2, width: 18, height: 18, flexShrink: 0, accentColor: ORange }} />
             <span>
-              Я ознайомлений та згоден з умовами оплати, повернення квитків і надання послуг, а також з Публічною Офертою та умовами{' '}
+              Я ознайомлений та згоден з умовами оплати, повернення квитків і надання послуг, а також з{' '}
+              <span onClick={(e) => { e.preventDefault(); nav('/agreement-offer') }} style={{ color: ORange, fontWeight: 600, textDecoration: 'underline' }}>Публічною Офертою</span> та умовами{' '}
               <span onClick={(e) => { e.preventDefault(); nav('/agreement-contract') }} style={{ color: ORange, fontWeight: 600, textDecoration: 'underline' }}>Договору перевезення</span> компанії «Євроклуб».<span style={{ color: '#E53935' }}>*</span>
               <div style={{ marginTop: 6, color: Gray, fontSize: 12, lineHeight: 1.5 }}>
                 Пасажир зобов'язується самостійно уточнити інформацію для поїздки: документи, вакцинація, чинні обмеження — щоб переконатись у можливості в'їзду/виїзду. Компанія не відповідає за документи пасажира і зняття пасажира на кордоні.

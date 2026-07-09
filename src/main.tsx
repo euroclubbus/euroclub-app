@@ -12,6 +12,7 @@ import Ticket from './pages/Ticket'
 import TicketDetails from './pages/TicketDetails'
 import AgreementPrivacy from './pages/AgreementPrivacy'
 import AgreementContract from './pages/AgreementContract'
+import AgreementOffer from './pages/AgreementOffer'
 import MyTickets from './pages/MyTickets'
 import Profile from './pages/Profile'
 import Notifications from './pages/Notifications'
@@ -40,6 +41,7 @@ function AppRoutes() {
           <Route path="/ticket-details" element={<TicketDetails />} />
           <Route path="/agreement-privacy" element={<AgreementPrivacy />} />
           <Route path="/agreement-contract" element={<AgreementContract />} />
+          <Route path="/agreement-offer" element={<AgreementOffer />} />
           <Route path="/tickets" element={<MyTickets />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/notifications" element={<Notifications />} />
