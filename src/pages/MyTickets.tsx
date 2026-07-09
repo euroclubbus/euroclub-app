@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getLocalOrders, getOrderInfo } from '../api/euroclub'
+import { getLocalOrders, saveOrderLocally } from '../api/euroclub'
+import { getUserOrders } from '../api/auth'
 import { useBookingStore } from '../store'
 import { ticketAvailable, statusLabel, payInfo } from '../orderStatus'
 
@@ -15,15 +16,35 @@ export default function MyTickets() {
 
   useEffect(() => {
     const local = getLocalOrders()
-    const list = Object.values(local)
-    if (list.length === 0) { setLoading(false); return }
-    Promise.all(list.map((o: any) =>
-      getOrderInfo(o.hash as string).then((res: any) => res.orders?.[0] || res).catch(() => o)
-    )).then(results => {
-      results.sort((a: any, b: any) => (b.savedAt || 0) - (a.savedAt || 0))
-      setOrders(results); setLoading(false)
-    })
+
+    getUserOrders()
+      .then((res: any) => {
+        const remote = res.orders || []
+        // Дедуп по hash: серверні дані пріоритетні (свіжіші), локальні лишаються для того, чого сервер ще не бачить
+        const byHash: Record<string, any> = {}
+        for (const o of Object.values(local)) if ((o as any).hash) byHash[(o as any).hash] = o
+        for (const o of remote) if (o.hash) byHash[o.hash] = o
+
+        const merged = Object.values(byHash)
+        merged.forEach((o: any) => saveOrderLocally(o.hash, o)) // кешуємо серверні дані локально
+        merged.sort((a: any, b: any) => parseOrderDate(b.ftime) - parseOrderDate(a.ftime))
+        setOrders(merged)
+        setLoading(false)
+      })
+      .catch(() => {
+        // API недоступне — показуємо хоч що є локально
+        const list = Object.values(local)
+        list.sort((a: any, b: any) => (b.savedAt || 0) - (a.savedAt || 0))
+        setOrders(list)
+        setLoading(false)
+      })
   }, [])
+
+  function parseOrderDate(str: any): number {
+    const m = String(str || '').match(/(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2}))?/)
+    if (!m) return 0
+    return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0)).getTime()
+  }
 
   const openTicket = (o: any) => { setOrderResult(o.hash, o); nav('/ticket') }
   const openOrder = (o: any) => { setOrderResult(o.hash, o); nav('/order-success') }

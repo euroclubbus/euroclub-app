@@ -16,8 +16,17 @@ async function inputPost(fields: Record<string, string>) {
   return json
 }
 
+import { currentUidKey } from '../authStore'
+
 export const authLogin = (email: string, pass: string) => inputPost({ opr: 'login', email, pass })
 export const authRegister = (email: string, pass: string, header: string) => inputPost({ opr: 'reg', email, pass, header })
 export const authRepass1 = (email: string) => inputPost({ opr: 'repass_1', email })
 export const authRepass2 = (email: string, code: string) => inputPost({ opr: 'repass_2', email, code })
 export const authRepass3 = (email: string, pass: string, code: string) => inputPost({ opr: 'repass_3', email, pass, code })
+
+// Історія всіх замовлень користувача (не тільки ті, що збережені локально на цьому пристрої)
+export const getUserOrders = () => inputPost({ opr: 'user-orders', uidkey: currentUidKey() })
+
+// Редагування профілю. Поля можна передавати разом або окремо: header/email/pass/phone
+export const editProfile = (fields: Partial<{ header: string; email: string; pass: string; phone: string }>) =>
+  inputPost({ opr: 'edit', uidkey: currentUidKey(), ...fields })
