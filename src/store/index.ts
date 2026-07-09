@@ -24,6 +24,9 @@ export interface PassengerDiscount { discountId: string; discount: number }
 interface BookingState {
   selectedTrip: Record<string,unknown> | null
   selectedSeats: number[]
+  // Зворотний напрямок (двобічне замовлення, route2/open/price — незадокументовані поля)
+  selectedTrip2: Record<string,unknown> | null
+  selectedSeats2: number[]
   passengerNames: Record<number, string>
   passengerDiscounts: Record<number, string> // index -> discountId (from trip.discounts)
   contactEmail: string; contactPhone: string; contactPhone2: string
@@ -31,7 +34,9 @@ interface BookingState {
   extraBaggage: number; oversizeBaggage: number
   orderHash: string; orderData: Record<string,unknown> | null
   setTrip: (t: Record<string,unknown> | null) => void
+  setTrip2: (t: Record<string,unknown> | null) => void
   setSeats: (s: number[]) => void
+  setSeats2: (s: number[]) => void
   setPassengerName: (idx: number, name: string) => void
   setPassengerDiscount: (idx: number, discountId: string) => void
   removePassengerDataAt: (idx: number) => void
@@ -60,12 +65,16 @@ export const useSearchStore = create<SearchState>((set) => ({
 }))
 
 export const useBookingStore = create<BookingState>((set) => ({
-  selectedTrip: null, selectedSeats: [], passengerNames: {}, passengerDiscounts: {},
+  selectedTrip: null, selectedSeats: [],
+  selectedTrip2: null, selectedSeats2: [],
+  passengerNames: {}, passengerDiscounts: {},
   contactEmail: '', contactPhone: '', contactPhone2: '',
   promoCode: '', extraBaggage: 0, oversizeBaggage: 0,
   orderHash: '', orderData: null,
   setTrip: t => set({ selectedTrip: t, selectedSeats: [], passengerNames: {}, passengerDiscounts: {} }),
+  setTrip2: t => set({ selectedTrip2: t, selectedSeats2: [] }),
   setSeats: s => set({ selectedSeats: s }),
+  setSeats2: s => set({ selectedSeats2: s }),
   setPassengerName: (idx, name) => set(s => ({ passengerNames: { ...s.passengerNames, [idx]: name } })),
   setPassengerDiscount: (idx, discountId) => set(s => ({ passengerDiscounts: { ...s.passengerDiscounts, [idx]: discountId } })),
   removePassengerDataAt: (idx) => set(s => {
@@ -87,5 +96,5 @@ export const useBookingStore = create<BookingState>((set) => ({
   setPromo: promoCode => set({ promoCode }),
   setBaggage: (type, val) => type === 'extra' ? set({ extraBaggage: val }) : set({ oversizeBaggage: val }),
   setOrderResult: (hash, data) => set({ orderHash: hash, orderData: data }),
-  resetBooking: () => set({ selectedTrip: null, selectedSeats: [], passengerNames: {}, passengerDiscounts: {}, contactEmail: '', contactPhone: '', contactPhone2: '', promoCode: '', extraBaggage: 0, oversizeBaggage: 0, orderHash: '', orderData: null }),
+  resetBooking: () => set({ selectedTrip: null, selectedSeats: [], selectedTrip2: null, selectedSeats2: [], passengerNames: {}, passengerDiscounts: {}, contactEmail: '', contactPhone: '', contactPhone2: '', promoCode: '', extraBaggage: 0, oversizeBaggage: 0, orderHash: '', orderData: null }),
 }))

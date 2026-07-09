@@ -4,6 +4,7 @@ import { ArrowLeft, Pencil, X, Plus } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { useAuthStore } from '../authStore'
 import { createOrder, saveOrderLocally } from '../api/euroclub'
+import { findTwoWayPrice } from '../priceEngine'
 import BottomSheet from '../components/BottomSheet'
 import SeatMap from './SeatMap'
 
@@ -30,16 +31,25 @@ function calcDuration(depStr?: string, arrStr?: string): string {
 
 export default function Booking() {
   const nav = useNavigate()
-  const { from, to, dateFrom, passengerCount, passengerCategories, addPassengerCategory, removePassengerCategoryAt } = useSearchStore()
-  const { selectedTrip, selectedSeats, passengerNames, passengerDiscounts, contactEmail, contactPhone, contactPhone2, setSeats, setPassengerName, setPassengerDiscount, removePassengerDataAt, setContact, setOrderResult } = useBookingStore()
+  const { from, to, dateFrom, isOpenReturn, passengerCount, passengerCategories, addPassengerCategory, removePassengerCategoryAt } = useSearchStore()
+  const {
+    selectedTrip, selectedSeats, selectedTrip2, selectedSeats2,
+    passengerNames, passengerDiscounts, contactEmail, contactPhone, contactPhone2,
+    setSeats, setSeats2, setPassengerName, setPassengerDiscount, removePassengerDataAt, setContact, setOrderResult
+  } = useBookingStore()
   const [showSeats, setShowSeats] = useState(false)
+  const [showSeats2, setShowSeats2] = useState(false)
   const [attempted, setAttempted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const trip = selectedTrip as any
+  const trip2 = selectedTrip2 as any
+  const isRoundTrip = !!trip2
   const dep = trip?.departure?.[0]
   const arr = trip?.arrival?.[0]
+  const dep2 = trip2?.departure?.[0]
+  const arr2 = trip2?.arrival?.[0]
   const totalPax = passengerCount
   // Real discounts come from the selected trip itself (trip.discounts), e.g. id 0 = full fare, 4 = senior, etc.
   const discountOptions: Array<{ id: number; default: number; name: string; discount: number; price: number }> = trip?.discounts || []
@@ -80,14 +90,30 @@ export default function Booking() {
   }
 
   const subtotal = Array.from({ length: totalPax }, (_, i) => getPassengerPrice(i)).reduce((s, p) => s + p, 0)
-  const total = subtotal
+  // Ціна другого напрямку (для фолбеку, якщо шаблон не знайдено) — рахуємо по його власних знижках
+  const discountOptions2: any[] = trip2?.discounts || []
+  const subtotal2 = trip2
+    ? Array.from({ length: totalPax }, (_, i) => {
+        const discountId = effectiveDiscountId(i)
+        const opt = discountOptions2.find((d: any) => String(d.id) === discountId)
+        return opt?.price ?? Number(trip2?.price ?? 0)
+      }).reduce((s, p) => s + p, 0)
+    : 0
+
+  // Двобічна ціна: шукаємо в статичних шаблонах (Alt_1..4) рядок для route1,
+  // де EUR1/UAH1 (залежно від напрямку) співпадає (або найближче) з реальною ціною "туди" (subtotal),
+  // і беремо звідти EUR2/UAH2. Напрямок визначаємо по стороні відправлення першого відрізка.
+  const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
+  const twoWay = isRoundTrip && trip ? findTwoWayPrice(trip.id, direction, subtotal) : null
+  const total = isRoundTrip ? (twoWay?.price ?? (subtotal + subtotal2)) : subtotal
 
   const handleBook = async () => {
     if (!trip || !from || !to) return
     setAttempted(true)
     const missingName = Array.from({ length: totalPax }).some((_, i) => !passengerNames[i]?.trim())
     if (missingName) { setError("Заповніть прізвище та ім'я для всіх пасажирів (латиницею)"); return }
-    if (Number(trip?.place_select) === 1 && selectedSeats.filter((x: any) => x != null).length < totalPax) { setError('Оберіть місце для кожного пасажира'); return }
+    if (Number(trip?.place_select) === 1 && selectedSeats.filter((x: any) => x != null).length < totalPax) { setError('Оберіть місце для рейсу туди для кожного пасажира'); return }
+    if (isRoundTrip && Number(trip2?.place_select) === 1 && selectedSeats2.filter((x: any) => x != null).length < totalPax) { setError('Оберіть місце для рейсу назад для кожного пасажира'); return }
     if (!contactPhone.trim()) { setError('Вкажіть номер телефону'); return }
     setError('')
     setLoading(true)
@@ -105,6 +131,15 @@ export default function Booking() {
         params[`name[${i}]`] = (passengerNames[i] || '').trim().toUpperCase()
         params[`discount[${i}]`] = effectiveDiscountId(i)
         if (selectedSeats[i] != null) params[`place[${i}]`] = String(selectedSeats[i])
+      }
+      // Незадокументовані поля для замовлення в два боки (домовленість з прогером)
+      if (isRoundTrip) {
+        params.routes2 = String(trip2.id)
+        params.open = isOpenReturn ? '1' : '0'
+        params.price = String(total)
+        for (let i = 0; i < totalPax; i++) {
+          if (selectedSeats2[i] != null) params[`place2[${i}]`] = String(selectedSeats2[i])
+        }
       }
       const result = await createOrder(params)
       // Усі дані замовлення огорнуті в orders[0]; беремо саме його
@@ -133,7 +168,7 @@ export default function Booking() {
           <button onClick={() => nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
             <ArrowLeft size={24} color="#fff" />
           </button>
-          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Бронювання</span>
+          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Бронювання{isRoundTrip ? ' (в два боки)' : ''}</span>
         </div>
       </div>
 
@@ -223,11 +258,26 @@ export default function Booking() {
         {/* Seat selection — only show if place_select === 1 */}
         {Number(trip?.place_select) === 1 && (
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12 }}>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Бронювання місця</div>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{isRoundTrip ? 'Місце — туди' : 'Бронювання місця'}</div>
           <button onClick={() => setShowSeats(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1.5px solid #EEE', cursor: 'pointer' }}>
             <span style={{ fontSize: 20 }}>💺</span>
             <div style={{ flex: 1, textAlign: 'left' }}>
               <div style={{ fontWeight: 600, fontSize: 15 }}>{selectedSeats.length > 0 ? `Місця: ${selectedSeats.join(', ')}` : 'Виберіть місце'}</div>
+              <div style={{ color: Gray, fontSize: 12 }}>Перейти до вибору місця</div>
+            </div>
+            <span style={{ color: Gray }}>›</span>
+          </button>
+        </div>
+        )}
+
+        {/* Seat selection для зворотного напрямку */}
+        {isRoundTrip && Number(trip2?.place_select) === 1 && (
+        <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Місце — назад</div>
+          <button onClick={() => setShowSeats2(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1.5px solid #EEE', cursor: 'pointer' }}>
+            <span style={{ fontSize: 20 }}>💺</span>
+            <div style={{ flex: 1, textAlign: 'left' }}>
+              <div style={{ fontWeight: 600, fontSize: 15 }}>{selectedSeats2.length > 0 ? `Місця: ${selectedSeats2.join(', ')}` : 'Виберіть місце'}</div>
               <div style={{ color: Gray, fontSize: 12 }}>Перейти до вибору місця</div>
             </div>
             <span style={{ color: Gray }}>›</span>
@@ -254,6 +304,7 @@ export default function Booking() {
         {/* Trip summary */}
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 16 }}>
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Ваше бронювання</div>
+          {isRoundTrip && <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>ТУДИ</div>}
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, marginBottom: 6 }}>
             <span>{dep?.time?.split(' ')[0]} → {arr?.time?.split(' ')[0]}</span>
             <span>⏱ {calcDuration(dep?.time, arr?.time)}</span>
@@ -271,14 +322,38 @@ export default function Booking() {
               <div style={{ fontSize: 11, color: Gray }}>{arr?.name}</div>
             </div>
           </div>
+
+          {isRoundTrip && (
+            <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 12, marginBottom: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>НАЗАД</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, marginBottom: 6 }}>
+                <span>{dep2?.time?.split(' ')[0]} → {arr2?.time?.split(' ')[0]}</span>
+                <span>⏱ {calcDuration(dep2?.time, arr2?.time)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 22 }}>{dep2?.time?.split(' ')[1]}</div>
+                  <div style={{ fontSize: 13 }}>{dep2?.city}</div>
+                  <div style={{ fontSize: 11, color: Gray }}>{dep2?.name}</div>
+                </div>
+                <span style={{ fontSize: 24 }}>🚌</span>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 800, fontSize: 22 }}>{arr2?.time?.split(' ')[1]}</div>
+                  <div style={{ fontSize: 13 }}>{arr2?.city}</div>
+                  <div style={{ fontSize: 11, color: Gray }}>{arr2?.name}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 18, marginBottom: 8 }}>
-              <span>Усього</span>
+              <span>Усього{isRoundTrip ? ' (в два боки)' : ''}</span>
               <span>{total} {currencySign}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', color: Gray, fontSize: 14 }}>
               <span>{totalPax} {totalPax === 1 ? 'пасажир' : 'пасажири'}</span>
-              <span>{subtotal} {currencySign}</span>
+              <span>{isRoundTrip ? `${subtotal} + ${subtotal2}` : subtotal} {currencySign}</span>
             </div>
           </div>
         </div>
@@ -294,10 +369,15 @@ export default function Booking() {
         }}>{loading ? 'Бронюємо...' : 'Забронювати'}</button>
       </div>
 
-      {/* Seat Map */}
+      {/* Seat Map — туди */}
       {showSeats && (
         <SeatMap trip={trip} totalPax={totalPax} totalPrice={subtotal} currencySign={currencySign} onClose={() => setShowSeats(false)}
           onConfirm={(seats: number[]) => { setSeats(seats); setShowSeats(false) }} />
+      )}
+      {/* Seat Map — назад */}
+      {showSeats2 && trip2 && (
+        <SeatMap trip={trip2} totalPax={totalPax} totalPrice={subtotal2} currencySign={currencySign} onClose={() => setShowSeats2(false)}
+          onConfirm={(seats: number[]) => { setSeats2(seats); setShowSeats2(false) }} />
       )}
     </div>
   )

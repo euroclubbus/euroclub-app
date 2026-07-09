@@ -295,8 +295,19 @@ async function findNearestAvailable(fromId: string, toId: string, startISO: stri
 // ─── Main Page ─────────────────────────────────────────────────────────────
 export default function Results() {
   const nav = useNavigate()
-  const { from, to, dateFrom, passengerCategories } = useSearchStore()
-  const { setTrip } = useBookingStore()
+  const { from, to, dateFrom, dateTo, isOpenReturn, passengerCategories } = useSearchStore()
+  const { setTrip, setTrip2 } = useBookingStore()
+  // Двобічне замовлення: 'out' — рейс туди, 'return' — рейс назад (route2).
+  // Вмикається якщо на Home обрана дата повернення або відмічена "Відкрита дата".
+  const isRoundTrip = !!dateTo || isOpenReturn
+  const [leg, setLeg] = useState<'out' | 'return'>('out')
+  const legFrom = leg === 'out' ? from : to
+  const legTo = leg === 'out' ? to : from
+  // Для відкритої дати повернення точної дати нема — стартуємо з +7 днів від виїзду як орієнтир,
+  // користувач все одно може гортати стрічку дат (route2 підбирається так само з реального пошуку).
+  const legDefaultDate = leg === 'out'
+    ? (dateFrom || new Date().toISOString().split('T')[0])
+    : (dateTo || (() => { const d = new Date(dateFrom || new Date()); d.setDate(d.getDate() + 7); return d.toISOString().split('T')[0] })())
   const [trips, setTrips] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -307,22 +318,29 @@ export default function Results() {
   const [searchingNearest, setSearchingNearest] = useState(false)
 
   const allDates = Array.from({ length: 30 }, (_, i) => {
-    const d = new Date(dateFrom || new Date())
+    const d = new Date(legDefaultDate)
     d.setDate(d.getDate() + i)
     return d.toISOString().split('T')[0]
   })
   const visibleDates = allDates.slice(stripStart, stripStart + 5)
-  const [activeDate, setActiveDate] = useState(dateFrom || allDates[0])
+  const [activeDate, setActiveDate] = useState(legDefaultDate)
+
+  // Перемикання на етап "назад" — скидаємо стрічку дат на новий діапазон
+  useEffect(() => {
+    setActiveDate(legDefaultDate)
+    setStripStart(0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leg])
 
   const handlePrev = () => { if (stripStart > 0) setStripStart(s => s - 1) }
   const handleNext = () => { if (stripStart + 5 < allDates.length) setStripStart(s => s + 1) }
 
   useEffect(() => {
-    if (!from || !to || !activeDate) return
+    if (!legFrom || !legTo || !activeDate) return
     let cancelled = false
     setLoading(true); setError(''); setNoRoute(false); setNearest(null); setSearchingNearest(false)
     const [y, m, d] = activeDate.split('-')
-    getRoutes(from.id, to.id, `${d}-${m}-${y}`)
+    getRoutes(legFrom.id, legTo.id, `${d}-${m}-${y}`)
       .then(async (data: any) => {
         if (cancelled) return
         const code = String(data.error ?? '0')
@@ -331,13 +349,13 @@ export default function Results() {
         setTrips(rts); setLoading(false)
         if (rts.filter(hasSeat).length === 0) {
           setSearchingNearest(true)
-          const res = await findNearestAvailable(from.id, to.id, activeDate)
+          const res = await findNearestAvailable(legFrom.id, legTo.id, activeDate)
           if (!cancelled) { setNearest(res); setSearchingNearest(false) }
         }
       })
       .catch(() => { if (!cancelled) { setError('Не вдалося завантажити рейси. Перевірте з\'єднання.'); setLoading(false) } })
     return () => { cancelled = true }
-  }, [from, to, activeDate])
+  }, [legFrom, legTo, activeDate])
 
   const availableTrips = trips.filter(hasSeat)
   const noneAvailable = !loading && !error && !noRoute && availableTrips.length === 0
@@ -350,6 +368,19 @@ export default function Results() {
     setActiveDate(nearest.date)
   }
 
+  // Вибір рейсу: якщо замовлення в два боки і ми ще на етапі "туди" — переходимо до пошуку "назад",
+  // інакше (одна поїздка, або вже обрали "назад") — одразу в бронювання.
+  const selectTrip = (trip: any) => {
+    if (leg === 'out') {
+      setTrip(trip)
+      if (isRoundTrip) { setLeg('return'); return }
+      nav('/booking')
+    } else {
+      setTrip2(trip)
+      nav('/booking')
+    }
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#F5F5F5', paddingBottom: 20 }}>
       {/* Header — розмита hero */}
@@ -358,13 +389,21 @@ export default function Results() {
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,28,58,0.45)' }} />
         <div style={{ position: 'relative', padding: 'calc(env(safe-area-inset-top) + 20px) 16px 10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-            <button onClick={() => nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            <button onClick={() => leg === 'return' ? setLeg('out') : nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
               <ArrowLeft size={24} color="#fff" />
             </button>
-            <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Знайдені маршрути</span>
+            <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>
+              Знайдені маршрути{isRoundTrip && (leg === 'out' ? ' · Туди' : ' · Назад')}
+            </span>
           </div>
+          {isRoundTrip && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: leg === 'out' ? ORange : 'rgba(255,255,255,0.15)', color: '#fff' }}>1. Туди</span>
+              <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: leg === 'return' ? ORange : 'rgba(255,255,255,0.15)', color: '#fff' }}>2. Назад</span>
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 14, color: '#fff' }}>
-            <span style={{ fontWeight: 700, fontSize: 16, whiteSpace: 'nowrap' }}>{from?.name}</span>
+            <span style={{ fontWeight: 700, fontSize: 16, whiteSpace: 'nowrap' }}>{legFrom?.name}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', border: '1.5px solid #fff', flexShrink: 0 }} />
               <div style={{ flex: 1, borderTop: '1.5px dashed rgba(255,255,255,0.6)' }} />
@@ -372,7 +411,7 @@ export default function Results() {
               <div style={{ flex: 1, borderTop: '1.5px dashed rgba(255,255,255,0.6)' }} />
               <div style={{ width: 6, height: 6, borderRadius: '50%', border: '1.5px solid #fff', flexShrink: 0 }} />
             </div>
-            <span style={{ fontWeight: 700, fontSize: 16, whiteSpace: 'nowrap' }}>{to?.name}</span>
+            <span style={{ fontWeight: 700, fontSize: 16, whiteSpace: 'nowrap' }}>{legTo?.name}</span>
           </div>
           <DateStrip
             dates={visibleDates}
@@ -404,7 +443,7 @@ export default function Results() {
             <div style={{ fontSize: 40, marginBottom: 16 }}>🚌</div>
             <div style={{ fontSize: 17, fontWeight: 700, color: '#1A1A1A', marginBottom: 8 }}>Цей маршрут наразі недоступний</div>
             <div style={{ fontSize: 14, color: Gray, marginBottom: 24, lineHeight: 1.5 }}>
-              На жаль, рейси за маршрутом <strong>{from?.name} → {to?.name}</strong> наразі не виконуються. Спробуйте змінити міста.
+              На жаль, рейси за маршрутом <strong>{legFrom?.name} → {legTo?.name}</strong> наразі не виконуються. Спробуйте змінити міста.
             </div>
             <div style={{ background: '#F9F9F9', borderRadius: 16, padding: 20, textAlign: 'left' }}>
               <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Потрібна допомога?</div>
@@ -450,13 +489,13 @@ export default function Results() {
         {availableTrips.map((trip, i) => (
           <TripCard key={trip.id || i} trip={trip} cats={passengerCategories}
             onInfo={() => setInfoTrip(trip)}
-            onBook={() => { setTrip(trip); nav('/booking') }}
+            onBook={() => selectTrip(trip)}
           />
         ))}
       </div>
 
       <TripInfoSheet open={!!infoTrip} onClose={() => setInfoTrip(null)} trip={infoTrip}
-        onBook={() => { setTrip(infoTrip); setInfoTrip(null); nav('/booking') }} />
+        onBook={() => { selectTrip(infoTrip); setInfoTrip(null) }} />
     </div>
   )
 }
