@@ -32,7 +32,7 @@ function calcDuration(depStr?: string, arrStr?: string): string {
 
 export default function OrderSuccess() {
   const nav = useNavigate()
-  const { orderHash, orderData, selectedTrip, selectedSeats, setOrderResult } = useBookingStore()
+  const { orderHash, orderData, selectedTrip, selectedTrip2, selectedSeats, setOrderResult } = useBookingStore()
   const { setFrom, setTo } = useSearchStore()
   const [status, setStatus] = useState<'active'|'cancelled'>('active')
   const [loading, setLoading] = useState(false)
@@ -45,6 +45,10 @@ export default function OrderSuccess() {
   const [chosenSeats, setChosenSeats] = useState<number[]>([])
 
   const trip = selectedTrip as any
+  const trip2 = selectedTrip2 as any
+  const isRoundTrip = !!trip2
+  const dep2 = trip2?.departure?.[0]
+  const arr2 = trip2?.arrival?.[0]
   const data = orderData as any
   // Prefer order data from order_new response (real, confirmed), fall back to selected trip for display before booking completes
   const dep = trip?.departure?.[0]
@@ -203,7 +207,8 @@ export default function OrderSuccess() {
         })()}
 
         {/* Trip card */}
-        <div style={{ border: '1.5px solid #EEE', borderRadius: 16, padding: 16, marginBottom: 16 }}>
+        {isRoundTrip && <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>ТУДИ</div>}
+        <div style={{ border: '1.5px solid #EEE', borderRadius: 16, padding: 16, marginBottom: isRoundTrip ? 12 : 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, marginBottom: 10 }}>
             <span>{depDT.date} → {arrDT.date}</span>
             {duration && <span>⏱ {duration}</span>}
@@ -230,7 +235,30 @@ export default function OrderSuccess() {
           </div>
         </div>
 
-        {/* Passengers */}
+        {isRoundTrip && trip2 && (
+          <>
+            <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>НАЗАД</div>
+            <div style={{ border: '1.5px solid #EEE', borderRadius: 16, padding: 16, marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, marginBottom: 10 }}>
+                <span>{splitDateTime(dep2?.time).date} → {splitDateTime(arr2?.time).date}</span>
+                <span>⏱ {calcDuration(dep2?.time, arr2?.time)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 22 }}>{splitDateTime(dep2?.time).time}</div>
+                  <div style={{ fontSize: 13 }}>{dep2?.city_ua || dep2?.city}</div>
+                  <div style={{ fontSize: 11, color: Gray }}>{dep2?.name}</div>
+                </div>
+                <span style={{ fontSize: 16 }}>🚌</span>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 800, fontSize: 22 }}>{splitDateTime(arr2?.time).time}</div>
+                  <div style={{ fontSize: 13 }}>{arr2?.city_ua || arr2?.city}</div>
+                  <div style={{ fontSize: 11, color: Gray }}>{arr2?.name}</div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
         {passengers.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', fontSize: 12, color: Gray, marginBottom: 8 }}>
