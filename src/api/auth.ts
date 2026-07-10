@@ -11,7 +11,15 @@ async function inputPost(fields: Record<string, string>) {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
   })
-  const json = await res.json()
+  const raw = await res.text()
+  console.log('[EuroClub AUTH] ← RAW', fields.opr, 'status:', res.status, 'body:', raw)
+  let json: any
+  try {
+    json = JSON.parse(raw)
+  } catch (e) {
+    console.error('[EuroClub AUTH] JSON parse failed for', fields.opr, e)
+    throw e
+  }
   console.log('[EuroClub AUTH] ←', fields.opr, json)
   return json
 }
