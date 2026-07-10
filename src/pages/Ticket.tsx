@@ -3,8 +3,9 @@ import { useRef, useState } from 'react'
 import { ArrowLeft, Download, ChevronRight } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
-import { ticketAvailable, payInfo } from '../orderStatus'
+import { ticketAvailable, payInfo, needsPolling } from '../orderStatus'
 import { useDisplayPrice } from '../currency'
+import { useOrderPolling } from '../useOrderPolling'
 
 const ORange = '#F5A623'
 const Navy = '#0B2E5E'
@@ -17,10 +18,13 @@ function platformSuffix() {
 
 export default function Ticket() {
   const nav = useNavigate()
-  const { orderHash, orderData, selectedTrip, selectedSeats, passengerNames } = useBookingStore()
+  const { orderHash, orderData, selectedTrip, selectedSeats, passengerNames, setOrderResult } = useBookingStore()
   const trip = selectedTrip as any
   const data = orderData as any
   const hash = orderHash || data?.hash || ''
+  // Ціну на замовлення менеджер може змінити вручну — поки не оплачено повністю,
+  // звіряємо з сервером кожні 1.5с, щоб цифри на екрані завжди були актуальні.
+  useOrderPolling(hash, needsPolling(data), (o) => setOrderResult(hash, o))
 
   // Квиток доступний лише після оплати
   if (data && !ticketAvailable(data, hash)) {

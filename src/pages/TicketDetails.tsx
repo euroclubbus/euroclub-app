@@ -3,7 +3,8 @@ import { ArrowLeft, Phone, Mail, Globe, ShieldCheck } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
 import { useDisplayPrice } from '../currency'
-import { payInfo } from '../orderStatus'
+import { payInfo, needsPolling } from '../orderStatus'
+import { useOrderPolling } from '../useOrderPolling'
 
 const ORange = '#F5A623'
 const Navy = '#0B2E5E'
@@ -23,9 +24,10 @@ function splitDT(s: any) {
 
 export default function TicketDetails() {
   const nav = useNavigate()
-  const { orderHash, orderData } = useBookingStore()
+  const { orderHash, orderData, setOrderResult } = useBookingStore()
   const data = (orderData || {}) as any
   const hash = orderHash || data?.hash || ''
+  useOrderPolling(hash, needsPolling(data), (o) => setOrderResult(hash, o))
   const { format } = useDisplayPrice()
   const suffix = platformSuffix()
   const currency = data?.crc || 'uah'
