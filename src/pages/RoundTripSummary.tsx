@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { findTwoWayPrice } from '../priceEngine'
 import { useDisplayPrice, convert } from '../currency'
+import CurrencyToggle from '../components/CurrencyToggle'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -101,11 +102,14 @@ export default function RoundTripSummary() {
         <LegCard title="ТУДИ" trip={trip} />
         <LegCard title="НАЗАД" trip={trip2} />
 
-        <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 18 }}>
-            <span>Загальна ціна за квиток у два боки</span>
-            <span>{format(total, trip?.currency)}</span>
+        <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, color: Gray, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>
+              Ціна у два боки
+            </div>
+            <div style={{ fontSize: 26, fontWeight: 900 }}>{format(total, trip?.currency)}</div>
           </div>
+          <CurrencyToggle />
         </div>
 
         <button onClick={() => nav('/booking')} style={{
