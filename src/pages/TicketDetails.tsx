@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { ArrowLeft, Phone, Mail, Globe, ShieldCheck } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
@@ -27,7 +28,16 @@ export default function TicketDetails() {
   const { orderHash, orderData, setOrderResult } = useBookingStore()
   const data = (orderData || {}) as any
   const hash = orderHash || data?.hash || ''
-  useOrderPolling(hash, needsPolling(data), (o) => setOrderResult(hash, o))
+  const [priceReady, setPriceReady] = useState(() => !needsPolling(data))
+  useOrderPolling(hash, needsPolling(data), (o) => { setOrderResult(hash, o); setPriceReady(true) })
+  if (!priceReady) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#F2F4F7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 36, height: 36, border: '3px solid #DDE2E8', borderTopColor: Navy, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      </div>
+    )
+  }
   const { format } = useDisplayPrice()
   const suffix = platformSuffix()
   const currency = data?.crc || 'uah'

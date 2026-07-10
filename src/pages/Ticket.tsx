@@ -23,8 +23,18 @@ export default function Ticket() {
   const data = orderData as any
   const hash = orderHash || data?.hash || ''
   // Ціну на замовлення менеджер може змінити вручну — поки не оплачено повністю,
-  // звіряємо з сервером кожні 1.5с, щоб цифри на екрані завжди були актуальні.
-  useOrderPolling(hash, needsPolling(data), (o) => setOrderResult(hash, o))
+  // звіряємо з сервером кожні 0.3с, щоб цифри на екрані завжди були актуальні.
+  const [priceReady, setPriceReady] = useState(() => !needsPolling(data))
+  useOrderPolling(hash, needsPolling(data), (o) => { setOrderResult(hash, o); setPriceReady(true) })
+
+  if (!priceReady) {
+    return (
+      <div style={{ minHeight: '100vh', background: Navy, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 36, height: 36, border: '3px solid rgba(255,255,255,0.2)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      </div>
+    )
+  }
 
   // Квиток доступний лише після оплати
   if (data && !ticketAvailable(data, hash)) {

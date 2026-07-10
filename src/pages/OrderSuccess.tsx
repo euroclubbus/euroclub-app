@@ -72,7 +72,8 @@ export default function OrderSuccess() {
   const summ = data?.summ ?? price
   const passengers = data?.passangers || []
 
-  useOrderPolling(hash, needsPolling(data), (o) => setOrderResult(hash, o))
+  const [priceReady, setPriceReady] = useState(() => !needsPolling(data))
+  useOrderPolling(hash, needsPolling(data), (o) => { setOrderResult(hash, o); setPriceReady(true) })
 
   useEffect(() => {
     if (data?.status) {
@@ -172,6 +173,15 @@ export default function OrderSuccess() {
       if (toCity) setTo({ id: String(toCity.id), name: toCity.uk, country: toCity.i2, i2: toCity.i2 })
     } catch { /* якщо не вдалось підтягнути - просто відкриється порожній пошук */ }
     nav('/')
+  }
+
+  if (!priceReady) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#F5F5F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 36, height: 36, border: '3px solid #EEE', borderTopColor: ORange, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      </div>
+    )
   }
 
   return (
