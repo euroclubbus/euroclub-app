@@ -3,12 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { getLocalOrders, saveOrderLocally, getOrderInfo } from '../api/euroclub'
 import { getUserOrders } from '../api/auth'
 import { useBookingStore } from '../store'
-import { ticketAvailable, statusLabel, payInfo, isCancelled } from '../orderStatus'
+import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted } from '../orderStatus'
 import { useDisplayPrice } from '../currency'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
-function num(v: any): number { const n = parseFloat(String(v ?? '').replace(',', '.').trim()); return isNaN(n) ? 0 : n }
 
 export default function MyTickets() {
   const nav = useNavigate()
@@ -38,18 +37,16 @@ export default function MyTickets() {
 
         let merged = Object.values(byHash)
 
-        // Страховка: якщо у замовлення активний статус, але жодних ознак оплати
-        // (ні з user-orders, ні з локального кешу) — точно звіряємо по order_info,
-        // бо user-orders міг просто не віддати pay_uah/pay_eur в списку.
-        const suspicious = merged.filter((o: any) =>
-          !isCancelled(o) && !num(o?.pay_uah) && !num(o?.pay_eur) && o?.hash
-        )
-        if (suspicious.length > 0) {
+        // Ціна/оплата — змінні поля (менеджер може відредагувати вручну будь-коли),
+        // тож для всіх активних, ще не повністю оплачених замовлень завжди довантажуємо
+        // свіжий order_info замість того, щоб довіряти кешу чи короткому списку user-orders.
+        const needsFresh = merged.filter((o: any) => !isCancelled(o) && !isCompleted(o) && o?.hash)
+        if (needsFresh.length > 0) {
           const fresh = await Promise.all(
-            suspicious.map((o: any) => getOrderInfo(o.hash).then((r: any) => r.orders?.[0] || r).catch(() => null))
+            needsFresh.map((o: any) => getOrderInfo(o.hash).then((r: any) => r.orders?.[0] || r).catch(() => null))
           )
           fresh.forEach((f: any, i: number) => {
-            if (f) byHash[suspicious[i].hash] = { ...byHash[suspicious[i].hash], ...f }
+            if (f) byHash[needsFresh[i].hash] = { ...byHash[needsFresh[i].hash], ...f }
           })
           merged = Object.values(byHash)
         }
