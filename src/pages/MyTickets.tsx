@@ -40,6 +40,7 @@ export default function MyTickets() {
         // Ціна/оплата — змінні поля (менеджер може відредагувати вручну будь-коли),
         // тож для всіх активних, ще не повністю оплачених замовлень завжди довантажуємо
         // свіжий order_info замість того, щоб довіряти кешу чи короткому списку user-orders.
+        // Робимо це ДО першого рендеру списку, щоб не було миготіння застарілою ціною.
         const needsFresh = merged.filter((o: any) => !isCancelled(o) && !isCompleted(o) && o?.hash)
         if (needsFresh.length > 0) {
           const fresh = await Promise.all(
@@ -80,28 +81,63 @@ export default function MyTickets() {
     return m ? '000' + m[1] : (o.hash ? '000' + o.hash.slice(-6).toUpperCase() : '')
   }
 
+  // Категорія замовлення для фільтра
+  type Cat = 'active' | 'completed' | 'cancelled'
+  const category = (o: any): Cat => {
+    if (isCancelled(o)) return 'cancelled'
+    if (isCompleted(o)) return payInfo(o).paid > 0 ? 'completed' : 'cancelled'
+    return 'active'
+  }
+  const [filter, setFilter] = useState<Cat | 'all'>('active')
+  const filtered = filter === 'all' ? orders : orders.filter(o => category(o) === filter)
+  const counts = {
+    active: orders.filter(o => category(o) === 'active').length,
+    completed: orders.filter(o => category(o) === 'completed').length,
+    cancelled: orders.filter(o => category(o) === 'cancelled').length,
+    all: orders.length,
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#F5F5F5' }}>
       <div style={{ position: 'relative', overflow: 'hidden' }}>
         <img src="/bus-hero.png" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(7px) brightness(0.7)', transform: 'scale(1.1)' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,28,58,0.45)' }} />
         <div style={{ position: 'relative', padding: 'calc(env(safe-area-inset-top) + 20px) 16px 16px' }}>
-          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Мої квитки</span>
+          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Мої замовлення</span>
         </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, padding: '14px 16px 0', overflowX: 'auto' }}>
+        {([
+          ['active', `Активні${counts.active ? ` (${counts.active})` : ''}`],
+          ['completed', `Виконані${counts.completed ? ` (${counts.completed})` : ''}`],
+          ['cancelled', `Скасовані${counts.cancelled ? ` (${counts.cancelled})` : ''}`],
+          ['all', 'Всі'],
+        ] as const).map(([key, label]) => (
+          <button key={key} onClick={() => setFilter(key)} style={{
+            padding: '8px 14px', borderRadius: 20, border: 'none', cursor: 'pointer',
+            fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
+            background: filter === key ? ORange : '#fff',
+            color: filter === key ? '#fff' : '#555',
+            boxShadow: filter === key ? 'none' : '0 1px 4px rgba(0,0,0,0.08)',
+          }}>{label}</button>
+        ))}
       </div>
 
       <div style={{ padding: 16 }}>
         {loading && <p style={{ color: Gray, textAlign: 'center', paddingTop: 40 }}>Завантаження...</p>}
-        {!loading && orders.length === 0 && (
+        {!loading && filtered.length === 0 && (
           <div style={{ textAlign: 'center', paddingTop: 60 }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🎫</div>
-            <p style={{ color: Gray, fontSize: 16 }}>Замовлень поки немає</p>
-            <button onClick={() => nav('/')} style={{ marginTop: 20, padding: '12px 28px', background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, cursor: 'pointer' }}>
-              Знайти рейс
-            </button>
+            <p style={{ color: Gray, fontSize: 16 }}>{orders.length === 0 ? 'Замовлень поки немає' : 'Нічого немає в цій категорії'}</p>
+            {orders.length === 0 && (
+              <button onClick={() => nav('/')} style={{ marginTop: 20, padding: '12px 28px', background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, cursor: 'pointer' }}>
+                Знайти рейс
+              </button>
+            )}
           </div>
         )}
-        {orders.map((o, i) => {
+        {filtered.map((o, i) => {
           const st = statusLabel(o)
           const paid = ticketAvailable(o, o.hash)
           return (

@@ -4,7 +4,7 @@ import { getUnreadCount } from '../notifications'
 
 const TABS = [
   { to: '/', icon: Search, label: 'Пошук', end: true, badge: false },
-  { to: '/tickets', icon: Ticket, label: 'Квитки', badge: false },
+  { to: '/tickets', icon: Ticket, label: 'Замовлення', badge: false },
   { to: '/profile', icon: User, label: 'Профіль', badge: false },
   { to: '/notifications', icon: Bell, label: 'Сповіщення', badge: true },
 ]
