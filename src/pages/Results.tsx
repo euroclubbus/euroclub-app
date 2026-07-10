@@ -135,27 +135,28 @@ function TripCard({ trip, cats, onBook, roundTripPrice, hidePrice, bookLabel }: 
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTop: '1px solid #F5F5F5', gap: 8 }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {trip.option?.includes('WiFi') && <Wifi size={15} color={Gray} />}
-          {trip.option?.includes('USB розетки') && <Zap size={15} color={Gray} />}
-          <Bus size={15} color={hasTransfer ? ORange : Gray} />
-          <span style={{ fontSize: 12, color: hasTransfer ? ORange : Gray, fontWeight: hasTransfer ? 700 : 400 }}>{hasTransfer ? 'Пересадка' : 'Прямий'}</span>
-          {freeSeats > 0 && freeSeats <= 5 && (
-            <span style={{ fontSize: 11, color: '#E53935', fontWeight: 600 }}>Залишилось {freeSeats} місць</span>
-          )}
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          {hidePrice ? (
-            <div style={{ fontSize: 11, color: Gray, maxWidth: 120 }}>Ціна вже врахована у загальній вартості</div>
-          ) : (
-            <>
-              {discounted && !roundTripPrice && <div style={{ fontSize: 13, color: Gray, textDecoration: 'line-through' }}>{format(original, trip.currency)}</div>}
-              <div style={{ fontSize: 20, fontWeight: 800, whiteSpace: 'nowrap' }}>{format(displayTotal, trip.currency)}</div>
-              {roundTripPrice != null && <div style={{ fontSize: 11, color: ORange, fontWeight: 700 }}>за квиток у два боки</div>}
-            </>
-          )}
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', paddingTop: 12, borderTop: '1px solid #F5F5F5', gap: 8, flexWrap: 'wrap' }}>
+        {trip.option?.includes('WiFi') && <Wifi size={15} color={Gray} />}
+        {trip.option?.includes('USB розетки') && <Zap size={15} color={Gray} />}
+        <Bus size={15} color={hasTransfer ? ORange : Gray} />
+        <span style={{ fontSize: 12, color: hasTransfer ? ORange : Gray, fontWeight: hasTransfer ? 700 : 400 }}>{hasTransfer ? 'Пересадка' : 'Прямий'}</span>
+        {freeSeats > 0 && freeSeats <= 5 && (
+          <span style={{ fontSize: 11, color: '#E53935', fontWeight: 600 }}>Залишилось {freeSeats} місць</span>
+        )}
+      </div>
+
+      {/* Ціна — окремий блок знизу, тумблер валют поруч з ціною */}
+      <div style={{ marginTop: 12, padding: '12px 14px', background: '#FAFAFA', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        {hidePrice ? (
+          <div style={{ fontSize: 12, color: Gray }}>Ціна вже врахована у загальній вартості</div>
+        ) : (
+          <div>
+            {discounted && !roundTripPrice && <div style={{ fontSize: 12, color: Gray, textDecoration: 'line-through' }}>{format(original, trip.currency)}</div>}
+            <div style={{ fontSize: 21, fontWeight: 800 }}>{format(displayTotal, trip.currency)}</div>
+            {roundTripPrice != null && <div style={{ fontSize: 11, color: ORange, fontWeight: 700 }}>за квиток у два боки</div>}
+          </div>
+        )}
+        <CurrencyToggle />
       </div>
 
       {anyFallback && (
@@ -330,7 +331,6 @@ export default function Results() {
             <span style={{ color: '#fff', fontSize: 20, fontWeight: 800, flex: 1 }}>
               Знайдені маршрути{isRoundTrip && (leg === 'out' ? ' · Туди' : ' · Назад')}
             </span>
-            <CurrencyToggle light />
           </div>
           {isRoundTrip && (
             <>
