@@ -35,7 +35,7 @@ export default function TicketDetails() {
   const orderNo = hash ? hash.slice(-9).toUpperCase() : '000000000'
   const passengers: any[] = (data?.passangers && data.passangers.length)
     ? data.passangers
-    : [{ name: data?.mainname || '—', place: '', price: data?.price ?? data?.summ }]
+    : [{ name: data?.mainname || '—', place: '', price: data?.summ ?? data?.price }]
 
   const dep = splitDT(data?.ftime)
   const arr = splitDT(data?.ttime)
@@ -131,7 +131,7 @@ export default function TicketDetails() {
                 {p.ticket && <>№ {p.ticket}{suffix} · </>}Місце {p.place && p.place !== '0' ? p.place : '—'}
               </div>
             </div>
-            <div style={{ fontSize: 14.5, fontWeight: 700 }}>{format(p.price ?? data?.price, currency)}</div>
+            <div style={{ fontSize: 14.5, fontWeight: 700 }}>{format(passengers.length === 1 ? (data?.summ ?? data?.price) : (p.price ?? data?.summ ?? data?.price), currency)}</div>
           </div>
         ))}
       </div>

@@ -68,7 +68,7 @@ export default function OrderSuccess() {
   })()
   const currencyCode = data?.crc || trip?.currency || 'uah'
   const { format } = useDisplayPrice()
-  const price = data?.price ?? trip?.price ?? 0
+  const price = data?.summ ?? data?.price ?? trip?.price ?? 0
   const summ = data?.summ ?? price
   const passengers = data?.passangers || []
 
@@ -270,7 +270,7 @@ export default function OrderSuccess() {
                 <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                   <span>💺</span><span>{p.place}</span>
                 </div>
-                <div style={{ textAlign: 'right', fontWeight: 600 }}>{format(price, currencyCode)}</div>
+                <div style={{ textAlign: 'right', fontWeight: 600 }}>{format(passengers.length === 1 ? price : (p.price ?? price), currencyCode)}</div>
               </div>
             ))}
           </div>

@@ -62,7 +62,7 @@ export default function Ticket() {
   const paxCount = Math.max(selectedSeats.length, Object.keys(passengerNames).length, 1)
   const passengers = (data?.passangers && data.passangers.length)
     ? data.passangers.map((p: any) => ({ name: p.name, place: p.place, ticket: p.ticket, price: p.price }))
-    : Array.from({ length: paxCount }).map((_, i) => ({ name: passengerNames[i] || '—', place: selectedSeats[i], ticket: undefined, price: data?.price }))
+    : Array.from({ length: paxCount }).map((_, i) => ({ name: passengerNames[i] || '—', place: selectedSeats[i], ticket: undefined, price: data?.summ ?? data?.price }))
 
   const ticketPdf: string = data?.ticket || ''
   const notch = { position: 'absolute' as const, width: 22, height: 22, borderRadius: '50%', background: Navy, top: '50%', transform: 'translateY(-50%)' }
@@ -156,7 +156,7 @@ export default function Ticket() {
                       <div style={{ fontSize: 14, fontWeight: 600 }}>{p.name || '—'}</div>
                       {p.ticket && <div style={{ fontSize: 11, color: Gray }}>Квиток № {p.ticket}{suffix} · Місце {p.place && p.place !== '0' ? p.place : '—'}</div>}
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 700 }}>{format(p.price ?? data?.price, currency)}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700 }}>{format(passengers.length === 1 ? (data?.summ ?? data?.price) : (p.price ?? data?.summ ?? data?.price), currency)}</div>
                   </div>
                   {!hasMultiple && (
                     <>
