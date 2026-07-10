@@ -202,7 +202,7 @@ function CityPicker({ open, onClose }: { open: boolean; onClose: () => void }) {
     : null
   const filtered = cities.filter((c: any) =>
     (!allowedIds || allowedIds.has(String(c.id))) &&
-    (c.uk || '').toLowerCase().includes(query.toLowerCase())
+    (c.uk || '').toLowerCase().startsWith(query.toLowerCase())
   )
 
   if (!open) return null
