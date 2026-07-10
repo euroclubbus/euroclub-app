@@ -6,6 +6,7 @@ import { useAuthStore } from '../authStore'
 import { createOrder, saveOrderLocally } from '../api/euroclub'
 import { findTwoWayPrice } from '../priceEngine'
 import { convert, useDisplayPrice } from '../currency'
+import { getSavedPassengers } from '../savedPassengers'
 import BottomSheet from '../components/BottomSheet'
 import CurrencyToggle from '../components/CurrencyToggle'
 import SeatMap from './SeatMap'
@@ -39,6 +40,7 @@ export default function Booking() {
     passengerNames, passengerDiscounts, contactEmail, contactPhone, contactPhone2,
     setSeats, setSeats2, setPassengerName, setPassengerDiscount, removePassengerDataAt, setContact, setOrderResult
   } = useBookingStore()
+  const [savedPassengers] = useState(() => getSavedPassengers())
   const [showSeats, setShowSeats] = useState(false)
   const [showSeats2, setShowSeats2] = useState(false)
   const [attempted, setAttempted] = useState(false)
@@ -220,6 +222,16 @@ export default function Booking() {
                   onChange={e => setPassengerName(idx, e.target.value)}
                   style={{ width: '100%', padding: '12px 14px', border: attempted && !passengerNames[idx]?.trim() ? '1.5px solid #E53935' : '1.5px solid #EEE', borderRadius: 12, fontSize: 14, outline: 'none', marginBottom: 8 }}
                 />
+                {savedPassengers.length > 0 && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                    {savedPassengers.map(sp => (
+                      <button key={sp.id} onClick={() => setPassengerName(idx, sp.name)} style={{
+                        padding: '5px 10px', borderRadius: 14, border: '1px solid #EEE', background: '#FAFAFA',
+                        color: '#555', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      }}>{sp.name}</button>
+                    ))}
+                  </div>
+                )}
                 {/* Поточна знижка */}
                 {currentDiscount && !isEditing && (
                   <div style={{ fontSize: 13, color: Gray, marginBottom: 4 }}>
