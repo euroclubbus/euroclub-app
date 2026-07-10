@@ -4,7 +4,6 @@ import { getLocalOrders, saveOrderLocally, getOrderInfo } from '../api/euroclub'
 import { getUserOrders } from '../api/auth'
 import { useBookingStore } from '../store'
 import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted } from '../orderStatus'
-import { useDisplayPrice } from '../currency'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -12,7 +11,6 @@ const Gray = '#9E9E9E'
 export default function MyTickets() {
   const nav = useNavigate()
   const { setOrderResult } = useBookingStore()
-  const { format } = useDisplayPrice()
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -147,9 +145,8 @@ export default function MyTickets() {
                 <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 20, background: st.bg, color: st.color }}>{st.text}</span>
               </div>
               <div style={{ color: Gray, fontSize: 13, marginBottom: 10 }}>{o.ftime} → {o.ttime}</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #F5F5F5', paddingTop: 10 }}>
+              <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 10 }}>
                 <span style={{ color: Gray, fontSize: 12 }}>{orderNo(o)}</span>
-                <span style={{ fontWeight: 800, fontSize: 17 }}>{format(o.summ ?? o.price, o.crc || 'uah')}</span>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
                 <button onClick={() => openOrder(o)} style={{ flex: 1, padding: '11px 0', background: 'none', border: `2px solid ${ORange}`, borderRadius: 12, color: ORange, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
