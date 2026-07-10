@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { User, LogOut, Ticket, Mail, Phone, Pencil, Check, X, Plus, Trash2, Users } from 'lucide-react'
 import { useAuthStore } from '../authStore'
 import { editProfile } from '../api/auth'
-import { getSavedPassengers, addSavedPassenger, removeSavedPassenger, SavedPassenger } from '../savedPassengers'
+import { getSavedPassengers, addSavedPassenger, removeSavedPassenger, setSavedPassengerBirthday, SavedPassenger } from '../savedPassengers'
 import Auth from './Auth'
 
 const ORange = '#F5A623'
@@ -32,6 +32,7 @@ export default function Profile() {
   // Збережені пасажири (родина, ті кому часто купуєш квитки)
   const [passengers, setPassengers] = useState<SavedPassenger[]>(() => getSavedPassengers())
   const [newPax, setNewPax] = useState('')
+  const [newPaxBday, setNewPaxBday] = useState('')
 
   if (!user) return <Auth />
 
@@ -54,10 +55,11 @@ export default function Profile() {
 
   const addPax = () => {
     if (!newPax.trim()) return
-    setPassengers(addSavedPassenger(newPax))
-    setNewPax('')
+    setPassengers(addSavedPassenger(newPax, newPaxBday))
+    setNewPax(''); setNewPaxBday('')
   }
   const delPax = (id: string) => setPassengers(removeSavedPassenger(id))
+  const setBday = (id: string, val: string) => setPassengers(setSavedPassengerBirthday(id, val))
 
   const row = (icon: any, label: string, value: string) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0', borderBottom: '1px solid #F2F2F2' }}>
@@ -128,15 +130,22 @@ export default function Profile() {
             <span style={{ fontWeight: 700, fontSize: 15 }}>Пасажири</span>
           </div>
           <div style={{ fontSize: 12, color: Gray, marginBottom: 12 }}>
-            Діти, дружина, батьки — кому часто купуєш квитки. З'являться списком при заповненні бронювання.
+            Діти, дружина, батьки — кому часто купуєш квитки. З'являться списком при заповненні бронювання. Дата народження — для привітань і спецпропозицій у майбутньому.
           </div>
 
           {passengers.map(p => (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid #F5F5F5' }}>
-              <span style={{ fontSize: 14, fontWeight: 600 }}>{p.name}</span>
-              <button onClick={() => delPax(p.id)} aria-label="Видалити" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-                <Trash2 size={16} color="#E53935" />
-              </button>
+            <div key={p.id} style={{ padding: '10px 0', borderTop: '1px solid #F5F5F5' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>{p.name}</span>
+                <button onClick={() => delPax(p.id)} aria-label="Видалити" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+                  <Trash2 size={16} color="#E53935" />
+                </button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                <span style={{ fontSize: 11, color: Gray, whiteSpace: 'nowrap' }}>Дата народження</span>
+                <input type="date" value={p.birthday || ''} onChange={e => setBday(p.id, e.target.value)}
+                  style={{ fontSize: 12.5, padding: '4px 8px', border: '1px solid #EEE', borderRadius: 8, color: '#555' }} />
+              </div>
             </div>
           ))}
 
@@ -146,6 +155,11 @@ export default function Profile() {
             <button onClick={addPax} style={{ width: 44, height: 44, background: ORange, border: 'none', borderRadius: 10, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Plus size={20} />
             </button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+            <span style={{ fontSize: 12, color: Gray, whiteSpace: 'nowrap' }}>Дата народження (не обов'язково)</span>
+            <input type="date" value={newPaxBday} onChange={e => setNewPaxBday(e.target.value)}
+              style={{ fontSize: 13, padding: '6px 10px', border: '1.5px solid #EEE', borderRadius: 8, color: '#555' }} />
           </div>
         </div>
 

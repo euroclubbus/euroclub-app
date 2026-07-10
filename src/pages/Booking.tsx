@@ -37,7 +37,7 @@ export default function Booking() {
   const { from, to, dateFrom, isOpenReturn, passengerCount, passengerCategories, addPassengerCategory, removePassengerCategoryAt } = useSearchStore()
   const {
     selectedTrip, selectedSeats, selectedTrip2, selectedSeats2,
-    passengerNames, passengerDiscounts, contactEmail, contactPhone, contactPhone2,
+    passengerNames, passengerDiscounts, contactEmail, contactPhone,
     setSeats, setSeats2, setPassengerName, setPassengerDiscount, removePassengerDataAt, setContact, setOrderResult
   } = useBookingStore()
   const [savedPassengers] = useState(() => getSavedPassengers())
@@ -66,6 +66,7 @@ export default function Booking() {
   const [showAddPicker, setShowAddPicker] = useState(false)
   const { user } = useAuthStore()
   useEffect(() => { if (user?.email && !contactEmail) setContact('email', user.email) }, [user])
+  useEffect(() => { if (user?.phone && !contactPhone) setContact('phone', user.phone) }, [user])
 
   const removePassenger = (idx: number) => {
     if (totalPax <= 1) return
@@ -321,7 +322,6 @@ export default function Booking() {
           {[
             { label: 'Адреса ел. пошти', val: contactEmail, set: (v: string) => setContact('email', v), placeholder: 'your@email.com', required: false },
             { label: 'Номер телефону', val: contactPhone, set: (v: string) => setContact('phone', v), placeholder: '+380...', required: true },
-            { label: 'Додатковий номер телефону', val: contactPhone2, set: (v: string) => setContact('phone2', v), placeholder: '+380...', required: false },
           ].map((f, i) => (
             <div key={i} style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 12, color: Gray, display: 'block', marginBottom: 6 }}>{f.label}</label>
