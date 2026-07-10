@@ -17,6 +17,30 @@ export default function MyTickets() {
   useEffect(() => {
     const local = getLocalOrders()
 
+    // Довантажити свіжий order_info для всіх активних (ще не завершених/скасованих) замовлень.
+    // Ціна/оплата — змінні поля (менеджер може відредагувати вручну будь-коли), тож кешу
+    // чи короткому списку user-orders не довіряємо, завжди звіряємо з сервером напряму.
+    async function refreshFresh(byHash: Record<string, any>) {
+      const list = Object.values(byHash)
+      const needsFresh = list.filter((o: any) => !isCancelled(o) && !isCompleted(o) && o?.hash)
+      if (needsFresh.length > 0) {
+        const fresh = await Promise.all(
+          needsFresh.map((o: any) => getOrderInfo(o.hash).then((r: any) => r.orders?.[0] || r).catch(() => null))
+        )
+        fresh.forEach((f: any, i: number) => {
+          if (f) byHash[needsFresh[i].hash] = { ...byHash[needsFresh[i].hash], ...f }
+        })
+      }
+      return Object.values(byHash)
+    }
+
+    function finish(merged: any[]) {
+      merged.forEach((o: any) => saveOrderLocally(o.hash, o)) // кешуємо серверні дані локально
+      merged.sort((a: any, b: any) => parseOrderDate(b.ftime) - parseOrderDate(a.ftime))
+      setOrders(merged)
+      setLoading(false)
+    }
+
     getUserOrders()
       .then(async (res: any) => {
         // Формат відповіді user-orders ще не підтверджений на реальних даних —
@@ -33,34 +57,14 @@ export default function MyTickets() {
         for (const o of Object.values(local)) if ((o as any).hash) byHash[(o as any).hash] = { ...(o as any) }
         for (const o of remote) if (o.hash) byHash[o.hash] = { ...(byHash[o.hash] || {}), ...o }
 
-        let merged = Object.values(byHash)
-
-        // Ціна/оплата — змінні поля (менеджер може відредагувати вручну будь-коли),
-        // тож для всіх активних, ще не повністю оплачених замовлень завжди довантажуємо
-        // свіжий order_info замість того, щоб довіряти кешу чи короткому списку user-orders.
-        // Робимо це ДО першого рендеру списку, щоб не було миготіння застарілою ціною.
-        const needsFresh = merged.filter((o: any) => !isCancelled(o) && !isCompleted(o) && o?.hash)
-        if (needsFresh.length > 0) {
-          const fresh = await Promise.all(
-            needsFresh.map((o: any) => getOrderInfo(o.hash).then((r: any) => r.orders?.[0] || r).catch(() => null))
-          )
-          fresh.forEach((f: any, i: number) => {
-            if (f) byHash[needsFresh[i].hash] = { ...byHash[needsFresh[i].hash], ...f }
-          })
-          merged = Object.values(byHash)
-        }
-
-        merged.forEach((o: any) => saveOrderLocally(o.hash, o)) // кешуємо серверні дані локально
-        merged.sort((a: any, b: any) => parseOrderDate(b.ftime) - parseOrderDate(a.ftime))
-        setOrders(merged)
-        setLoading(false)
+        finish(await refreshFresh(byHash))
       })
-      .catch(() => {
-        // API недоступне — показуємо хоч що є локально
-        const list = Object.values(local)
-        list.sort((a: any, b: any) => (b.savedAt || 0) - (a.savedAt || 0))
-        setOrders(list)
-        setLoading(false)
+      .catch(async () => {
+        // user-orders недоступний (падає) — все одно звіряємо кожне локально відоме
+        // замовлення напряму через order_info, щоб статус/ціна не лишались застарілими.
+        const byHash: Record<string, any> = {}
+        for (const o of Object.values(local)) if ((o as any).hash) byHash[(o as any).hash] = { ...(o as any) }
+        finish(await refreshFresh(byHash))
       })
   }, [])
 
