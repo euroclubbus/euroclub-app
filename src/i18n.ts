@@ -18,6 +18,7 @@ export const dict: Dict = {
   'home.dateFrom': { uk: 'Відправлення', en: 'Departure', de: 'Abfahrtsdatum', ru: 'Отправление' },
   'home.dateTo': { uk: 'Повернення', en: 'Return', de: 'Rückkehr', ru: 'Возвращение' },
   'home.openReturn': { uk: 'Відкрита дата повернення', en: 'Open return date', de: 'Offenes Rückreisedatum', ru: 'Открытая дата возврата' },
+  'home.openReturnNote': { uk: 'Ви зможете встановити дату пізніше. Квиток дійсний 6 місяців після першої поїздки.', en: "You'll be able to set the date later. The ticket is valid for 6 months after the first trip.", de: 'Sie können das Datum später festlegen. Das Ticket ist 6 Monate nach der ersten Fahrt gültig.', ru: 'Вы сможете установить дату позже. Билет действителен 6 месяцев после первой поездки.' },
   'home.passengers': { uk: 'Пасажири', en: 'Passengers', de: 'Passagiere', ru: 'Пассажиры' },
   'home.passengersSheetTitle': { uk: "Оберіть кількість пасажирів та категорію квитка", en: 'Choose number of passengers and ticket category', de: 'Anzahl der Passagiere und Tarifkategorie wählen', ru: 'Выберите количество пассажиров и категорию билета' },
   'home.find': { uk: 'Знайти', en: 'Find', de: 'Suchen', ru: 'Найти' },
@@ -52,6 +53,7 @@ export const dict: Dict = {
   'results.noRouteEnd': { uk: 'наразі не виконуються. Спробуйте змінити міста.', en: 'currently no trips available. Try changing the cities.', de: 'derzeit keine Fahrten. Versuchen Sie andere Städte.', ru: 'сейчас не выполняются. Попробуйте изменить города.' },
   'results.changeCities': { uk: 'Змінити міста', en: 'Change cities', de: 'Städte ändern', ru: 'Изменить города' },
   'results.uahSign': { uk: '₴', en: '₴', de: '₴', ru: '₴' },
+  'results.openDate': { uk: 'Відкрита дата', en: 'Open date', de: 'Offenes Datum', ru: 'Открытая дата' },
 
   // ── Booking (бронювання) ──
   'booking.title': { uk: 'Бронювання', en: 'Booking', de: 'Buchung', ru: 'Бронирование' },

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import NotifPrompt from '../components/NotifPrompt'
 import SideMenu from '../components/SideMenu'
+import { useT } from '../i18n'
 import { Menu } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowUpDown, MapPin, Navigation, Calendar, Users } from 'lucide-react'
@@ -14,6 +15,7 @@ const Gray = '#9E9E9E'
 
 // ─── Calendar ────────────────────────────────────────────────────────────────
 function Calendar_({ value, onChange, minDate, onConfirm, departureSel, isOpen, onToggleOpen, showOpenDate }: any) {
+  const t = useT()
   const today = new Date(); today.setHours(0,0,0,0)
   const [cur, setCur] = useState(() => { const d = value ? new Date(value) : new Date(); return { y: d.getFullYear(), m: d.getMonth() } })
   const months = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень']
@@ -79,8 +81,8 @@ function Calendar_({ value, onChange, minDate, onConfirm, departureSel, isOpen, 
             {isOpen && <span style={{ color: '#fff', fontSize: 12, fontWeight: 700 }}>✓</span>}
           </div>
           <div>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>Відкрита дата повернення</div>
-            <div style={{ color: Gray, fontSize: 12, marginTop: 3 }}>Ви зможете встановити дату пізніше. Квиток дійсний 6 місяців після першої поїздки.</div>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>{t('home.openReturn')}</div>
+            <div style={{ color: Gray, fontSize: 12, marginTop: 3 }}>{t('home.openReturnNote')}</div>
           </div>
         </button>
       )}
@@ -96,6 +98,7 @@ function Calendar_({ value, onChange, minDate, onConfirm, departureSel, isOpen, 
 
 // ─── Passengers Sheet ─────────────────────────────────────────────────────────
 function PassengersSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useT()
   const { passengerCategories, setPassengerCategories } = useSearchStore()
   const [cats, setCats] = useState<any[]>([])
 
@@ -134,7 +137,7 @@ function PassengersSheet({ open, onClose }: { open: boolean; onClose: () => void
   }
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="Оберіть кількість пасажирів та категорію квитка">
+    <BottomSheet open={open} onClose={onClose} title={t('home.passengersSheetTitle')}>
       <div style={{ padding: '4px 20px 24px' }}>
         {cats.length === 0 && <div style={{ textAlign: 'center', color: Gray, padding: 24 }}>Завантаження...</div>}
         {cats.map((d: any) => {
@@ -172,6 +175,7 @@ const COUNTRY_NAMES: Record<string,string> = {
 }
 
 function CityPicker({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useT()
   const { from, to, setFrom, setTo } = useSearchStore()
   const [activeField, setActiveField] = useState<'from'|'to'>('from')
   const [query, setQuery] = useState('')
@@ -217,17 +221,17 @@ function CityPicker({ open, onClose }: { open: boolean; onClose: () => void }) {
         borderRadius: 12, padding: '10px 16px', cursor: 'pointer',
         boxShadow: active ? '0 0 0 3px rgba(245,166,35,0.12)' : 'none',
       }}>
-        <div style={{ fontSize: 12, color: Gray, marginBottom: 2 }}>{f === 'from' ? 'Відправлення' : 'Прибуття'}</div>
+        <div style={{ fontSize: 12, color: Gray, marginBottom: 2 }}>{f === 'from' ? t('home.from') : t('home.to')}</div>
         {active ? (
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder={city?.name || 'Введіть місто'}
+            placeholder={city?.name || t('home.enterCity')}
             autoFocus
             style={{ border: 'none', background: 'none', outline: 'none', fontSize: 17, fontWeight: 600, color: '#1A1A1A', width: '100%', caretColor: ORange, padding: 0 }}
           />
         ) : (
-          <div style={{ fontSize: 17, fontWeight: 600, color: city?.name ? '#1A1A1A' : '#BDBDBD' }}>{city?.name || 'Оберіть місто'}</div>
+          <div style={{ fontSize: 17, fontWeight: 600, color: city?.name ? '#1A1A1A' : '#BDBDBD' }}>{city?.name || t('home.chooseCity')}</div>
         )}
       </div>
     )
@@ -294,6 +298,7 @@ function Typewriter() {
 }
 
 export default function Home() {
+  const t = useT()
   const [menuOpen, setMenuOpen] = useState(false)
   const nav = useNavigate()
   const { from, to, dateFrom, dateTo, isOpenReturn, passengerCount, setDateFrom, setDateTo, setOpenReturn, swap } = useSearchStore()
@@ -316,8 +321,8 @@ export default function Home() {
   const nextField: 'from' | 'to' | 'dateFrom' | null =
     !from ? 'from' : !to ? 'to' : !dateFrom ? 'dateFrom' : null
   const missingMsg =
-    nextField === 'from' ? 'Оберіть місто відправлення' :
-    nextField === 'to' ? 'Оберіть місто прибуття' :
+    nextField === 'from' ? t('home.chooseCity') + ' (' + t('home.from') + ')' :
+    nextField === 'to' ? t('home.chooseCity') + ' (' + t('home.to') + ')' :
     nextField === 'dateFrom' ? 'Оберіть дату відправлення' : ''
   const ring = (f: 'from' | 'to' | 'dateFrom') =>
     nextField === f
@@ -337,8 +342,8 @@ export default function Home() {
         <button onClick={() => setShowCity(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer', marginBottom: 10, ...ring('from') }}>
           <Navigation size={18} color={ORange} />
           <div style={{ flex: 1, textAlign: 'left' }}>
-            {from?.name && <div style={{ fontSize: 11, color: Gray }}>Відправлення</div>}
-            <div style={{ fontSize: 16, color: from?.name ? '#1A1A1A' : Gray, fontWeight: from?.name ? 600 : 400 }}>{from?.name || 'Відправлення'}</div>
+            {from?.name && <div style={{ fontSize: 11, color: Gray }}>{t('home.from')}</div>}
+            <div style={{ fontSize: 16, color: from?.name ? '#1A1A1A' : Gray, fontWeight: from?.name ? 600 : 400 }}>{from?.name || t('home.from')}</div>
           </div>
           <button onClick={e => { e.stopPropagation(); swap() }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
             <ArrowUpDown size={20} color={ORange} />
@@ -349,8 +354,8 @@ export default function Home() {
         <button onClick={() => setShowCity(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer', marginBottom: 10, ...ring('to') }}>
           <MapPin size={18} color={Gray} />
           <div style={{ flex: 1, textAlign: 'left' }}>
-            {to?.name && <div style={{ fontSize: 11, color: Gray }}>Прибуття</div>}
-            <div style={{ fontSize: 16, color: to?.name ? '#1A1A1A' : Gray, fontWeight: to?.name ? 600 : 400 }}>{to?.name || 'Прибуття'}</div>
+            {to?.name && <div style={{ fontSize: 11, color: Gray }}>{t('home.to')}</div>}
+            <div style={{ fontSize: 16, color: to?.name ? '#1A1A1A' : Gray, fontWeight: to?.name ? 600 : 400 }}>{to?.name || t('home.to')}</div>
           </div>
         </button>
 
@@ -359,8 +364,8 @@ export default function Home() {
           <button onClick={() => setShowDateFrom(true)} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '14px 12px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer', ...ring('dateFrom') }}>
             <Calendar size={16} color={Gray} />
             <div style={{ textAlign: 'left' }}>
-              {dateFrom && <div style={{ fontSize: 11, color: Gray }}>Відправлення</div>}
-              <div style={{ fontSize: 14, color: dateFrom ? '#1A1A1A' : Gray, fontWeight: dateFrom ? 600 : 400 }}>{dateFrom ? fmtDate(dateFrom) : 'Відправлення'}</div>
+              {dateFrom && <div style={{ fontSize: 11, color: Gray }}>{t('home.dateFrom')}</div>}
+              <div style={{ fontSize: 14, color: dateFrom ? '#1A1A1A' : Gray, fontWeight: dateFrom ? 600 : 400 }}>{dateFrom ? fmtDate(dateFrom) : t('home.dateFrom')}</div>
             </div>
           </button>
 
@@ -368,9 +373,9 @@ export default function Home() {
           <button onClick={() => !isOpenReturn && setShowDateTo(true)} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '14px 12px', background: '#F9F9F9', borderRadius: 14, border: isOpenReturn ? `1.5px solid ${ORange}` : '1px solid #EEE', cursor: 'pointer' }}>
             <Calendar size={16} color={isOpenReturn ? ORange : Gray} />
             <div style={{ textAlign: 'left' }}>
-              {(dateTo || isOpenReturn) && <div style={{ fontSize: 11, color: isOpenReturn ? ORange : Gray }}>Повернення</div>}
+              {(dateTo || isOpenReturn) && <div style={{ fontSize: 11, color: isOpenReturn ? ORange : Gray }}>{t('home.dateTo')}</div>}
               <div style={{ fontSize: 14, color: isOpenReturn ? ORange : (dateTo ? '#1A1A1A' : Gray), fontWeight: (dateTo || isOpenReturn) ? 600 : 400 }}>
-                {isOpenReturn ? 'Відкрита дата' : dateTo ? fmtDate(dateTo) : 'Повернення'}
+                {isOpenReturn ? t('results.openDate') : dateTo ? fmtDate(dateTo) : t('home.dateTo')}
               </div>
             </div>
           </button>
@@ -395,14 +400,14 @@ export default function Home() {
           }}>
             {isOpenReturn && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
           </div>
-          <span style={{ fontSize: 14, fontWeight: 600, color: isOpenReturn ? ORange : '#555' }}>Відкрита дата повернення</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: isOpenReturn ? ORange : '#555' }}>{t('home.openReturn')}</span>
         </button>
 
         {/* Passengers */}
         <button onClick={() => setShowPass(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer', marginBottom: 16 }}>
           <Users size={18} color={Gray} />
           <div style={{ flex: 1, textAlign: 'left' }}>
-            {passengerCount > 0 && <div style={{ fontSize: 11, color: Gray }}>Пасажири</div>}
+            {passengerCount > 0 && <div style={{ fontSize: 11, color: Gray }}>{t('home.passengers')}</div>}
             <div style={{ fontSize: 16, color: '#1A1A1A', fontWeight: 600 }}>{passengerCount}</div>
           </div>
         </button>
@@ -412,7 +417,7 @@ export default function Home() {
           width: '100%', padding: 18, background: canSearch ? ORange : '#FFD89B',
           color: '#fff', border: 'none', borderRadius: 14, fontWeight: 800,
           fontSize: 17, cursor: 'pointer', letterSpacing: 0.3
-        }}>Знайти</button>
+        }}>{t('home.find')}</button>
         {tried && nextField && (
           <div style={{ marginTop: 10, textAlign: 'center', color: '#E53935', fontSize: 13, fontWeight: 600 }}>
             {missingMsg}
@@ -432,12 +437,12 @@ export default function Home() {
 
       <CityPicker open={showCity} onClose={() => setShowCity(false)} />
 
-      <BottomSheet open={showDateFrom} onClose={() => setShowDateFrom(false)} title="Відправлення">
+      <BottomSheet open={showDateFrom} onClose={() => setShowDateFrom(false)} title={t('home.dateFrom')}>
         <Calendar_ value={dateFrom} onChange={setDateFrom} minDate={new Date().toISOString().split('T')[0]}
           onConfirm={() => setShowDateFrom(false)} />
       </BottomSheet>
 
-      <BottomSheet open={showDateTo} onClose={() => setShowDateTo(false)} title="Повернення">
+      <BottomSheet open={showDateTo} onClose={() => setShowDateTo(false)} title={t('home.dateTo')}>
         <Calendar_ value={dateTo} onChange={setDateTo} minDate={dateFrom || new Date().toISOString().split('T')[0]}
           showOpenDate departureSel={dateFrom}
           isOpen={isOpenReturn} onToggleOpen={setOpenReturn}
