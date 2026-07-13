@@ -207,6 +207,17 @@ export const dict: Dict = {
   // ── Common ──
   'common.back': { uk: 'Назад', en: 'Back', de: 'Zurück', ru: 'Назад' },
   'common.close': { uk: 'Закрити', en: 'Close', de: 'Schließen', ru: 'Закрыть' },
+  'seatmap.chooseSeats': { uk: 'Виберіть місця', en: 'Choose seats', de: 'Sitzplätze wählen', ru: 'Выберите места' },
+  'seatmap.chooseN': { uk: 'Оберіть', en: 'Choose', de: 'Wählen Sie', ru: 'Выберите' },
+  'seatmap.seat1': { uk: 'місце', en: 'seat', de: 'Platz', ru: 'место' },
+  'seatmap.seat2_4': { uk: 'місця', en: 'seats', de: 'Plätze', ru: 'места' },
+  'seatmap.seat5plus': { uk: 'місць', en: 'seats', de: 'Plätze', ru: 'мест' },
+  'seatmap.rowWarning': { uk: 'Місця 1–4 (перший ряд) — згідно з законодавством заборонено дітям до 16 років та пасажирам з тваринами.', en: 'Seats 1–4 (front row) are legally prohibited for children under 16 and passengers with animals.', de: 'Plätze 1–4 (erste Reihe) sind gesetzlich verboten für Kinder unter 16 Jahren und Fahrgäste mit Tieren.', ru: 'Места 1–4 (первый ряд) — согласно законодательству запрещены детям до 16 лет и пассажирам с животными.' },
+  'seatmap.chooseSeatCounter': { uk: 'Оберіть місце', en: 'Choose seat', de: 'Sitzplatz wählen', ru: 'Выберите место' },
+  'seatmap.choose': { uk: 'Обрати', en: 'Choose', de: 'Wählen', ru: 'Выбрать' },
+  'seatmap.selectedSeat1': { uk: 'обране місце', en: 'seat selected', de: 'ausgewählter Platz', ru: 'выбранное место' },
+  'seatmap.selectedSeat2_4': { uk: 'обрані місця', en: 'seats selected', de: 'ausgewählte Plätze', ru: 'выбранные места' },
+  'seatmap.selectedSeat5plus': { uk: 'обраних місць', en: 'seats selected', de: 'ausgewählte Plätze', ru: 'выбранных мест' },
   'common.error': { uk: 'Помилка', en: 'Error', de: 'Fehler', ru: 'Ошибка' },
 }
 

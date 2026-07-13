@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import { useT } from '../i18n'
+import { dict } from '../i18n'
+import { useLangStore } from '../langStore'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -109,15 +112,18 @@ function blockDriverSeat(rows: Array<Array<Seat | null>>): Array<Array<Seat | nu
 }
 
 function seatWord(n: number) {
+  const lang = useLangStore.getState().lang
+  const L = (key: string) => dict[key]?.[lang] ?? dict[key]?.uk ?? key
   const m10 = n % 10, m100 = n % 100
-  if (m10 === 1 && m100 !== 11) return 'обране місце'
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'обрані місця'
-  return 'обраних місць'
+  if (m10 === 1 && m100 !== 11) return L('seatmap.selectedSeat1')
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return L('seatmap.selectedSeat2_4')
+  return L('seatmap.selectedSeat5plus')
 }
 
 interface Props2 extends Props { totalPrice?: number; currencySign?: string }
 
 export default function SeatMap({ trip, totalPax, onClose, onConfirm, totalPrice, currencySign = '₴' }: Props2) {
+  const t = useT()
   const [selected, setSelected] = useState<number[]>([])
 
   const placesMap = trip?.places_map
@@ -168,11 +174,11 @@ export default function SeatMap({ trip, totalPax, onClose, onConfirm, totalPrice
         <img src="/bus-hero.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(6px) brightness(0.8)', transform: 'scale(1.1)' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,28,58,0.35)' }} />
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '18px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: 20, fontWeight: 800, color: '#fff', textShadow: '0 1px 6px rgba(0,0,0,0.4)' }}>Виберіть місця</span>
-          <button onClick={onClose} aria-label="Закрити" style={{ position: 'absolute', right: 16, top: 16, background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24} /></button>
+          <span style={{ fontSize: 20, fontWeight: 800, color: '#fff', textShadow: '0 1px 6px rgba(0,0,0,0.4)' }}>{t('seatmap.chooseSeats')}</span>
+          <button onClick={onClose} aria-label={t('common.close')} style={{ position: 'absolute', right: 16, top: 16, background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24} /></button>
         </div>
         <div style={{ position: 'absolute', left: 20, bottom: 26, color: 'rgba(255,255,255,0.9)', fontSize: 14, fontWeight: 500 }}>
-          Оберіть {totalPax} {(() => { const m10 = totalPax % 10, m100 = totalPax % 100; if (m10 === 1 && m100 !== 11) return 'місце'; if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'місця'; return 'місць' })()}
+          {t('seatmap.chooseN')} {totalPax} {(() => { const m10 = totalPax % 10, m100 = totalPax % 100; if (m10 === 1 && m100 !== 11) return t('seatmap.seat1'); if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return t('seatmap.seat2_4'); return t('seatmap.seat5plus') })()}
         </div>
       </div>
 
@@ -195,7 +201,7 @@ export default function SeatMap({ trip, totalPax, onClose, onConfirm, totalPrice
           {/* Попередження: перший ряд (місця 1-4) заборонений дітям і тваринам */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: '#FFF9EF', borderRadius: 10, padding: '8px 10px', marginBottom: 14, fontSize: 11, lineHeight: 1.4, color: '#7A5A16' }}>
             <span style={{ fontSize: 13 }}>⚠️</span>
-            <span>Місця 1–4 (перший ряд) — згідно з законодавством заборонено дітям до 16 років та пасажирам з тваринами.</span>
+            <span>{t('seatmap.rowWarning')}</span>
           </div>
 
           {/* Сітка місць */}
@@ -229,14 +235,14 @@ export default function SeatMap({ trip, totalPax, onClose, onConfirm, totalPrice
         <div style={{ borderTop: '1px solid #EEE', padding: '12px 20px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <span style={{ fontSize: 14, color: Gray }}>
-              {selected.length > 0 ? `${selected.length} ${seatWord(selected.length)}` : `Оберіть місце (0/${totalPax})`}
+              {selected.length > 0 ? `${selected.length} ${seatWord(selected.length)}` : `${t('seatmap.chooseSeatCounter')} (0/${totalPax})`}
             </span>
             <span style={{ fontSize: 18, fontWeight: 800, color: '#1A1A1A' }}>{priceStr} {currencySign}</span>
           </div>
           <button onClick={() => enough && onConfirm(selected)} disabled={!enough} style={{
             width: '100%', padding: 16, background: enough ? ORange : '#FFD89B', color: '#fff',
             border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: enough ? 'pointer' : 'default',
-          }}>Обрати{!enough ? ` (${selected.length}/${totalPax})` : ''}</button>
+          }}>{t('seatmap.choose')}{!enough ? ` (${selected.length}/${totalPax})` : ''}</button>
         </div>
       </div>
     </div>
