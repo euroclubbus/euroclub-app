@@ -65,6 +65,43 @@ export function generateSegments(durationSec: number, seed = Date.now()): { type
   return segments
 }
 
+// ─── Паливо ────────────────────────────────────────────────────────────────
+export const FUEL_MAX = 100
+export const CANISTER_COST_POINTS = 100
+export const CANISTER_TIME_PENALTY_SEC = 90
+export const REFUEL_MAX_SEC = 50
+
+// Витрата палива за секунду залежно від того, наскільки погано тримаєш швидкість
+export function fuelBurnRate(limit: number, speed: number): number {
+  const diff = Math.abs(limit - speed)
+  const overLimit = speed > limit
+  let base = diff <= 10 ? 0.35 : diff <= 29 ? 0.6 : 0.9
+  if (overLimit) base *= 1.4
+  return base
+}
+
+// ─── Заправки на маршруті ───────────────────────────────────────────────────
+export interface GasStation { atFraction: number; name: string; pricePerFill: number }
+
+export function generateGasStations(seed = Date.now()): GasStation[] {
+  const names = ['OKKO', 'WOG', 'Shell', 'ARAL', 'Socar']
+  let rnd = (seed % 2147483647) || 1
+  const rand = () => { rnd = (rnd * 16807) % 2147483647; return rnd / 2147483647 }
+  const fractions = [0.32, 0.62, 0.86]
+  return fractions.map(f => ({
+    atFraction: f,
+    name: names[Math.floor(rand() * names.length)],
+    pricePerFill: 20 + Math.floor(rand() * 40),
+  }))
+}
+
+// ─── Пейзажні зони (фон залежно від типу дорожнього сегменту) ──────────────
+export const ZONE_BY_SIGN: Record<string, { bg: string; emoji: string }> = {
+  city: { bg: 'linear-gradient(180deg, #7FB3D5, #A9CBB7)', emoji: '🏙️' },
+  highway: { bg: 'linear-gradient(180deg, #8EC6F0, #C9E4B5)', emoji: '🌾' },
+  autobahn: { bg: 'linear-gradient(180deg, #6FA8DC, #8FBF8F)', emoji: '🌲' },
+}
+
 // Бали за один тап залежно від різниці "ліміт - швидкість" (див. правила гри)
 export function scoreForTap(limit: number, speed: number): number {
   if (speed > limit) return -1 // перевищення - штраф
