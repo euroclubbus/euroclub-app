@@ -8,6 +8,7 @@ import { findTwoWayPrice } from '../priceEngine'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
 import { validatePromo, redeemPromo } from '../game/gameApi'
+import { reportTrip } from '../reporting'
 import BottomSheet from '../components/BottomSheet'
 import CurrencyToggle from '../components/CurrencyToggle'
 import { useT } from '../i18n'
@@ -194,6 +195,18 @@ export default function Booking() {
         saveOrderLocally(hash, order)
         setOrderResult(hash, order)
         if (promoApplied) redeemPromo(promoApplied.code, hash).catch(() => {})
+        // Транзит агрегованих (не персональних) даних для звіту в панелі керування —
+        // нічого з цього не зберігається в самому додатку.
+        if (user?.id) {
+          const ticketNumbers = (order.passangers || []).map((p: any) => String(p.ticket || '')).filter(Boolean)
+          reportTrip({
+            userId: user!.id,
+            orderNo: String(order.hash || hash),
+            ticketNumbers,
+            tripDate: String(order.ftime || '').split(' ')[0],
+            direction: `${order.from_city || from?.name || ''} → ${order.to_city || to?.name || ''}`,
+          })
+        }
         nav('/order-success')
       } else {
         setError(t('booking.bookingError') + ': ' + (result.error_message || `${result.error}`))
