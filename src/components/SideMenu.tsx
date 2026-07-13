@@ -1,4 +1,5 @@
 import { FileText, Gift, Map, Bus, Star, Share2, Info, X } from 'lucide-react'
+import { useT } from '../i18n'
 
 const Navy = '#0A4684'
 const ORange = '#F5A623'
@@ -10,24 +11,24 @@ function openUrl(url: string) {
   window.open(url, '_blank')
 }
 
-const ITEMS = [
-  { icon: FileText, label: 'Правила та умови перевезення', url: 'https://eclub.com.ua/ua/oferta/' },
-  { icon: Gift, label: 'Cashback Club', url: 'https://eclub.com.ua/ua/' },
-  { icon: Map, label: 'Маршрути', url: 'https://eclub.com.ua/ua/' },
-  { icon: Bus, label: 'Автопарк', url: 'https://eclub.com.ua/ua/bus/' },
-  { icon: Star, label: 'Залишити відгук', url: 'https://eclub.com.ua/ua/' },
-  { icon: Share2, label: 'Ми в соцмережах', url: 'https://eclub.com.ua/ua/' },
-  { icon: Info, label: 'Корисно знати', url: 'https://eclub.com.ua/ua/' },
-]
-
 export default function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useT()
+  const ITEMS = [
+    { icon: FileText, label: t('home.rules'), url: 'https://eclub.com.ua/ua/oferta/' },
+    { icon: Gift, label: t('home.cashback'), url: 'https://eclub.com.ua/ua/' },
+    { icon: Map, label: t('home.routes'), url: 'https://eclub.com.ua/ua/' },
+    { icon: Bus, label: t('home.fleet'), url: 'https://eclub.com.ua/ua/bus/' },
+    { icon: Star, label: t('home.feedback'), url: 'https://eclub.com.ua/ua/' },
+    { icon: Share2, label: t('home.social'), url: 'https://eclub.com.ua/ua/' },
+    { icon: Info, label: t('home.usefulInfo'), url: 'https://eclub.com.ua/ua/' },
+  ]
   if (!open) return null
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 800, background: 'rgba(0,0,0,0.4)' }}>
       <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '80%', maxWidth: 320, background: '#fff', boxShadow: '2px 0 20px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column' }}>
         <div style={{ background: Navy, padding: 'calc(env(safe-area-inset-top) + 20px) 18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <img src="/logo-lockup.png" alt="EuroClub" style={{ height: 34 }} />
-          <button onClick={onClose} aria-label="Закрити" style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={22} color="#fff" /></button>
+          <button onClick={onClose} aria-label={t('common.close')} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={22} color="#fff" /></button>
         </div>
         <div style={{ padding: '8px 0', overflowY: 'auto' }}>
           {ITEMS.map((it, i) => (

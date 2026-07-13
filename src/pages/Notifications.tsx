@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Bell } from 'lucide-react'
 import { DEMO_NOTIFS, getReadIds, markAllRead } from '../notifications'
+import { useT } from '../i18n'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
 
 export default function Notifications() {
+  const t = useT()
   // Фіксуємо, які були непрочитані ДО того, як позначимо все прочитаним —
   // щоб користувач встиг побачити, що саме було новим.
   const [readBefore] = useState<string[]>(() => getReadIds())
@@ -20,7 +22,7 @@ export default function Notifications() {
         <img src="/bus-hero.png" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(7px) brightness(0.7)', transform: 'scale(1.1)' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,28,58,0.45)' }} />
         <div style={{ position: 'relative', padding: 'calc(env(safe-area-inset-top) + 20px) 16px 16px' }}>
-          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Сповіщення</span>
+          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>{t('nav.notifications')}</span>
         </div>
       </div>
 
@@ -30,7 +32,7 @@ export default function Notifications() {
             <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <Bell size={30} color={Gray} />
             </div>
-            <p style={{ color: Gray, fontSize: 16 }}>Сповіщень поки немає</p>
+            <p style={{ color: Gray, fontSize: 16 }}>{t('notif.empty')}</p>
           </div>
         )}
 

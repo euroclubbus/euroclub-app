@@ -23,12 +23,12 @@ export const dict: Dict = {
   'home.passengersSheetTitle': { uk: "Оберіть кількість пасажирів та категорію квитка", en: 'Choose number of passengers and ticket category', de: 'Anzahl der Passagiere und Tarifkategorie wählen', ru: 'Выберите количество пассажиров и категорию билета' },
   'home.find': { uk: 'Знайти', en: 'Find', de: 'Suchen', ru: 'Найти' },
   'home.willFindRoute': { uk: 'Ми знайдемо маршрут', en: "We'll find the route", de: 'Wir finden die Route', ru: 'Мы найдём маршрут' },
-  'home.rules': { uk: 'Правила перевезення', en: 'Terms of carriage', de: 'Beförderungsregeln', ru: 'Правила перевозки' },
-  'home.cashback': { uk: 'Cashback', en: 'Cashback', de: 'Cashback', ru: 'Кэшбэк' },
+  'home.rules': { uk: 'Правила та умови перевезення', en: 'Terms and conditions of carriage', de: 'Beförderungsbedingungen', ru: 'Правила и условия перевозки' },
+  'home.cashback': { uk: 'Cashback Club', en: 'Cashback Club', de: 'Cashback Club', ru: 'Cashback Club' },
   'home.routes': { uk: 'Маршрути', en: 'Routes', de: 'Strecken', ru: 'Маршруты' },
   'home.fleet': { uk: 'Автопарк', en: 'Fleet', de: 'Fuhrpark', ru: 'Автопарк' },
   'home.feedback': { uk: 'Залишити відгук', en: 'Leave feedback', de: 'Feedback hinterlassen', ru: 'Оставить отзыв' },
-  'home.social': { uk: 'Соцмережі', en: 'Social media', de: 'Soziale Medien', ru: 'Соцсети' },
+  'home.social': { uk: 'Ми в соцмережах', en: 'Follow us on social media', de: 'Wir in sozialen Medien', ru: 'Мы в соцсетях' },
   'home.usefulInfo': { uk: 'Корисно знати', en: 'Good to know', de: 'Gut zu wissen', ru: 'Полезно знать' },
 
   // ── Results (пошук рейсів) ──
@@ -207,6 +207,7 @@ export const dict: Dict = {
   // ── Common ──
   'common.back': { uk: 'Назад', en: 'Back', de: 'Zurück', ru: 'Назад' },
   'common.close': { uk: 'Закрити', en: 'Close', de: 'Schließen', ru: 'Закрыть' },
+  'notif.empty': { uk: 'Сповіщень поки немає', en: 'No notifications yet', de: 'Noch keine Benachrichtigungen', ru: 'Уведомлений пока нет' },
   'seatmap.chooseSeats': { uk: 'Виберіть місця', en: 'Choose seats', de: 'Sitzplätze wählen', ru: 'Выберите места' },
   'seatmap.chooseN': { uk: 'Оберіть', en: 'Choose', de: 'Wählen Sie', ru: 'Выберите' },
   'seatmap.seat1': { uk: 'місце', en: 'seat', de: 'Platz', ru: 'место' },
