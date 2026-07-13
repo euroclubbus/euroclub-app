@@ -1,4 +1,5 @@
-import { FileText, Gift, Map, Bus, Star, Share2, Info, X } from 'lucide-react'
+import { FileText, Gift, Map, Bus, Star, Share2, Info, X, Gamepad2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useT } from '../i18n'
 import LanguageSwitcher from './LanguageSwitcher'
 
@@ -14,7 +15,9 @@ function openUrl(url: string) {
 
 export default function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useT()
-  const ITEMS = [
+  const nav = useNavigate()
+  const ITEMS: { icon: any; label: string; url?: string; internal?: string }[] = [
+    { icon: Gamepad2, label: '🎮 Гра EuroClub Racer', internal: '/game' },
     { icon: FileText, label: t('home.rules'), url: 'https://eclub.com.ua/ua/oferta/' },
     { icon: Gift, label: t('home.cashback'), url: 'https://eclub.com.ua/ua/' },
     { icon: Map, label: t('home.routes'), url: 'https://eclub.com.ua/ua/' },
@@ -37,7 +40,7 @@ export default function SideMenu({ open, onClose }: { open: boolean; onClose: ()
         </div>
         <div style={{ padding: '8px 0', overflowY: 'auto' }}>
           {ITEMS.map((it, i) => (
-            <button key={i} onClick={() => { onClose(); openUrl(it.url) }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', background: 'none', border: 'none', borderBottom: '1px solid #F4F4F4', cursor: 'pointer', textAlign: 'left' }}>
+            <button key={i} onClick={() => { onClose(); it.internal ? nav(it.internal) : openUrl(it.url!) }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', background: 'none', border: 'none', borderBottom: '1px solid #F4F4F4', cursor: 'pointer', textAlign: 'left' }}>
               <it.icon size={20} color={ORange} />
               <span style={{ fontSize: 15, fontWeight: 600, color: '#1A1A1A' }}>{it.label}</span>
             </button>

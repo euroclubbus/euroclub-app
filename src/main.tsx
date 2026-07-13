@@ -9,6 +9,7 @@ import Booking from './pages/Booking'
 import RoundTripSummary from './pages/RoundTripSummary'
 import OrderSuccess from './pages/OrderSuccess'
 import Payment from './pages/Payment'
+import Game from './pages/Game'
 import Ticket from './pages/Ticket'
 import TicketDetails from './pages/TicketDetails'
 import AgreementPrivacy from './pages/AgreementPrivacy'
@@ -39,6 +40,7 @@ function AppRoutes() {
           <Route path="/round-trip-summary" element={<RoundTripSummary />} />
           <Route path="/order-success" element={<OrderSuccess />} />
           <Route path="/payment" element={<Payment />} />
+          <Route path="/game" element={<Game />} />
           <Route path="/ticket" element={<Ticket />} />
           <Route path="/ticket-details" element={<TicketDetails />} />
           <Route path="/agreement-privacy" element={<AgreementPrivacy />} />

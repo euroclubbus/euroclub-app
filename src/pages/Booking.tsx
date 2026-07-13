@@ -7,6 +7,7 @@ import { createOrder, saveOrderLocally } from '../api/euroclub'
 import { findTwoWayPrice } from '../priceEngine'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
+import { validatePromo, redeemPromo } from '../game/gameApi'
 import BottomSheet from '../components/BottomSheet'
 import CurrencyToggle from '../components/CurrencyToggle'
 import { useT } from '../i18n'
@@ -117,6 +118,25 @@ export default function Booking() {
   const fallbackTotal = subtotal + (trip2 ? convert(subtotal2, trip2?.currency, /eur/i.test(trip?.currency) ? 'EUR' : 'UAH') : 0)
   const total = isRoundTrip ? (twoWay?.price ?? fallbackTotal) : subtotal
 
+  // Промокод (наприклад, приз за гру EuroClub Racer) — знижка застосовується лише в застосунку,
+  // на боці eclub.com.ua не існує (поки прогер не додасть офіційне поле для промокодів).
+  const [promoInput, setPromoInput] = useState('')
+  const [promoApplied, setPromoApplied] = useState<{ code: string; pct: number } | null>(null)
+  const [promoChecking, setPromoChecking] = useState(false)
+  const [promoError, setPromoError] = useState('')
+  const applyPromo = async () => {
+    const code = promoInput.trim().toUpperCase()
+    if (!code) return
+    setPromoChecking(true); setPromoError('')
+    try {
+      const res = await validatePromo(code)
+      if (res.valid && res.pct) { setPromoApplied({ code, pct: res.pct }); setPromoError('') }
+      else { setPromoApplied(null); setPromoError('Промокод недійсний або вже використаний') }
+    } catch { setPromoError('Помилка перевірки промокоду') }
+    finally { setPromoChecking(false) }
+  }
+  const finalTotal = promoApplied ? Math.round(total * (1 - promoApplied.pct / 100)) : total
+
   // Категорія "тварина" вже є в каталозі знижок з API (не вигадуємо нову) —
   // визначаємо чи вона обрана хоч у когось з пасажирів, щоб показати додатковий чекбокс.
   const hasAnimalPax = Array.from({ length: totalPax }, (_, i) => effectiveDiscountId(i)).some(discountId => {
@@ -158,11 +178,14 @@ export default function Booking() {
       if (isRoundTrip) {
         params.routes2 = String(trip2.id)
         params.open = isOpenReturn ? '1' : '0'
-        params.price = String(total)
         for (let i = 0; i < totalPax; i++) {
           if (selectedSeats2[i] != null) params[`place2[${i}]`] = String(selectedSeats2[i])
         }
       }
+      // Ціна з урахуванням промокоду (гри) — для round trip це вже узгоджений
+      // з прогером параметр; для звичайного одностороннього бронювання ЩЕ НЕ перевірено,
+      // чи бекенд взагалі враховує цей override — потрібна звірка з прогером.
+      if (promoApplied || isRoundTrip) params.price = String(finalTotal)
       const result = await createOrder(params)
       // Усі дані замовлення огорнуті в orders[0]; беремо саме його
       const order = result.orders?.[0] || result
@@ -170,6 +193,7 @@ export default function Booking() {
       if (hash) {
         saveOrderLocally(hash, order)
         setOrderResult(hash, order)
+        if (promoApplied) redeemPromo(promoApplied.code, hash).catch(() => {})
         nav('/order-success')
       } else {
         setError(t('booking.bookingError') + ': ' + (result.error_message || `${result.error}`))
@@ -381,8 +405,16 @@ export default function Booking() {
           <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 18, marginBottom: 8 }}>
               <span>{t('booking.total')}{isRoundTrip ? t('booking.totalRoundTrip') : ''}</span>
-              <span>{format(total, trip?.currency)}</span>
+              <span>
+                {promoApplied && <span style={{ color: Gray, textDecoration: 'line-through', fontWeight: 400, fontSize: 14, marginRight: 8 }}>{format(total, trip?.currency)}</span>}
+                {format(finalTotal, trip?.currency)}
+              </span>
             </div>
+            {promoApplied && (
+              <div style={{ textAlign: 'right', color: '#2E7D32', fontSize: 12.5, fontWeight: 700, marginBottom: 4 }}>
+                Промокод {promoApplied.code} застосовано: −{promoApplied.pct}%
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', color: Gray, fontSize: 14 }}>
               <span>{totalPax} {totalPax === 1 ? 'пасажир' : 'пасажири'}</span>
               <span>
@@ -392,6 +424,26 @@ export default function Booking() {
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Промокод */}
+        <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Промокод</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input value={promoInput} onChange={e => { setPromoInput(e.target.value); setPromoApplied(null); setPromoError('') }}
+              placeholder="Наприклад, EC-XXXXXX" disabled={!!promoApplied}
+              style={{ flex: 1, padding: '12px 14px', border: '1.5px solid #EEE', borderRadius: 12, fontSize: 14, outline: 'none' }} />
+            {!promoApplied ? (
+              <button onClick={applyPromo} disabled={promoChecking || !promoInput.trim()} style={{ padding: '0 20px', background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: promoChecking ? 0.7 : 1 }}>
+                {promoChecking ? '...' : 'Застосувати'}
+              </button>
+            ) : (
+              <button onClick={() => { setPromoApplied(null); setPromoInput('') }} style={{ padding: '0 20px', background: 'none', border: '1.5px solid #EEE', borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                Прибрати
+              </button>
+            )}
+          </div>
+          {promoError && <div style={{ color: '#E53935', fontSize: 12.5, marginTop: 8 }}>{promoError}</div>}
         </div>
 
         {/* Згоди */}
