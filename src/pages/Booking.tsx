@@ -9,6 +9,7 @@ import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
 import BottomSheet from '../components/BottomSheet'
 import CurrencyToggle from '../components/CurrencyToggle'
+import { useT } from '../i18n'
 import SeatMap from './SeatMap'
 
 const ORange = '#F5A623'
@@ -34,6 +35,7 @@ function calcDuration(depStr?: string, arrStr?: string): string {
 
 export default function Booking() {
   const nav = useNavigate()
+  const t = useT()
   const { from, to, dateFrom, isOpenReturn, passengerCount, passengerCategories, addPassengerCategory, removePassengerCategoryAt } = useSearchStore()
   const {
     selectedTrip, selectedSeats, selectedTrip2, selectedSeats2,
@@ -59,9 +61,9 @@ export default function Booking() {
   const discountOptions: Array<{ id: number; default: number; name: string; discount: number; price: number }> = trip?.discounts || []
   // Повний тариф — першим у списку вибору категорії
   const isFull = (d: any) => d && (d.default === 1 || d.default === '1' || String(d.id) === '0')
-  const fullFare: any = discountOptions.find(isFull) || { id: 0, default: 1, name: 'Повний тариф', discount: 0, price: Number(trip?.price ?? 0) }
+  const fullFare: any = discountOptions.find(isFull) || { id: 0, default: 1, name: t('booking.fullFare'), discount: 0, price: Number(trip?.price ?? 0) }
   const orderedDiscounts = [ fullFare, ...discountOptions.filter(d => !isFull(d)) ]
-  const catName = (d: any) => d.name && d.name.trim() ? d.name : 'Повний тариф'
+  const catName = (d: any) => d.name && d.name.trim() ? d.name : t('booking.fullFare')
   const [showDiscountFor, setShowDiscountFor] = useState<number | null>(null)
   const [showAddPicker, setShowAddPicker] = useState(false)
   const { user } = useAuthStore()
@@ -129,12 +131,12 @@ export default function Booking() {
     if (!trip || !from || !to) return
     setAttempted(true)
     const missingName = Array.from({ length: totalPax }).some((_, i) => !passengerNames[i]?.trim())
-    if (missingName) { setError("Заповніть прізвище та ім'я для всіх пасажирів (латиницею)"); return }
-    if (Number(trip?.place_select) === 1 && selectedSeats.filter((x: any) => x != null).length < totalPax) { setError('Оберіть місце для рейсу туди для кожного пасажира'); return }
-    if (isRoundTrip && Number(trip2?.place_select) === 1 && selectedSeats2.filter((x: any) => x != null).length < totalPax) { setError('Оберіть місце для рейсу назад для кожного пасажира'); return }
-    if (!contactPhone.trim()) { setError('Вкажіть номер телефону'); return }
-    if (!consentPrivacy || !consentTerms) { setError('Потрібно погодитись з обробкою даних і умовами перевезення'); return }
-    if (hasAnimalPax && !consentAnimal) { setError('Потрібно підтвердити умови перевезення тварини'); return }
+    if (missingName) { setError(t('booking.errorNames')); return }
+    if (Number(trip?.place_select) === 1 && selectedSeats.filter((x: any) => x != null).length < totalPax) { setError(t('booking.errorSeatOutbound')); return }
+    if (isRoundTrip && Number(trip2?.place_select) === 1 && selectedSeats2.filter((x: any) => x != null).length < totalPax) { setError(t('booking.errorSeatReturn')); return }
+    if (!contactPhone.trim()) { setError(t('booking.errorPhone')); return }
+    if (!consentPrivacy || !consentTerms) { setError(t('booking.errorAgreements')); return }
+    if (hasAnimalPax && !consentAnimal) { setError(t('booking.errorAnimal')); return }
     setError('')
     setLoading(true)
     try {
@@ -170,10 +172,10 @@ export default function Booking() {
         setOrderResult(hash, order)
         nav('/order-success')
       } else {
-        setError('Помилка бронювання: ' + (result.error_message || `код помилки ${result.error}`))
+        setError(t('booking.bookingError') + ': ' + (result.error_message || `${result.error}`))
       }
     } catch {
-      setError('Помилка мережі. Перевірте з\'єднання і спробуйте ще раз.')
+      setError(t('booking.networkError'))
     } finally {
       setLoading(false)
     }
@@ -188,7 +190,7 @@ export default function Booking() {
           <button onClick={() => nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
             <ArrowLeft size={24} color="#fff" />
           </button>
-          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800, flex: 1 }}>Бронювання{isRoundTrip ? ' (в два боки)' : ''}</span>
+          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800, flex: 1 }}>{t('booking.title')}{isRoundTrip ? t('booking.titleRoundTrip') : ''}</span>
           <CurrencyToggle light />
         </div>
       </div>
@@ -218,7 +220,7 @@ export default function Booking() {
                   </div>
                 </div>
                 <input
-                  placeholder="Прізвище та ім'я латиницею (IVANOV IVAN)"
+                  placeholder={t('booking.namePlaceholder')}
                   value={passengerNames[idx] || ''}
                   onChange={e => setPassengerName(idx, e.target.value)}
                   style={{ width: '100%', padding: '12px 14px', border: attempted && !passengerNames[idx]?.trim() ? '1.5px solid #E53935' : '1.5px solid #EEE', borderRadius: 12, fontSize: 14, outline: 'none', marginBottom: 8 }}
@@ -263,7 +265,7 @@ export default function Booking() {
           {/* Додати пасажира */}
           {!showAddPicker ? (
             <button onClick={() => setShowAddPicker(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 0', marginTop: 4, background: '#FFF7EC', border: `1.5px dashed ${ORange}`, borderRadius: 12, color: ORange, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-              <Plus size={17} /> Додати пасажира
+              <Plus size={17} /> {t('booking.addPassenger')}
             </button>
           ) : (
             <div style={{ background: '#F9F9F9', borderRadius: 12, padding: 12 }}>
@@ -289,12 +291,12 @@ export default function Booking() {
         {/* Seat selection — only show if place_select === 1 */}
         {Number(trip?.place_select) === 1 && (
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12 }}>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{isRoundTrip ? 'Місце — туди' : 'Бронювання місця'}</div>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{isRoundTrip ? t('booking.seatOutbound') : t('booking.seatBooking')}</div>
           <button onClick={() => setShowSeats(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1.5px solid #EEE', cursor: 'pointer' }}>
             <span style={{ fontSize: 20 }}>💺</span>
             <div style={{ flex: 1, textAlign: 'left' }}>
-              <div style={{ fontWeight: 600, fontSize: 15 }}>{selectedSeats.length > 0 ? `Місця: ${selectedSeats.join(', ')}` : 'Виберіть місце'}</div>
-              <div style={{ color: Gray, fontSize: 12 }}>Перейти до вибору місця</div>
+              <div style={{ fontWeight: 600, fontSize: 15 }}>{selectedSeats.length > 0 ? `${t('booking.seatsLabel')}: ${selectedSeats.join(', ')}` : t('booking.chooseSeat')}</div>
+              <div style={{ color: Gray, fontSize: 12 }}>{t('booking.goToSeatSelection')}</div>
             </div>
             <span style={{ color: Gray }}>›</span>
           </button>
@@ -304,12 +306,12 @@ export default function Booking() {
         {/* Seat selection для зворотного напрямку */}
         {isRoundTrip && Number(trip2?.place_select) === 1 && (
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12 }}>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Місце — назад</div>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{t('booking.seatReturn')}</div>
           <button onClick={() => setShowSeats2(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1.5px solid #EEE', cursor: 'pointer' }}>
             <span style={{ fontSize: 20 }}>💺</span>
             <div style={{ flex: 1, textAlign: 'left' }}>
-              <div style={{ fontWeight: 600, fontSize: 15 }}>{selectedSeats2.length > 0 ? `Місця: ${selectedSeats2.join(', ')}` : 'Виберіть місце'}</div>
-              <div style={{ color: Gray, fontSize: 12 }}>Перейти до вибору місця</div>
+              <div style={{ fontWeight: 600, fontSize: 15 }}>{selectedSeats2.length > 0 ? `${t('booking.seatsLabel')}: ${selectedSeats2.join(', ')}` : t('booking.chooseSeat')}</div>
+              <div style={{ color: Gray, fontSize: 12 }}>{t('booking.goToSeatSelection')}</div>
             </div>
             <span style={{ color: Gray }}>›</span>
           </button>
@@ -320,8 +322,8 @@ export default function Booking() {
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12 }}>
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Дані платника</div>
           {[
-            { label: 'Адреса ел. пошти', val: contactEmail, set: (v: string) => setContact('email', v), placeholder: 'your@email.com', required: false },
-            { label: 'Номер телефону', val: contactPhone, set: (v: string) => setContact('phone', v), placeholder: '+380...', required: true },
+            { label: t('booking.email'), val: contactEmail, set: (v: string) => setContact('email', v), placeholder: 'your@email.com', required: false },
+            { label: t('booking.phone'), val: contactPhone, set: (v: string) => setContact('phone', v), placeholder: '+380...', required: true },
           ].map((f, i) => (
             <div key={i} style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 12, color: Gray, display: 'block', marginBottom: 6 }}>{f.label}</label>
@@ -333,8 +335,8 @@ export default function Booking() {
 
         {/* Trip summary */}
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Ваше бронювання</div>
-          {isRoundTrip && <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>ТУДИ</div>}
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{t('booking.yourBooking')}</div>
+          {isRoundTrip && <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>{t('booking.outbound')}</div>}
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, marginBottom: 6 }}>
             <span>{dep?.time?.split(' ')[0]} → {arr?.time?.split(' ')[0]}</span>
             <span>⏱ {calcDuration(dep?.time, arr?.time)}</span>
@@ -355,7 +357,7 @@ export default function Booking() {
 
           {isRoundTrip && (
             <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 12, marginBottom: 8 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>НАЗАД</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>{t('booking.return')}</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, marginBottom: 6 }}>
                 <span>{dep2?.time?.split(' ')[0]} → {arr2?.time?.split(' ')[0]}</span>
                 <span>⏱ {calcDuration(dep2?.time, arr2?.time)}</span>
@@ -378,7 +380,7 @@ export default function Booking() {
 
           <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 18, marginBottom: 8 }}>
-              <span>Усього{isRoundTrip ? ' (в два боки)' : ''}</span>
+              <span>{t('booking.total')}{isRoundTrip ? t('booking.totalRoundTrip') : ''}</span>
               <span>{format(total, trip?.currency)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', color: Gray, fontSize: 14 }}>
@@ -397,7 +399,7 @@ export default function Booking() {
           <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', marginBottom: 14 }}>
             <input type="checkbox" checked={consentPrivacy} onChange={e => setConsentPrivacy(e.target.checked)} style={{ marginTop: 2, width: 18, height: 18, flexShrink: 0, accentColor: ORange }} />
             <span>
-              Я даю свою <span onClick={(e) => { e.preventDefault(); nav('/agreement-privacy') }} style={{ color: ORange, fontWeight: 600, textDecoration: 'underline' }}>згоду</span> на обробку та використання моїх персональних даних для бронювання і покупки квитків на цьому сайті.<span style={{ color: '#E53935' }}>*</span>
+              {t('booking.consentPrivacy')} <span onClick={(e) => { e.preventDefault(); nav('/agreement-privacy') }} style={{ color: ORange, fontWeight: 600, textDecoration: 'underline' }}>{t('booking.consentPrivacyLink')}</span> {t('booking.consentPrivacyRest')}<span style={{ color: '#E53935' }}>*</span>
             </span>
           </label>
 
@@ -405,16 +407,16 @@ export default function Booking() {
             <input type="checkbox" checked={consentTerms} onChange={e => setConsentTerms(e.target.checked)} style={{ marginTop: 2, width: 18, height: 18, flexShrink: 0, accentColor: ORange }} />
             <span>
               Я ознайомлений та згоден з умовами оплати, повернення квитків і надання послуг, а також з{' '}
-              <span onClick={(e) => { e.preventDefault(); nav('/agreement-offer') }} style={{ color: ORange, fontWeight: 600, textDecoration: 'underline' }}>Публічною Офертою</span> та умовами{' '}
-              <span onClick={(e) => { e.preventDefault(); nav('/agreement-contract') }} style={{ color: ORange, fontWeight: 600, textDecoration: 'underline' }}>Договору перевезення</span> компанії «Євроклуб».<span style={{ color: '#E53935' }}>*</span>
+              <span onClick={(e) => { e.preventDefault(); nav('/agreement-offer') }} style={{ color: ORange, fontWeight: 600, textDecoration: 'underline' }}>{t('booking.publicOffer')}</span>{' '}
+              <span onClick={(e) => { e.preventDefault(); nav('/agreement-contract') }} style={{ color: ORange, fontWeight: 600, textDecoration: 'underline' }}>{t('booking.carriageContract')}</span> {t('booking.consentTermsRest')}<span style={{ color: '#E53935' }}>*</span>
               <div style={{ marginTop: 6, color: Gray, fontSize: 12, lineHeight: 1.5 }}>
-                Пасажир зобов'язується самостійно уточнити інформацію для поїздки: документи, вакцинація, чинні обмеження — щоб переконатись у можливості в'їзду/виїзду. Компанія не відповідає за документи пасажира і зняття пасажира на кордоні.
+                {t('booking.borderNote')}
               </div>
               <div style={{ marginTop: 6, color: '#C0392B', fontSize: 12, lineHeight: 1.5 }}>
-                ⚠ На кордоні можливі затримки, що не залежать від перевізника — плануйте поїздку з урахуванням цього фактора.
+                {t('booking.borderWarning')}
               </div>
               <div style={{ marginTop: 4, color: '#2E7D32', fontSize: 12, lineHeight: 1.5 }}>
-                Якщо Ви маєте статус біженця або легальне проживання в Європі — туристичне страхування не потрібне.
+                {t('booking.insuranceNote')}
               </div>
             </span>
           </label>
@@ -422,7 +424,7 @@ export default function Booking() {
           {hasAnimalPax && (
             <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', marginTop: 14, paddingTop: 14, borderTop: '1px solid #F0F0F0' }}>
               <input type="checkbox" checked={consentAnimal} onChange={e => setConsentAnimal(e.target.checked)} style={{ marginTop: 2, width: 18, height: 18, flexShrink: 0, accentColor: ORange }} />
-              <span>Я підтверджую, що тварина до 20 кг, та погоджуюсь з умовами перевезення тварин компанії «Євроклуб».<span style={{ color: '#E53935' }}>*</span></span>
+              <span>{t('booking.consentAnimal')}<span style={{ color: '#E53935' }}>*</span></span>
             </label>
           )}
         </div>
@@ -435,7 +437,7 @@ export default function Booking() {
           width: '100%', padding: 18, background: ORange, color: '#fff',
           border: 'none', borderRadius: 14, fontWeight: 800, fontSize: 17,
           cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1
-        }}>{loading ? 'Бронюємо...' : 'Забронювати'}</button>
+        }}>{loading ? t('booking.booking') : t('booking.book')}</button>
       </div>
 
       {/* Seat Map — туди */}

@@ -7,6 +7,7 @@ import { findTwoWayPrice } from '../priceEngine'
 import { useDisplayPrice } from '../currency'
 import BottomSheet from '../components/BottomSheet'
 import CurrencyToggle from '../components/CurrencyToggle'
+import { useT } from '../i18n'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -87,6 +88,7 @@ function computeGroupPrice(trip: any, cats: string[]) {
 
 // ─── Trip Card ─────────────────────────────────────────────────────────────
 function TripCard({ trip, cats, onBook, roundTripPrice, hidePrice, bookLabel }: { trip: any; cats: string[]; onBook: () => void; roundTripPrice?: number | null; hidePrice?: boolean; bookLabel: string }) {
+  const t = useT()
   const dep = trip.departure?.[0]
   const arr = trip.arrival?.[0]
   const depDT = splitDateTime(dep?.time)
@@ -139,21 +141,21 @@ function TripCard({ trip, cats, onBook, roundTripPrice, hidePrice, bookLabel }: 
         {trip.option?.includes('WiFi') && <Wifi size={15} color={Gray} />}
         {trip.option?.includes('USB розетки') && <Zap size={15} color={Gray} />}
         <Bus size={15} color={hasTransfer ? ORange : Gray} />
-        <span style={{ fontSize: 12, color: hasTransfer ? ORange : Gray, fontWeight: hasTransfer ? 700 : 400 }}>{hasTransfer ? 'Пересадка' : 'Прямий'}</span>
+        <span style={{ fontSize: 12, color: hasTransfer ? ORange : Gray, fontWeight: hasTransfer ? 700 : 400 }}>{hasTransfer ? t('results.transfer') : t('results.direct')}</span>
         {freeSeats > 0 && freeSeats <= 5 && (
-          <span style={{ fontSize: 11, color: '#E53935', fontWeight: 600 }}>Залишилось {freeSeats} місць</span>
+          <span style={{ fontSize: 11, color: '#E53935', fontWeight: 600 }}>{t('results.seatsLeft', { n: freeSeats })}</span>
         )}
       </div>
 
       {/* Ціна — окремий блок знизу, тумблер валют поруч з ціною */}
       <div style={{ marginTop: 12, padding: '12px 14px', background: '#FAFAFA', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
         {hidePrice ? (
-          <div style={{ fontSize: 12, color: Gray }}>Ціна вже врахована у загальній вартості</div>
+          <div style={{ fontSize: 12, color: Gray }}>{t('results.priceIncluded')}</div>
         ) : (
           <div>
             {discounted && !roundTripPrice && <div style={{ fontSize: 12, color: Gray, textDecoration: 'line-through' }}>{format(original, trip.currency)}</div>}
             <div style={{ fontSize: 21, fontWeight: 800 }}>{format(displayTotal, trip.currency)}</div>
-            {roundTripPrice != null && <div style={{ fontSize: 11, color: ORange, fontWeight: 700 }}>за квиток у два боки</div>}
+            {roundTripPrice != null && <div style={{ fontSize: 11, color: ORange, fontWeight: 700 }}>{t('results.roundTripLabel')}</div>}
           </div>
         )}
         <CurrencyToggle />
@@ -161,7 +163,7 @@ function TripCard({ trip, cats, onBook, roundTripPrice, hidePrice, bookLabel }: 
 
       {anyFallback && (
         <div style={{ marginTop: 8, fontSize: 11, color: ORange, display: 'flex', alignItems: 'center', gap: 5 }}>
-          <AlertTriangle size={12} /> На цьому рейсі частина знижок не діє — тариф повний
+          <AlertTriangle size={12} /> {t('results.fallbackWarning')}
         </div>
       )}
 
@@ -223,6 +225,7 @@ async function findNearestAvailable(fromId: string, toId: string, startISO: stri
 // ─── Main Page ─────────────────────────────────────────────────────────────
 export default function Results() {
   const nav = useNavigate()
+  const t = useT()
   const { from, to, dateFrom, dateTo, isOpenReturn, passengerCategories } = useSearchStore()
   const { setTrip, setTrip2, selectedTrip } = useBookingStore()
   const { format } = useDisplayPrice()
@@ -325,25 +328,25 @@ export default function Results() {
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,28,58,0.45)' }} />
         <div style={{ position: 'relative', padding: 'calc(env(safe-area-inset-top) + 20px) 16px 10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-            <button onClick={() => leg === 'return' ? setLeg('out') : nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            <button onClick={() => leg === 'return' ? setLeg('out') : nav(-1)} aria-label={t('common.back')} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
               <ArrowLeft size={24} color="#fff" />
             </button>
             <span style={{ color: '#fff', fontSize: 20, fontWeight: 800, flex: 1 }}>
-              Знайдені маршрути{isRoundTrip && (leg === 'out' ? ' · Туди' : ' · Назад')}
+              {t('results.title')}{isRoundTrip && (leg === 'out' ? ' · ' + t('results.outbound') : ' · ' + t('results.return'))}
             </span>
           </div>
           {isRoundTrip && (
             <>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: leg === 'out' ? ORange : 'rgba(255,255,255,0.15)', color: '#fff' }}>1. Туди</span>
-                <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: leg === 'return' ? ORange : 'rgba(255,255,255,0.15)', color: '#fff' }}>2. Назад</span>
+                <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: leg === 'out' ? ORange : 'rgba(255,255,255,0.15)', color: '#fff' }}>{t('results.step1')}</span>
+                <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: leg === 'return' ? ORange : 'rgba(255,255,255,0.15)', color: '#fff' }}>{t('results.step2')}</span>
               </div>
               <div style={{ textAlign: 'center', color: '#fff', fontWeight: 700, fontSize: 15, marginBottom: lockedTwoWay ? 4 : 10 }}>
-                {leg === 'out' ? 'Оберіть першу поїздку' : 'Оберіть другу поїздку'}
+                {leg === 'out' ? t('results.chooseFirst') : t('results.chooseSecond')}
               </div>
               {leg === 'return' && lockedTwoWay && (
                 <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.85)', fontSize: 13, marginBottom: 10 }}>
-                  Загальна ціна за квиток у два боки: <strong style={{ color: '#fff' }}>{format(lockedTwoWay.price, (selectedTrip as any)?.currency)}</strong>
+                  {t('results.roundTripTotalLabel')}: <strong style={{ color: '#fff' }}>{format(lockedTwoWay.price, (selectedTrip as any)?.currency)}</strong>
                 </div>
               )}
             </>
@@ -389,7 +392,7 @@ export default function Results() {
             <div style={{ fontSize: 40, marginBottom: 16 }}>🚌</div>
             <div style={{ fontSize: 17, fontWeight: 700, color: '#1A1A1A', marginBottom: 8 }}>Цей маршрут наразі недоступний</div>
             <div style={{ fontSize: 14, color: Gray, marginBottom: 24, lineHeight: 1.5 }}>
-              На жаль, рейси за маршрутом <strong>{legFrom?.name} → {legTo?.name}</strong> наразі не виконуються. Спробуйте змінити міста.
+              {t('results.noRoute')} <strong>{legFrom?.name} → {legTo?.name}</strong> {t('results.noRouteEnd')}
             </div>
             <div style={{ background: '#F9F9F9', borderRadius: 16, padding: 20, textAlign: 'left' }}>
               <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Потрібна допомога?</div>
@@ -436,7 +439,7 @@ export default function Results() {
           const cardTwoWay = (isRoundTrip && leg === 'out' && from && to)
             ? findTwoWayPrice(from.id, to.id, direction, computeGroupPrice(trip, passengerCategories).total)?.price ?? null
             : null
-          const bookLabel = isRoundTrip ? (leg === 'out' ? 'Обрати рейс 1' : 'Обрати рейс 2') : 'Бронювання'
+          const bookLabel = isRoundTrip ? (leg === 'out' ? t('results.selectRoute1') : t('results.selectRoute2')) : t('results.booking')
           return (
             <TripCard key={trip.id || i} trip={trip} cats={passengerCategories}
               onBook={() => selectTrip(trip)}

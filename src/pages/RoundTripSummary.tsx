@@ -4,6 +4,7 @@ import { useSearchStore, useBookingStore } from '../store'
 import { findTwoWayPrice } from '../priceEngine'
 import { useDisplayPrice, convert } from '../currency'
 import CurrencyToggle from '../components/CurrencyToggle'
+import { useT } from '../i18n'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -66,6 +67,7 @@ function LegCard({ title, trip }: { title: string; trip: any }) {
 
 export default function RoundTripSummary() {
   const nav = useNavigate()
+  const t = useT()
   const { from, to, passengerCategories } = useSearchStore()
   const { selectedTrip, selectedTrip2 } = useBookingStore()
   const trip = selectedTrip as any
@@ -94,18 +96,18 @@ export default function RoundTripSummary() {
           <button onClick={() => nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
             <ArrowLeft size={24} color="#fff" />
           </button>
-          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Ваша поїздка в два боки</span>
+          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>{t('rts.title')}</span>
         </div>
       </div>
 
       <div style={{ padding: '16px 16px 0' }}>
-        <LegCard title="ТУДИ" trip={trip} />
-        <LegCard title="НАЗАД" trip={trip2} />
+        <LegCard title={t('booking.outbound')} trip={trip} />
+        <LegCard title={t('booking.return')} trip={trip2} />
 
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div>
             <div style={{ fontSize: 11, color: Gray, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>
-              Ціна у два боки
+              {t('rts.priceLabel')}
             </div>
             <div style={{ fontSize: 26, fontWeight: 900 }}>{format(total, trip?.currency)}</div>
           </div>
@@ -115,7 +117,7 @@ export default function RoundTripSummary() {
         <button onClick={() => nav('/booking')} style={{
           width: '100%', padding: 18, background: ORange, color: '#fff',
           border: 'none', borderRadius: 14, fontWeight: 800, fontSize: 17, cursor: 'pointer'
-        }}>Забронювати</button>
+        }}>{t('rts.book')}</button>
       </div>
     </div>
   )
