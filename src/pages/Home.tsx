@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import NotifPrompt from '../components/NotifPrompt'
 import SideMenu from '../components/SideMenu'
-import { useT } from '../i18n'
+import { useT, MONTHS, WEEKDAYS_MON, WEEKDAYS_SUN } from '../i18n'
+import { useLangStore } from '../langStore'
 import { Menu } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowUpDown, MapPin, Navigation, Calendar, Users } from 'lucide-react'
@@ -18,8 +19,9 @@ function Calendar_({ value, onChange, minDate, onConfirm, departureSel, isOpen, 
   const t = useT()
   const today = new Date(); today.setHours(0,0,0,0)
   const [cur, setCur] = useState(() => { const d = value ? new Date(value) : new Date(); return { y: d.getFullYear(), m: d.getMonth() } })
-  const months = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень']
-  const days = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд']
+  const lang = useLangStore(s => s.lang)
+  const months = MONTHS[lang]
+  const days = WEEKDAYS_MON[lang]
   const firstDay = new Date(cur.y, cur.m, 1).getDay()
   const offset = firstDay === 0 ? 6 : firstDay - 1
   const daysInMonth = new Date(cur.y, cur.m + 1, 0).getDate()
@@ -275,13 +277,20 @@ function CityPicker({ open, onClose }: { open: boolean; onClose: () => void }) {
 }
 
 // ─── Home ─────────────────────────────────────────────────────────────────────
-const TAGLINES = ['Euroclub — твій надійний перевізник!', 'Ми знайдемо маршрут до вашого серця']
+const TAGLINES: Record<string, string[]> = {
+  uk: ['Euroclub — твій надійний перевізник!', 'Ми знайдемо маршрут до вашого серця'],
+  en: ['Euroclub — your reliable carrier!', "We'll find the route to your heart"],
+  de: ['Euroclub — Ihr zuverlässiger Beförderer!', 'Wir finden die Route zu Ihrem Herzen'],
+  ru: ['Euroclub — твой надёжный перевозчик!', 'Мы найдём маршрут к твоему сердцу'],
+}
 
 function Typewriter() {
+  const lang = useLangStore(s => s.lang)
+  const taglines = TAGLINES[lang]
   const [idx, setIdx] = useState(0)
   const [text, setText] = useState('')
   useEffect(() => {
-    const full = TAGLINES[idx]
+    const full = taglines[idx % taglines.length]
     let i = 0
     const speed = Math.max(24, Math.floor(2000 / full.length)) // ~2с на друк
     const typer = setInterval(() => {
@@ -289,7 +298,7 @@ function Typewriter() {
       setText(full.slice(0, i))
       if (i >= full.length) {
         clearInterval(typer)
-        setTimeout(() => setIdx(p => (p + 1) % TAGLINES.length), 3000) // тримаємо ~3с → 5с на фразу
+        setTimeout(() => setIdx(p => (p + 1) % taglines.length), 3000) // тримаємо ~3с → 5с на фразу
       }
     }, speed)
     return () => clearInterval(typer)
@@ -310,7 +319,7 @@ export default function Home() {
   const fmtDate = (iso: string) => {
     if (!iso) return ''
     const d = new Date(iso)
-    const days = ['нд','пн','вт','ср','чт','пт','сб']
+    const days = WEEKDAYS_SUN[useLangStore.getState().lang]
     return `${days[d.getDay()]}, ${d.getDate().toString().padStart(2,'0')}.${(d.getMonth()+1).toString().padStart(2,'0')}.${String(d.getFullYear()).slice(2)}`
   }
 

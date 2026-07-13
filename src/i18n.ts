@@ -222,6 +222,25 @@ export const dict: Dict = {
   'common.error': { uk: 'Помилка', en: 'Error', de: 'Fehler', ru: 'Ошибка' },
 }
 
+export const MONTHS: Record<Lang, string[]> = {
+  uk: ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'],
+  en: ['January','February','March','April','May','June','July','August','September','October','November','December'],
+  de: ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'],
+  ru: ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'],
+}
+export const WEEKDAYS_MON: Record<Lang, string[]> = {
+  uk: ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'],
+  en: ['Mo','Tu','We','Th','Fr','Sa','Su'],
+  de: ['Mo','Di','Mi','Do','Fr','Sa','So'],
+  ru: ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'],
+}
+export const WEEKDAYS_SUN: Record<Lang, string[]> = {
+  uk: ['нд','пн','вт','ср','чт','пт','сб'],
+  en: ['su','mo','tu','we','th','fr','sa'],
+  de: ['so','mo','di','mi','do','fr','sa'],
+  ru: ['вс','пн','вт','ср','чт','пт','сб'],
+}
+
 export function useT() {
   const lang = useLangStore(s => s.lang)
   return (key: string, vars?: Record<string, string | number>) => {
