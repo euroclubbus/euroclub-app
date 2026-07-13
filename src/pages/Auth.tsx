@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { authLogin, authRegister, authRepass1, authRepass2, authRepass3 } from '../api/auth'
 import { useAuthStore } from '../authStore'
 import { useT } from '../i18n'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -114,6 +115,10 @@ export default function Auth({ onAuthed }: { onAuthed?: () => void }) {
         </>)}
 
         {mode === 'register' && (<>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <span style={{ fontSize: 13, color: Gray, fontWeight: 600 }}>{t('profile.language')}</span>
+            <LanguageSwitcher />
+          </div>
           {field(header, setHeader, t('auth.namePlaceholder'), 'text', true)}
           {field(email, setEmail, t('auth.emailPlaceholder'), 'email')}
           {field(pass, setPass, t('auth.passwordPlaceholder'), 'password')}

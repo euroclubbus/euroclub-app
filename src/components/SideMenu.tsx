@@ -1,5 +1,6 @@
 import { FileText, Gift, Map, Bus, Star, Share2, Info, X } from 'lucide-react'
 import { useT } from '../i18n'
+import LanguageSwitcher from './LanguageSwitcher'
 
 const Navy = '#0A4684'
 const ORange = '#F5A623'
@@ -29,6 +30,10 @@ export default function SideMenu({ open, onClose }: { open: boolean; onClose: ()
         <div style={{ background: Navy, padding: 'calc(env(safe-area-inset-top) + 20px) 18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <img src="/logo-lockup.png" alt="EuroClub" style={{ height: 34 }} />
           <button onClick={onClose} aria-label={t('common.close')} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={22} color="#fff" /></button>
+        </div>
+        <div style={{ padding: '12px 18px', borderBottom: '1px solid #F4F4F4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 13, color: '#8A8A8A', fontWeight: 600 }}>{t('profile.language')}</span>
+          <LanguageSwitcher />
         </div>
         <div style={{ padding: '8px 0', overflowY: 'auto' }}>
           {ITEMS.map((it, i) => (
