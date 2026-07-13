@@ -164,7 +164,7 @@ export default function Game() {
         <div style={{ padding: '40px 20px', textAlign: 'center' }}>
           <div style={{ fontSize: 56, marginBottom: 12 }}>🏁</div>
           <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.7)', marginBottom: 6 }}>Заїзд завершено!</div>
-          <div style={{ fontSize: 40, fontWeight: 900, color: ORange, marginBottom: 20 }}>+{lastRunScore} балів</div>
+          <div style={{ fontSize: 40, fontWeight: 900, color: lastRunScore < 0 ? '#E53935' : ORange, marginBottom: 20 }}>{lastRunScore >= 0 ? `+${lastRunScore}` : lastRunScore} балів</div>
           <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 24 }}>Загалом за місяць: <strong style={{ color: '#fff' }}>{myScore ?? '—'}</strong></div>
           <button onClick={() => setStep('route')} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 800, fontSize: 16, cursor: 'pointer', marginBottom: 10 }}>
             Ще раз
@@ -235,7 +235,8 @@ function Gameplay({ route, bus, passengers, onFinish }: { route: GameRoute; bus:
   const [limit, setLimit] = useState(currentSegment().limit)
   const zone = ZONE_BY_SIGN[currentSegment().type]
 
-  const finish = () => onFinish(Math.max(0, Math.round(scoreRef.current)))
+  const finish = () => onFinish(Math.round(scoreRef.current))
+  const finishWithoutCanister = () => onFinish(Math.round(scoreRef.current) - 3000)
 
   useEffect(() => {
     let raf: number
@@ -425,11 +426,11 @@ function Gameplay({ route, bus, passengers, onFinish }: { route: GameRoute; bus:
             }}>
               🛢️ Купити каністру — {CANISTER_COST_POINTS} балів (+{CANISTER_TIME_PENALTY_SEC}с)
             </button>
-            <button onClick={finish} style={{
+            <button onClick={finishWithoutCanister} style={{
               width: '100%', maxWidth: 300, padding: 16, background: 'rgba(255,255,255,0.12)', color: '#fff',
-              border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer',
+              border: '1.5px solid #E53935', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer',
             }}>
-              Завершити заїзд
+              Завершити заїзд (−3000 балів)
             </button>
           </div>
         )}
