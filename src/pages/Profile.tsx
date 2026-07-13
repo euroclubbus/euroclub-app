@@ -5,12 +5,15 @@ import { useAuthStore } from '../authStore'
 import { editProfile } from '../api/auth'
 import { getSavedPassengers, addSavedPassenger, removeSavedPassenger, setSavedPassengerBirthday, SavedPassenger } from '../savedPassengers'
 import Auth from './Auth'
+import { useT } from '../i18n'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
 
 export default function Profile() {
   const nav = useNavigate()
+  const t = useT()
   const { user, logout, setUser } = useAuthStore()
   const fileRef = useRef<HTMLInputElement>(null)
   const [avatar, setAvatar] = useState<string>(() => { try { return localStorage.getItem('eclub_avatar') || '' } catch { return '' } })
@@ -85,7 +88,7 @@ export default function Profile() {
           </div>
           <input ref={fileRef} type="file" accept="image/*" onChange={pickAvatar} style={{ display: 'none' }} />
           <div>
-            <div style={{ color: '#fff', fontSize: 18, fontWeight: 800 }}>{user.header || 'Мій профіль'}</div>
+            <div style={{ color: '#fff', fontSize: 18, fontWeight: 800 }}>{user.header || t('profile.title')}</div>
             <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13 }}>{user.email}</div>
           </div>
         </div>
@@ -95,42 +98,48 @@ export default function Profile() {
         <div style={{ background: '#fff', borderRadius: 20, padding: '4px 18px 8px' }}>
           {!editing ? (
             <>
-              {row(<User size={20} color={ORange} />, "Ім'я", user.header)}
-              {row(<Mail size={20} color={ORange} />, 'Пошта', user.email)}
-              {row(<Phone size={20} color={ORange} />, 'Телефон', user.phone)}
+              {row(<User size={20} color={ORange} />, t('profile.name'), user.header)}
+              {row(<Mail size={20} color={ORange} />, t('profile.email'), user.email)}
+              {row(<Phone size={20} color={ORange} />, t('profile.phone'), user.phone)}
               <button onClick={startEdit} style={{ width: '100%', margin: '10px 0 6px', padding: 12, background: 'none', border: `1.5px solid ${ORange}`, borderRadius: 12, color: ORange, fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <Pencil size={15} /> Редагувати
+                <Pencil size={15} /> {t('profile.edit')}
               </button>
             </>
           ) : (
             <div style={{ padding: '14px 0' }}>
-              <label style={{ fontSize: 12, color: Gray }}>Ім'я</label>
-              <input value={header} onChange={e => setHeader(e.target.value)} style={inputStyle} placeholder="Ім'я та прізвище" />
-              <label style={{ fontSize: 12, color: Gray, display: 'block', marginTop: 12 }}>Пошта</label>
+              <label style={{ fontSize: 12, color: Gray }}>{t('profile.name')}</label>
+              <input value={header} onChange={e => setHeader(e.target.value)} style={inputStyle} placeholder={t('profile.namePlaceholder')} />
+              <label style={{ fontSize: 12, color: Gray, display: 'block', marginTop: 12 }}>{t('profile.email')}</label>
               <input value={email} onChange={e => setEmail(e.target.value)} type="email" style={inputStyle} placeholder="email@example.com" />
-              <label style={{ fontSize: 12, color: Gray, display: 'block', marginTop: 12 }}>Телефон</label>
+              <label style={{ fontSize: 12, color: Gray, display: 'block', marginTop: 12 }}>{t('profile.phone')}</label>
               <input value={phone} onChange={e => setPhone(e.target.value)} type="tel" style={inputStyle} placeholder="+380..." />
               {saveError && <div style={{ color: '#E53935', fontSize: 12.5, marginTop: 10 }}>{saveError}</div>}
               <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
                 <button onClick={() => setEditing(false)} disabled={saving} style={{ flex: 1, padding: 12, background: 'none', border: '1.5px solid #EEE', borderRadius: 12, color: '#555', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <X size={15} /> Скасувати
+                  <X size={15} /> {t('profile.cancel')}
                 </button>
                 <button onClick={save} disabled={saving} style={{ flex: 1, padding: 12, background: ORange, border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: saving ? 0.7 : 1 }}>
-                  <Check size={15} /> {saving ? 'Збереження...' : 'Зберегти'}
+                  <Check size={15} /> {saving ? t('profile.saving') : t('profile.save')}
                 </button>
               </div>
             </div>
           )}
         </div>
 
+        {/* Мова */}
+        <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontWeight: 700, fontSize: 15 }}>{t('profile.language')}</span>
+          <LanguageSwitcher />
+        </div>
+
         {/* Збережені пасажири */}
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginTop: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <Users size={18} color={ORange} />
-            <span style={{ fontWeight: 700, fontSize: 15 }}>Пасажири</span>
+            <span style={{ fontWeight: 700, fontSize: 15 }}>{t('profile.passengers')}</span>
           </div>
           <div style={{ fontSize: 12, color: Gray, marginBottom: 12 }}>
-            Діти, дружина, батьки — кому часто купуєш квитки. З'являться списком при заповненні бронювання. Дата народження — для привітань і спецпропозицій у майбутньому.
+            {t('profile.passengersNote')}
           </div>
 
           {passengers.map(p => (
@@ -142,7 +151,7 @@ export default function Profile() {
                 </button>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                <span style={{ fontSize: 11, color: Gray, whiteSpace: 'nowrap' }}>Дата народження</span>
+                <span style={{ fontSize: 11, color: Gray, whiteSpace: 'nowrap' }}>{t('profile.birthday')}</span>
                 <input type="date" value={p.birthday || ''} onChange={e => setBday(p.id, e.target.value)}
                   style={{ fontSize: 12.5, padding: '4px 8px', border: '1px solid #EEE', borderRadius: 8, color: '#555' }} />
               </div>
@@ -151,24 +160,24 @@ export default function Profile() {
 
           <div style={{ display: 'flex', gap: 8, marginTop: passengers.length ? 12 : 0 }}>
             <input value={newPax} onChange={e => setNewPax(e.target.value)} onKeyDown={e => e.key === 'Enter' && addPax()}
-              placeholder="Ім'я та прізвище (латиницею)" style={{ ...inputStyle, marginTop: 0, flex: 1 }} />
+              placeholder={t('profile.namePlaceholder')} style={{ ...inputStyle, marginTop: 0, flex: 1 }} />
             <button onClick={addPax} style={{ width: 44, height: 44, background: ORange, border: 'none', borderRadius: 10, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Plus size={20} />
             </button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-            <span style={{ fontSize: 12, color: Gray, whiteSpace: 'nowrap' }}>Дата народження (не обов'язково)</span>
+            <span style={{ fontSize: 12, color: Gray, whiteSpace: 'nowrap' }}>{t('profile.birthdayOptional')}</span>
             <input type="date" value={newPaxBday} onChange={e => setNewPaxBday(e.target.value)}
               style={{ fontSize: 13, padding: '6px 10px', border: '1.5px solid #EEE', borderRadius: 8, color: '#555' }} />
           </div>
         </div>
 
         <button onClick={() => nav('/tickets')} style={{ width: '100%', marginTop: 14, padding: 16, background: '#fff', border: 'none', borderRadius: 16, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', fontWeight: 700, fontSize: 15 }}>
-          <Ticket size={20} color={ORange} /> Мої замовлення
+          <Ticket size={20} color={ORange} /> {t('profile.myOrders')}
         </button>
 
         <button onClick={logout} style={{ width: '100%', marginTop: 14, padding: 16, background: 'none', border: '1.5px solid #EEE', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: 'pointer', color: '#E53935', fontWeight: 700, fontSize: 15 }}>
-          <LogOut size={18} /> Вийти
+          <LogOut size={18} /> {t('profile.logout')}
         </button>
       </div>
     </div>

@@ -6,6 +6,7 @@ import { ticketAvailable, statusLabel, payInfo, needsPolling, canRestore } from 
 import { useOrderPolling } from '../useOrderPolling'
 import { useDisplayPrice } from '../currency'
 import SeatMap from './SeatMap'
+import { useT } from '../i18n'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -32,6 +33,7 @@ function calcDuration(depStr?: string, arrStr?: string): string {
 
 export default function OrderSuccess() {
   const nav = useNavigate()
+  const t = useT()
   const { orderHash, orderData, selectedTrip, selectedTrip2, selectedSeats, setOrderResult } = useBookingStore()
   const { setFrom, setTo } = useSearchStore()
   const [status, setStatus] = useState<'active'|'cancelled'>('active')
@@ -103,7 +105,7 @@ export default function OrderSuccess() {
   }
 
   const handleCancel = async () => {
-    if (!hash || !window.confirm('Скасувати замовлення?')) return
+    if (!hash || !window.confirm(t('os.cancel') + '?')) return
     setLoading(true)
     try {
       await cancelOrder(hash)
@@ -195,14 +197,14 @@ export default function OrderSuccess() {
         </div>
 
         <div style={{ textAlign: 'center', marginBottom: 8 }}>
-          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Ваше замовлення оформлене!</div>
+          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>{t('os.done')}</div>
           <div style={{ color: ORange, fontWeight: 800, fontSize: 20, marginBottom: status === 'cancelled' ? 6 : 0 }}>order #{displayOrder}</div>
           {status === 'cancelled' && <div style={{ color: '#E53935', fontWeight: 700, fontSize: 15 }}>Скасовано</div>}
         </div>
 
         <button onClick={handleRefresh} disabled={refreshing} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, margin: '0 auto 16px', padding: '8px 16px', background: '#F5F5F5', border: 'none', borderRadius: 20, color: '#555', fontWeight: 600, fontSize: 13, cursor: refreshing ? 'default' : 'pointer' }}>
           <span style={{ display: 'inline-block', transform: refreshing ? 'rotate(360deg)' : 'none', transition: 'transform 0.6s' }}>↻</span>
-          {refreshing ? 'Оновлення…' : 'Оновити дані'}
+          {refreshing ? t('os.refresh') + '…' : t('os.refresh')}
           {refreshedAt && !refreshing && <span style={{ color: Gray, fontWeight: 400 }}>· {refreshedAt}</span>}
         </button>
 
@@ -217,7 +219,7 @@ export default function OrderSuccess() {
         })()}
 
         {/* Trip card */}
-        {isRoundTrip && <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>ТУДИ</div>}
+        {isRoundTrip && <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>{t('booking.outbound')}</div>}
         <div style={{ border: '1.5px solid #EEE', borderRadius: 16, padding: 16, marginBottom: isRoundTrip ? 12 : 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, marginBottom: 10 }}>
             <span>{depDT.date} → {arrDT.date}</span>
@@ -247,7 +249,7 @@ export default function OrderSuccess() {
 
         {isRoundTrip && trip2 && (
           <>
-            <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>НАЗАД</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>{t('booking.return')}</div>
             <div style={{ border: '1.5px solid #EEE', borderRadius: 16, padding: 16, marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, marginBottom: 10 }}>
                 <span>{splitDateTime(dep2?.time).date} → {splitDateTime(arr2?.time).date}</span>
@@ -288,9 +290,9 @@ export default function OrderSuccess() {
 
         {/* Total */}
         <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 14, marginBottom: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>До сплати</div>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>{t('os.toPay')}</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 18 }}>
-            <span>Усього</span>
+            <span>{t('os.total')}</span>
             <span>{format(summ, currencyCode)}</span>
           </div>
         </div>
@@ -299,55 +301,55 @@ export default function OrderSuccess() {
           <>
             {ticketAvailable(data, hash) ? (
               <button onClick={() => nav('/ticket')} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: 12 }}>
-                Показати квиток
+                {t('os.showTicket')}
               </button>
             ) : (
               <button onClick={() => nav('/payment')} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: 12 }}>
-                Перейти до оплати
+                {t('os.goToPayment')}
               </button>
             )}
             <button onClick={handleCancel} disabled={loading} style={{ width: '100%', padding: 12, background: 'none', border: 'none', color: Gray, fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
-              {loading ? '...' : 'Скасувати замовлення'}
+              {loading ? '...' : t('os.cancel')}
             </button>
           </>
         ) : payInfo(data).paid > 0 ? (
           // Скасовано, але була часткова/повна оплата — простий флоу без перевірки місць
           <button onClick={handleRestore} disabled={loading} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
-            {loading ? '...' : 'Відновити замовлення'}
+            {loading ? '...' : t('os.restore')}
           </button>
         ) : !canRestore(data) ? (
           // Неоплачене, скасоване, до рейсу лишилось <=24 год — відновлення закрите
           <div style={{ textAlign: 'center', color: Gray, fontSize: 14, padding: '10px 4px', lineHeight: 1.5 }}>
-            Відновлення недоступне — до рейсу залишилось менше 24 годин.
+            {t('os.restoreUnavailable')}
           </div>
         ) : restorePhase === 'idle' ? (
           <button onClick={checkSeatsAndRestore} disabled={loading} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
-            Відновити замовлення
+            {t('os.restore')}
           </button>
         ) : restorePhase === 'checking' ? (
-          <div style={{ textAlign: 'center', color: Gray, fontSize: 14, padding: '16px 0' }}>Перевіряємо вільні місця…</div>
+          <div style={{ textAlign: 'center', color: Gray, fontSize: 14, padding: '16px 0' }}>{t('os.checkingSeats')}</div>
         ) : restorePhase === 'available' ? (
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14, lineHeight: 1.4 }}>
-              Вільні місця на рейсі ще доступні. Оберіть місце в автобусі
+              {t('os.seatsAvailable')}
             </div>
             <button onClick={() => setShowSeatMap(true)} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: chosenSeats.length ? 12 : 0 }}>
-              {chosenSeats.length ? `Місце обрано: ${chosenSeats.join(', ')}` : 'Обрати місце'}
+              {chosenSeats.length ? `${t('os.seatChosen')}: ${chosenSeats.join(', ')}` : t('os.chooseSeat')}
             </button>
             {chosenSeats.length > 0 && (
               <button onClick={finalizeRestore} disabled={loading} style={{ width: '100%', padding: 16, background: '#0B2E5E', color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
-                {loading ? '...' : 'Відновити замовлення'}
+                {loading ? '...' : t('os.restore')}
               </button>
             )}
           </div>
         ) : (
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 18 }}>
-              Вільних місць на рейсі більше немає 😢
+              {t('os.noSeatsLeft')}
             </div>
-            <div style={{ color: Gray, fontSize: 14, marginBottom: 10 }}>Обрати інший день</div>
+            <div style={{ color: Gray, fontSize: 14, marginBottom: 10 }}>{t('os.chooseAnotherDay')}</div>
             <button onClick={pickAnotherDay} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
-              Обрати
+              {t('os.choose')}
             </button>
           </div>
         )}

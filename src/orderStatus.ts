@@ -2,6 +2,9 @@
 // Джерело оплати — pay_uah / pay_eur з order_info (конвертує система бронювання).
 // Квиток формується при оплаті >= 70% від суми і далі НЕ зникає (фіксуємо на пристрої).
 
+import { useLangStore } from './langStore'
+import { dict } from './i18n'
+
 const THRESHOLD = 0.70
 
 function num(v: any): number {
@@ -82,14 +85,16 @@ export function ticketAvailable(o: any, hash?: string): boolean {
 }
 
 export function statusLabel(o: any): { text: string; color: string; bg: string } {
+  const lang = useLangStore.getState().lang
+  const L = (key: string) => dict[key]?.[lang] ?? dict[key]?.uk ?? key
   if (isCancelled(o)) return cancelledByPassenger(o)
-    ? { text: 'Скасовано пасажиром', color: '#E53935', bg: '#FDECEA' }
-    : { text: 'Скасовано', color: '#E53935', bg: '#FDECEA' }
-  if (isCompleted(o)) return { text: 'Виконано', color: '#555', bg: '#EEEEEE' }
+    ? { text: L('orders.cancelledByPassenger'), color: '#E53935', bg: '#FDECEA' }
+    : { text: L('orders.cancelledStatus'), color: '#E53935', bg: '#FDECEA' }
+  if (isCompleted(o)) return { text: L('orders.done'), color: '#555', bg: '#EEEEEE' }
   const pi = payInfo(o)
-  if (pi.fullyPaid) return { text: 'Оплачено', color: '#2E7D32', bg: '#E8F5E9' }
-  if (pi.ticketReady) return { text: 'Очікує доплати', color: '#B8860B', bg: '#FFF3DC' }
-  return { text: 'Очікує оплати', color: '#B8860B', bg: '#FFF3DC' }
+  if (pi.fullyPaid) return { text: L('orders.paid'), color: '#2E7D32', bg: '#E8F5E9' }
+  if (pi.ticketReady) return { text: L('orders.awaitingSurcharge'), color: '#B8860B', bg: '#FFF3DC' }
+  return { text: L('orders.awaitingPayment'), color: '#B8860B', bg: '#FFF3DC' }
 }
 
 // Чи потрібно опитувати order_info (екран очікування оплати/доплати)

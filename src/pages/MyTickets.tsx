@@ -4,6 +4,7 @@ import { getLocalOrders, saveOrderLocally, getOrderInfo } from '../api/euroclub'
 import { getUserOrders } from '../api/auth'
 import { useBookingStore } from '../store'
 import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted } from '../orderStatus'
+import { useT } from '../i18n'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -11,6 +12,7 @@ const Gray = '#9E9E9E'
 export default function MyTickets() {
   const nav = useNavigate()
   const { setOrderResult } = useBookingStore()
+  const t = useT()
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -105,16 +107,16 @@ export default function MyTickets() {
         <img src="/bus-hero.png" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(7px) brightness(0.7)', transform: 'scale(1.1)' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,28,58,0.45)' }} />
         <div style={{ position: 'relative', padding: 'calc(env(safe-area-inset-top) + 20px) 16px 16px' }}>
-          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Мої замовлення</span>
+          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>{t('orders.title')}</span>
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, padding: '14px 16px 0', overflowX: 'auto' }}>
         {([
-          ['active', `Активні${counts.active ? ` (${counts.active})` : ''}`],
-          ['completed', `Виконані${counts.completed ? ` (${counts.completed})` : ''}`],
-          ['cancelled', `Скасовані${counts.cancelled ? ` (${counts.cancelled})` : ''}`],
-          ['all', 'Всі'],
+          ['active', `${t('orders.active')}${counts.active ? ` (${counts.active})` : ''}`],
+          ['completed', `${t('orders.completed')}${counts.completed ? ` (${counts.completed})` : ''}`],
+          ['cancelled', `${t('orders.cancelled')}${counts.cancelled ? ` (${counts.cancelled})` : ''}`],
+          ['all', t('orders.all')],
         ] as const).map(([key, label]) => (
           <button key={key} onClick={() => setFilter(key)} style={{
             padding: '8px 14px', borderRadius: 20, border: 'none', cursor: 'pointer',
@@ -127,14 +129,14 @@ export default function MyTickets() {
       </div>
 
       <div style={{ padding: 16 }}>
-        {loading && <p style={{ color: Gray, textAlign: 'center', paddingTop: 40 }}>Завантаження...</p>}
+        {loading && <p style={{ color: Gray, textAlign: 'center', paddingTop: 40 }}>{t('orders.loading')}</p>}
         {!loading && filtered.length === 0 && (
           <div style={{ textAlign: 'center', paddingTop: 60 }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🎫</div>
-            <p style={{ color: Gray, fontSize: 16 }}>{orders.length === 0 ? 'Замовлень поки немає' : 'Нічого немає в цій категорії'}</p>
+            <p style={{ color: Gray, fontSize: 16 }}>{orders.length === 0 ? t('orders.empty') : t('orders.emptyFiltered')}</p>
             {orders.length === 0 && (
               <button onClick={() => nav('/')} style={{ marginTop: 20, padding: '12px 28px', background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, cursor: 'pointer' }}>
-                Знайти рейс
+                {t('orders.findTrip')}
               </button>
             )}
           </div>
@@ -154,11 +156,11 @@ export default function MyTickets() {
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
                 <button onClick={() => openOrder(o)} style={{ flex: 1, padding: '11px 0', background: 'none', border: `2px solid ${ORange}`, borderRadius: 12, color: ORange, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-                  Замовлення
+                  {t('orders.order')}
                 </button>
                 {paid && (
                   <button onClick={() => openTicket(o)} style={{ flex: 1, padding: '11px 0', background: ORange, border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-                    Квиток
+                    {t('orders.ticket')}
                   </button>
                 )}
               </div>

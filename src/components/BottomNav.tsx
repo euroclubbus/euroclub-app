@@ -1,15 +1,16 @@
 import { NavLink } from 'react-router-dom'
 import { Search, Ticket, User, Bell } from 'lucide-react'
 import { getUnreadCount } from '../notifications'
-
-const TABS = [
-  { to: '/', icon: Search, label: 'Пошук', end: true, badge: false },
-  { to: '/tickets', icon: Ticket, label: 'Замовлення', badge: false },
-  { to: '/profile', icon: User, label: 'Профіль', badge: false },
-  { to: '/notifications', icon: Bell, label: 'Сповіщення', badge: true },
-]
+import { useT } from '../i18n'
 
 export default function BottomNav() {
+  const t = useT()
+  const TABS = [
+    { to: '/', icon: Search, label: t('nav.search'), end: true, badge: false },
+    { to: '/tickets', icon: Ticket, label: t('nav.orders'), badge: false },
+    { to: '/profile', icon: User, label: t('nav.profile'), badge: false },
+    { to: '/notifications', icon: Bell, label: t('nav.notifications'), badge: true },
+  ]
   const unread = getUnreadCount()
   return (
     <nav style={{
