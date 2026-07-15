@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Pencil, X, Plus } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { useAuthStore } from '../authStore'
-import { createOrder, saveOrderLocally } from '../api/euroclub'
+import { createOrder, saveOrderLocally, getOrderInfo } from '../api/euroclub'
 import { findTwoWayPrice } from '../priceEngine'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
 import { validatePromo, redeemPromo } from '../game/gameApi'
+import { applyPromoCode } from '../api/auth'
 import { reportTrip } from '../reporting'
 import BottomSheet from '../components/BottomSheet'
 import CurrencyToggle from '../components/CurrencyToggle'
@@ -183,18 +184,38 @@ export default function Booking() {
           if (selectedSeats2[i] != null) params[`place2[${i}]`] = String(selectedSeats2[i])
         }
       }
-      // Ціна з урахуванням промокоду (гри) — для round trip це вже узгоджений
-      // з прогером параметр; для звичайного одностороннього бронювання ЩЕ НЕ перевірено,
-      // чи бекенд взагалі враховує цей override — потрібна звірка з прогером.
-      if (promoApplied || isRoundTrip) params.price = String(finalTotal)
+      // Override ціни — лише для round trip (узгоджений з прогером механізм).
+      // Промокод НЕ зменшує ціну тут — офіційний метод списує знижку окремим
+      // викликом ПІСЛЯ створення замовлення (по oid), див. нижче.
+      if (isRoundTrip) params.price = String(total)
       const result = await createOrder(params)
       // Усі дані замовлення огорнуті в orders[0]; беремо саме його
-      const order = result.orders?.[0] || result
+      let order = result.orders?.[0] || result
       const hash = order.hash || result.hash
       if (hash) {
         saveOrderLocally(hash, order)
         setOrderResult(hash, order)
-        if (promoApplied) redeemPromo(promoApplied.code, hash).catch(() => {})
+
+        if (promoApplied) {
+          // oid — номер замовлення для офіційного opr=procode; дістаємо так само,
+          // як і скрізь по додатку, з посилання в ticket/link1/link2.
+          const src = String(order.ticket || order.link1 || order.link2 || '')
+          const oidMatch = src.match(/\/orders?\/(\d+)/)
+          const oid = oidMatch?.[1]
+          if (oid) {
+            try {
+              const promoRes: any = await applyPromoCode(promoApplied.code, oid)
+              if (promoRes?.status === 'ok') {
+                redeemPromo(promoApplied.code, hash).catch(() => {})
+                // Перезчитуємо замовлення — ціна після списання вже інша на боці бекенду
+                const fresh: any = await getOrderInfo(hash).catch(() => null)
+                if (fresh?.orders?.[0]) { order = fresh.orders[0]; setOrderResult(hash, order) }
+              }
+              // якщо promoRes.status === 'error' — мовчки лишаємо як є, замовлення все одно створене
+            } catch { /* не критично для успіху бронювання */ }
+          }
+        }
+
         // Транзит агрегованих (не персональних) даних для звіту в панелі керування —
         // нічого з цього не зберігається в самому додатку.
         if (user?.id) {
@@ -418,14 +439,11 @@ export default function Booking() {
           <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 18, marginBottom: 8 }}>
               <span>{t('booking.total')}{isRoundTrip ? t('booking.totalRoundTrip') : ''}</span>
-              <span>
-                {promoApplied && <span style={{ color: Gray, textDecoration: 'line-through', fontWeight: 400, fontSize: 14, marginRight: 8 }}>{format(total, trip?.currency)}</span>}
-                {format(finalTotal, trip?.currency)}
-              </span>
+              <span>{format(total, trip?.currency)}</span>
             </div>
             {promoApplied && (
               <div style={{ textAlign: 'right', color: '#2E7D32', fontSize: 12.5, fontWeight: 700, marginBottom: 4 }}>
-                Промокод {promoApplied.code} застосовано: −{promoApplied.pct}%
+                Промокод {promoApplied.code} (−{promoApplied.pct}%) буде застосовано одразу після оформлення — орієнтовно {format(finalTotal, trip?.currency)}
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', color: Gray, fontSize: 14 }}>

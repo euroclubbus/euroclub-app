@@ -38,3 +38,9 @@ export const getUserOrders = () => inputPost({ opr: 'user-orders', uidkey: curre
 // Редагування профілю. Поля можна передавати разом або окремо: header/email/pass/phone
 export const editProfile = (fields: Partial<{ header: string; email: string; pass: string; phone: string }>) =>
   inputPost({ opr: 'edit', uidkey: currentUidKey(), ...fields })
+
+// Офіційне застосування промокоду до вже створеного замовлення (не наш ігровий, а справжній
+// метод бекенду). Працює інакше, ніж наш тимчасовий: списує знижку ПІСЛЯ створення замовлення,
+// по oid (номер замовлення), а не як зменшення ціни заздалегідь.
+export const applyPromoCode = (code: string, oid: string) =>
+  inputPost({ mod: 'procode', code, oid, uidkey: currentUidKey() })
