@@ -45,11 +45,10 @@ export default function MyTickets() {
 
     getUserOrders()
       .then(async (res: any) => {
-        // Формат відповіді user-orders ще не підтверджений на реальних даних —
-        // пробуємо кілька варіантів обгортки, щоб не впасти в порожній список даремно.
-        const remote = Array.isArray(res) ? res
+        // Формат підтверджено: { data: [...замовлення], cab: {...статистика кабінету} }
+        const remote = Array.isArray(res?.data) ? res.data
+          : Array.isArray(res) ? res
           : Array.isArray(res?.orders) ? res.orders
-          : Array.isArray(res?.data) ? res.data
           : Array.isArray(res?.list) ? res.list
           : []
         // Дедуп по hash: зливаємо поля, а не замінюємо повністю — user-orders (список)
