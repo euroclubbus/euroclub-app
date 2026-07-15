@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import NotifPrompt from '../components/NotifPrompt'
 import SideMenu from '../components/SideMenu'
 import { useT, MONTHS, WEEKDAYS_MON, WEEKDAYS_SUN } from '../i18n'
@@ -7,7 +7,7 @@ import { Menu } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowUpDown, MapPin, Navigation, Calendar, Users } from 'lucide-react'
 import { useSearchStore } from '../store'
-import { getCities, getDiscounts, getRoutes } from '../api/euroclub'
+import { getCities, getDiscounts } from '../api/euroclub'
 import { getAllowedCities } from '../cityRules'
 import BottomSheet from '../components/BottomSheet'
 
@@ -15,7 +15,7 @@ const ORange = '#F5A623'
 const Gray = '#9E9E9E'
 
 // ─── Calendar ────────────────────────────────────────────────────────────────
-function Calendar_({ value, onChange, minDate, onConfirm, departureSel, isOpen, onToggleOpen, showOpenDate, prices, onNavigate }: any) {
+function Calendar_({ value, onChange, minDate, onConfirm, departureSel, isOpen, onToggleOpen, showOpenDate }: any) {
   const t = useT()
   const today = new Date(); today.setHours(0,0,0,0)
   const [cur, setCur] = useState(() => { const d = value ? new Date(value) : new Date(); return { y: d.getFullYear(), m: d.getMonth() } })
@@ -37,11 +37,7 @@ function Calendar_({ value, onChange, minDate, onConfirm, departureSel, isOpen, 
           <span style={{ fontWeight: 700, fontSize: 17 }}>{months[cur.m]} {cur.y}</span>
           <div style={{ display: 'flex', gap: 16 }}>
             <button onClick={() => setCur(c => { const d = new Date(c.y, c.m-1); return { y: d.getFullYear(), m: d.getMonth() } })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: Gray, fontSize: 18 }}>←</button>
-            <button onClick={() => setCur(c => {
-              const d = new Date(c.y, c.m+1)
-              if (onNavigate) onNavigate(d.getFullYear(), d.getMonth())
-              return { y: d.getFullYear(), m: d.getMonth() }
-            })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: ORange, fontSize: 18 }}>→</button>
+            <button onClick={() => setCur(c => { const d = new Date(c.y, c.m+1); return { y: d.getFullYear(), m: d.getMonth() } })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: ORange, fontSize: 18 }}>→</button>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '4px 0', marginBottom: 8 }}>
@@ -54,28 +50,18 @@ function Calendar_({ value, onChange, minDate, onConfirm, departureSel, isOpen, 
             const isPast = d < min
             const isSel = selDate && d.getTime() === selDate.getTime()
             const isDep = depDate && d.getTime() === depDate.getTime()
-            const iso = `${cur.y}-${String(cur.m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
-            const price = prices?.[iso]
             return (
               <button key={i} disabled={isPast} onClick={() => {
+                const iso = `${cur.y}-${String(cur.m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
                 onChange(iso)
                 if (onToggleOpen) onToggleOpen(false)
               }} style={{
-                background: 'none', border: 'none', padding: 0, margin: '0 auto',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                cursor: isPast ? 'default' : 'pointer',
-              }}>
-                <span style={{
-                  background: isSel ? ORange : isDep ? '#FFF3DC' : 'none',
-                  borderRadius: '50%', width: 36, height: 36, display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                  color: isSel ? '#fff' : isPast ? '#DDD' : '#1A1A1A',
-                  fontWeight: isSel || isDep ? 700 : 400, fontSize: 15,
-                }}>{day}</span>
-                {price != null && !isPast && (
-                  <span style={{ fontSize: 10.5, fontWeight: 600, color: isSel ? ORange : Gray }}>{price}</span>
-                )}
-              </button>
+                background: isSel ? ORange : isDep ? '#FFF3DC' : 'none',
+                border: 'none', borderRadius: '50%', width: 36, height: 36, margin: '0 auto', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', cursor: isPast ? 'default' : 'pointer',
+                color: isSel ? '#fff' : isPast ? '#DDD' : '#1A1A1A',
+                fontWeight: isSel || isDep ? 700 : 400, fontSize: 15
+              }}>{day}</button>
             )
           })}
         </div>
@@ -325,71 +311,6 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false)
   const nav = useNavigate()
   const { from, to, dateFrom, dateTo, isOpenReturn, passengerCount, setDateFrom, setDateTo, setOpenReturn, swap } = useSearchStore()
-
-  // Ціни під датами в календарі — запит на 60 днів вперед одразу, як тільки заданий маршрут.
-  // outboundPrices — для рейсу from→to (перший календар), returnPrices — для to→from (другий).
-  const [outboundPrices, setOutboundPrices] = useState<Record<string, number>>({})
-  const [returnPrices, setReturnPrices] = useState<Record<string, number>>({})
-  // До якого дня (включно) вже довантажено ціни — щоб при гортанні календаря вперед
-  // за межі цього діапазону підвантажити ще, а не показувати порожньо.
-  const outboundFetchedThrough = useRef<Date | null>(null)
-  const returnFetchedThrough = useRef<Date | null>(null)
-
-  async function fetchDatePricesRange(fromId: string, toId: string, startDate: Date, numDays: number, getPrev: () => Record<string, number>, setter: (p: Record<string, number>) => void) {
-    const days = Array.from({ length: numDays }, (_, i) => { const d = new Date(startDate); d.setDate(d.getDate() + i); return d })
-    const result: Record<string, number> = { ...getPrev() }
-    const BATCH = 8
-    for (let i = 0; i < days.length; i += BATCH) {
-      const batch = days.slice(i, i + BATCH)
-      await Promise.all(batch.map(async d => {
-        const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-        const dd = String(d.getDate()).padStart(2, '0'), mm = String(d.getMonth() + 1).padStart(2, '0')
-        try {
-          const res: any = await getRoutes(fromId, toId, `${dd}-${mm}-${d.getFullYear()}`)
-          const routes = res.routes || []
-          const available = routes.filter((t: any) => { const f = Number(t?.free); return isNaN(f) || f > 0 })
-          const prices = available.map((t: any) => Number(t?.price)).filter((p: number) => !isNaN(p) && p > 0)
-          if (prices.length) result[iso] = Math.min(...prices)
-        } catch { /* пропускаємо день при помилці */ }
-      }))
-      setter({ ...result })
-    }
-  }
-
-  useEffect(() => {
-    if (from?.id && to?.id) {
-      const start = new Date()
-      outboundFetchedThrough.current = new Date(start); outboundFetchedThrough.current.setDate(start.getDate() + 59)
-      returnFetchedThrough.current = new Date(start); returnFetchedThrough.current.setDate(start.getDate() + 59)
-      setOutboundPrices({})
-      setReturnPrices({})
-      fetchDatePricesRange(from.id, to.id, start, 60, () => ({}), setOutboundPrices)
-      fetchDatePricesRange(to.id, from.id, start, 60, () => ({}), setReturnPrices)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [from?.id, to?.id])
-
-  // Якщо гортання календаря вперед виходить за межі вже довантаженого діапазону — довантажити ще 30 днів
-  function extendOutboundIfNeeded(y: number, m: number) {
-    if (!from?.id || !to?.id || !outboundFetchedThrough.current) return
-    const monthEnd = new Date(y, m + 1, 0)
-    if (monthEnd > outboundFetchedThrough.current) {
-      const nextStart = new Date(outboundFetchedThrough.current); nextStart.setDate(nextStart.getDate() + 1)
-      const newThrough = new Date(nextStart); newThrough.setDate(nextStart.getDate() + 29)
-      outboundFetchedThrough.current = newThrough
-      fetchDatePricesRange(from.id, to.id, nextStart, 30, () => outboundPrices, setOutboundPrices)
-    }
-  }
-  function extendReturnIfNeeded(y: number, m: number) {
-    if (!from?.id || !to?.id || !returnFetchedThrough.current) return
-    const monthEnd = new Date(y, m + 1, 0)
-    if (monthEnd > returnFetchedThrough.current) {
-      const nextStart = new Date(returnFetchedThrough.current); nextStart.setDate(nextStart.getDate() + 1)
-      const newThrough = new Date(nextStart); newThrough.setDate(nextStart.getDate() + 29)
-      returnFetchedThrough.current = newThrough
-      fetchDatePricesRange(to.id, from.id, nextStart, 30, () => returnPrices, setReturnPrices)
-    }
-  }
   const [showCity, setShowCity] = useState(false)
   const [showDateFrom, setShowDateFrom] = useState(false)
   const [showDateTo, setShowDateTo] = useState(false)
@@ -527,14 +448,12 @@ export default function Home() {
 
       <BottomSheet open={showDateFrom} onClose={() => setShowDateFrom(false)} title={t('home.dateFrom')}>
         <Calendar_ value={dateFrom} onChange={setDateFrom} minDate={new Date().toISOString().split('T')[0]}
-          prices={outboundPrices} onNavigate={extendOutboundIfNeeded}
           onConfirm={() => setShowDateFrom(false)} />
       </BottomSheet>
 
       <BottomSheet open={showDateTo} onClose={() => setShowDateTo(false)} title={t('home.dateTo')}>
         <Calendar_ value={dateTo} onChange={setDateTo} minDate={dateFrom || new Date().toISOString().split('T')[0]}
           showOpenDate departureSel={dateFrom}
-          prices={returnPrices} onNavigate={extendReturnIfNeeded}
           isOpen={isOpenReturn} onToggleOpen={setOpenReturn}
           onConfirm={() => setShowDateTo(false)} />
       </BottomSheet>
