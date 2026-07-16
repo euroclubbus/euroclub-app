@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
-import { findTwoWayPrice } from '../priceEngine'
-import { useDisplayPrice, convert } from '../currency'
+import { findTwoWayGroupPrice } from '../priceEngine'
+import { useDisplayPrice } from '../currency'
 import CurrencyToggle from '../components/CurrencyToggle'
 import { useT } from '../i18n'
 
@@ -23,17 +23,15 @@ function calcDuration(depStr?: string, arrStr?: string) {
   return m > 0 ? `${h}г ${m}хв` : `${h}г`
 }
 
-function computeGroupPrice(trip: any, cats: string[]) {
+function perPassengerPrices(trip: any, cats: string[]): number[] {
   const opts: any[] = trip?.discounts || []
   const def = opts.find(d => d.default === 1 || d.default === '1') || opts[0]
   const fullPrice = Number(def?.price ?? trip?.price ?? 0)
   const list = cats.length ? cats : ['__one__']
-  let total = 0
-  for (const catId of list) {
+  return list.map(catId => {
     const opt = opts.find(d => String(d.id) === String(catId))
-    total += Number(opt?.price ?? fullPrice)
-  }
-  return total
+    return Number(opt?.price ?? fullPrice)
+  })
 }
 
 function LegCard({ title, trip }: { title: string; trip: any }) {
@@ -81,11 +79,8 @@ export default function RoundTripSummary() {
   }
 
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
-  const oneWayTotal = computeGroupPrice(trip, passengerCategories)
-  const twoWay = from && to ? findTwoWayPrice(from.id, to.id, direction, oneWayTotal) : null
-  const subtotal2 = computeGroupPrice(trip2, passengerCategories)
-  const fallbackTotal = oneWayTotal + convert(subtotal2, trip2?.currency, /eur/i.test(trip?.currency) ? 'EUR' : 'UAH')
-  const total = twoWay?.price ?? fallbackTotal
+  const twoWay = from && to ? findTwoWayGroupPrice(perPassengerPrices(trip, passengerCategories), from.id, to.id, direction) : null
+  const total = twoWay?.total ?? 0
 
   return (
     <div style={{ minHeight: '100vh', background: '#F5F5F5', padding: '0 0 40px' }}>

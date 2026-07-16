@@ -4,7 +4,7 @@ import { ArrowLeft, Pencil, X, Plus } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { useAuthStore } from '../authStore'
 import { saveOrderLocally, getOrderInfo } from '../api/euroclub'
-import { findTwoWayPrice } from '../priceEngine'
+import { findTwoWayGroupPrice } from '../priceEngine'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
 import { validatePromo, redeemPromo } from '../game/gameApi'
@@ -111,15 +111,12 @@ export default function Booking() {
       }).reduce((s, p) => s + p, 0)
     : 0
 
-  // Двобічна ціна: шукаємо в статичних шаблонах (Alt_1..4) рядок для route1,
-  // де EUR1/UAH1 (залежно від напрямку) співпадає (або найближче) з реальною ціною "туди" (subtotal),
-  // і беремо звідти EUR2/UAH2. Напрямок визначаємо по стороні відправлення першого відрізка.
+  // Двобічна ціна: КОЖЕН пасажир отримує свій тариф в 2 боки окремо (за своєю one-way ціною/знижкою
+  // рейсу 1), підсумок — сума цих тарифів. Показуємо юзеру лише один фінальний тариф, без розбивки.
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
-  const twoWay = isRoundTrip && trip && from && to ? findTwoWayPrice(from.id, to.id, direction, subtotal) : null
-  // Фолбек, якщо шаблон не знайшов збігу: рейси туди/назад можуть бути в РІЗНИХ валютах
-  // (UA-рейс в UAH, EU-рейс в EUR) — перед сумуванням конвертуємо все у валюту рейсу "туди".
-  const fallbackTotal = subtotal + (trip2 ? convert(subtotal2, trip2?.currency, /eur/i.test(trip?.currency) ? 'EUR' : 'UAH') : 0)
-  const total = isRoundTrip ? (twoWay?.price ?? fallbackTotal) : subtotal
+  const perPassengerOneWay = Array.from({ length: totalPax }, (_, i) => getPassengerPrice(i))
+  const twoWayGroup = isRoundTrip && from && to ? findTwoWayGroupPrice(perPassengerOneWay, from.id, to.id, direction) : null
+  const total = isRoundTrip ? (twoWayGroup?.total ?? subtotal) : subtotal
 
   // Промокод (наприклад, приз за гру EuroClub Racer) — знижка застосовується лише в застосунку,
   // на боці eclub.com.ua не існує (поки прогер не додасть офіційне поле для промокодів).
@@ -450,11 +447,6 @@ export default function Booking() {
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', color: Gray, fontSize: 14 }}>
               <span>{totalPax} {totalPax === 1 ? 'пасажир' : 'пасажири'}</span>
-              <span>
-                {isRoundTrip
-                  ? `${format(subtotal, trip?.currency)} + ${format(subtotal2, trip2?.currency)}`
-                  : format(subtotal, trip?.currency)}
-              </span>
             </div>
           </div>
         </div>

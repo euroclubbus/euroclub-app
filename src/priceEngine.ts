@@ -67,3 +67,30 @@ export function findTwoWayPrice(
 
   return best
 }
+
+/**
+ * Ціна "в два боки" для всієї групи пасажирів: КОЖЕН пасажир отримує свій тариф
+ * в два боки окремо (за своєю знижкою/one-way ціною), підсумок — це сума цих тарифів.
+ * Це навмисно НЕ "групова сума туди" зіставлена одним рядком шаблону — так було
+ * неправильно для 2+ пасажирів з різними знижками.
+ * @param perPassengerOneWayPrices one-way ціна кожного пасажира окремо (з їхньою знижкою)
+ */
+export function findTwoWayGroupPrice(
+  perPassengerOneWayPrices: number[],
+  fromCityId: string | number,
+  toCityId: string | number,
+  direction: Direction
+): { total: number; anyFallback: boolean } {
+  let total = 0
+  let anyFallback = false
+  for (const p of perPassengerOneWayPrices) {
+    const res = findTwoWayPrice(fromCityId, toCityId, direction, p)
+    if (res) {
+      total += res.price
+    } else {
+      total += p * 2 // нема жодного рядка шаблону для цієї пари міст — оцінка х2 від one-way
+      anyFallback = true
+    }
+  }
+  return { total, anyFallback }
+}

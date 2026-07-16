@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Clock, Wifi, Zap, Bus, MessageCircle, AlertTriangle } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { getRoutes } from '../api/euroclub'
-import { findTwoWayPrice } from '../priceEngine'
+import { findTwoWayGroupPrice } from '../priceEngine'
 import { useDisplayPrice } from '../currency'
 import BottomSheet from '../components/BottomSheet'
 import CurrencyToggle from '../components/CurrencyToggle'
@@ -84,6 +84,18 @@ function computeGroupPrice(trip: any, cats: string[]) {
     }
   }
   return { total, original, anyFallback, discounted: total < original }
+}
+
+// Ціна кожного пасажира окремо (для розрахунку тарифу в 2 боки по кожному пасажиру, а не групою)
+function perPassengerPrices(trip: any, cats: string[]): number[] {
+  const opts: any[] = trip?.discounts || []
+  const def = opts.find(d => d.default === 1 || d.default === '1') || opts[0]
+  const fullPrice = Number(def?.price ?? trip?.price ?? 0)
+  const list = cats.length ? cats : ['__one__']
+  return list.map(catId => {
+    const opt = opts.find(d => String(d.id) === String(catId))
+    return Number(opt?.price ?? fullPrice)
+  })
 }
 
 // ─── Trip Card ─────────────────────────────────────────────────────────────
@@ -267,7 +279,7 @@ export default function Results() {
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
   // На кроці "назад" ціна вже зафіксована рейсом "туди" — рахуємо один раз і показуємо як банер
   const lockedTwoWay = (leg === 'return' && selectedTrip && from && to)
-    ? findTwoWayPrice(from.id, to.id, direction, computeGroupPrice(selectedTrip, passengerCategories).total)
+    ? findTwoWayGroupPrice(perPassengerPrices(selectedTrip, passengerCategories), from.id, to.id, direction)
     : null
 
   const handlePrev = () => { if (stripStart > 0) setStripStart(s => s - 1) }
@@ -346,7 +358,7 @@ export default function Results() {
               </div>
               {leg === 'return' && lockedTwoWay && (
                 <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.85)', fontSize: 13, marginBottom: 10 }}>
-                  {t('results.roundTripTotalLabel')}: <strong style={{ color: '#fff' }}>{format(lockedTwoWay.price, (selectedTrip as any)?.currency)}</strong>
+                  {t('results.roundTripTotalLabel')}: <strong style={{ color: '#fff' }}>{format(lockedTwoWay.total, (selectedTrip as any)?.currency)}</strong>
                 </div>
               )}
             </>
@@ -437,7 +449,7 @@ export default function Results() {
 
         {availableTrips.map((trip, i) => {
           const cardTwoWay = (isRoundTrip && leg === 'out' && from && to)
-            ? findTwoWayPrice(from.id, to.id, direction, computeGroupPrice(trip, passengerCategories).total)?.price ?? null
+            ? findTwoWayGroupPrice(perPassengerPrices(trip, passengerCategories), from.id, to.id, direction).total
             : null
           const bookLabel = isRoundTrip ? (leg === 'out' ? t('results.selectRoute1') : t('results.selectRoute2')) : t('results.booking')
           return (
