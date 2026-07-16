@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Pencil, X, Plus } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { useAuthStore } from '../authStore'
-import { createOrder, saveOrderLocally, getOrderInfo } from '../api/euroclub'
+import { saveOrderLocally, getOrderInfo } from '../api/euroclub'
 import { findTwoWayPrice } from '../priceEngine'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
 import { validatePromo, redeemPromo } from '../game/gameApi'
-import { applyPromoCode } from '../api/auth'
+import { applyPromoCode, createOrderNew, NewOrderPassenger } from '../api/auth'
 import { reportTrip } from '../reporting'
 import BottomSheet from '../components/BottomSheet'
 import CurrencyToggle from '../components/CurrencyToggle'
@@ -162,58 +162,47 @@ export default function Booking() {
     setError('')
     setLoading(true)
     try {
-      const params: Record<string,string> = {
-        routes: String(trip.id),
+      const currency: 'uah' | 'eur' = /eur/i.test(trip?.currency || 'uah') ? 'eur' : 'uah'
+      const passengers: NewOrderPassenger[] = Array.from({ length: totalPax }, (_, i) => ({
+        name: (passengerNames[i] || '').trim().toUpperCase(),
+        discount: effectiveDiscountId(i),
+        place1: selectedSeats[i] != null ? String(selectedSeats[i]) : '',
+        place2: isRoundTrip && selectedSeats2[i] != null ? String(selectedSeats2[i]) : undefined,
+      }))
+      const result: any = await createOrderNew({
+        email: contactEmail.trim() || '',
+        phone: contactPhone.trim(),
+        header: (passengerNames[0] || '').trim().toUpperCase() || 'PASSENGER',
+        price: String(total),
+        crc: currency,
         from: String(from.id),
         to: String(to.id),
-        crc: 'auto',
-        mainname: (passengerNames[0] || '').trim().toUpperCase() || 'PASSENGER',
-        phone: contactPhone.trim(),
-        email: contactEmail.trim() || '',
-      }
-      for (let i = 0; i < totalPax; i++) {
-        params[`name[${i}]`] = (passengerNames[i] || '').trim().toUpperCase()
-        params[`discount[${i}]`] = effectiveDiscountId(i)
-        if (selectedSeats[i] != null) params[`place[${i}]`] = String(selectedSeats[i])
-      }
-      // Незадокументовані поля для замовлення в два боки (домовленість з прогером)
-      if (isRoundTrip) {
-        params.routes2 = String(trip2.id)
-        params.open = isOpenReturn ? '1' : '0'
-        for (let i = 0; i < totalPax; i++) {
-          if (selectedSeats2[i] != null) params[`place2[${i}]`] = String(selectedSeats2[i])
-        }
-      }
-      // Override ціни — лише для round trip (узгоджений з прогером механізм).
-      // Промокод НЕ зменшує ціну тут — офіційний метод списує знижку окремим
-      // викликом ПІСЛЯ створення замовлення (по oid), див. нижче.
-      if (isRoundTrip) params.price = String(total)
-      const result = await createOrder(params)
-      // Усі дані замовлення огорнуті в orders[0]; беремо саме його
-      let order = result.orders?.[0] || result
-      const hash = order.hash || result.hash
-      if (hash) {
-        saveOrderLocally(hash, order)
-        setOrderResult(hash, order)
+        route1: String(trip.id),
+        route2: isRoundTrip ? String(trip2.id) : undefined,
+      }, passengers)
+
+      if (result?.err === 0 && result.oid) {
+        // УВАГА: нова відповідь дає лише `oid`, не `hash` — ще не перевірено на реальних
+        // даних, чи order_info/order_cancel/order_restore приймають oid замість hash.
+        // Поки що використовуємо oid скрізь, де раніше був hash — тестуємо на практиці.
+        const oid = String(result.oid)
+        let order: any = { oid, hash: oid, from_city: from.name, to_city: to.name }
+        saveOrderLocally(oid, order)
+        setOrderResult(oid, order)
+
+        // Пробуємо одразу підтягнути повні дані замовлення тим самим методом, що й скрізь
+        const fresh: any = await getOrderInfo(oid).catch(() => null)
+        if (fresh?.orders?.[0]) { order = fresh.orders[0]; setOrderResult(oid, order) }
 
         if (promoApplied) {
-          // oid — номер замовлення для офіційного opr=procode; дістаємо так само,
-          // як і скрізь по додатку, з посилання в ticket/link1/link2.
-          const src = String(order.ticket || order.link1 || order.link2 || '')
-          const oidMatch = src.match(/\/orders?\/(\d+)/)
-          const oid = oidMatch?.[1]
-          if (oid) {
-            try {
-              const promoRes: any = await applyPromoCode(promoApplied.code, oid)
-              if (promoRes?.status === 'ok') {
-                redeemPromo(promoApplied.code, hash).catch(() => {})
-                // Перезчитуємо замовлення — ціна після списання вже інша на боці бекенду
-                const fresh: any = await getOrderInfo(hash).catch(() => null)
-                if (fresh?.orders?.[0]) { order = fresh.orders[0]; setOrderResult(hash, order) }
-              }
-              // якщо promoRes.status === 'error' — мовчки лишаємо як є, замовлення все одно створене
-            } catch { /* не критично для успіху бронювання */ }
-          }
+          try {
+            const promoRes: any = await applyPromoCode(promoApplied.code, oid)
+            if (promoRes?.status === 'ok') {
+              redeemPromo(promoApplied.code, oid).catch(() => {})
+              const fresh2: any = await getOrderInfo(oid).catch(() => null)
+              if (fresh2?.orders?.[0]) { order = fresh2.orders[0]; setOrderResult(oid, order) }
+            }
+          } catch { /* не критично для успіху бронювання */ }
         }
 
         // Транзит агрегованих (не персональних) даних для звіту в панелі керування —
@@ -222,7 +211,7 @@ export default function Booking() {
           const ticketNumbers = (order.passangers || []).map((p: any) => String(p.ticket || '')).filter(Boolean)
           reportTrip({
             userId: user!.id,
-            orderNo: String(order.hash || hash),
+            orderNo: oid,
             ticketNumbers,
             tripDate: String(order.ftime || '').split(' ')[0],
             direction: `${order.from_city || from?.name || ''} → ${order.to_city || to?.name || ''}`,
@@ -230,7 +219,17 @@ export default function Booking() {
         }
         nav('/order-success')
       } else {
-        setError(t('booking.bookingError') + ': ' + (result.error_message || `${result.error}`))
+        // Помилки конкретного відрізка (1 = туди, 2 = назад): зайняті місця / маршрут не
+        // знайдено / нема вільних місць / міста недоступні — беремо перше повідомлення, що є.
+        const legErr = result?.[1] || result?.[2]
+        const msg = legErr
+          ? (legErr.err === 21 ? `Місця вже зайняті: ${(legErr.places || []).join(', ')}`
+            : legErr.err === 2 ? 'Нема вільних місць на цей рейс'
+            : legErr.err === 3 ? 'Ці міста недоступні на цьому рейсі'
+            : legErr.err === 1 ? 'Маршрут не знайдено'
+            : `код помилки ${legErr.err}`)
+          : `код помилки ${result?.err}`
+        setError(t('booking.bookingError') + ': ' + msg)
       }
     } catch {
       setError(t('booking.networkError'))

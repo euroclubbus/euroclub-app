@@ -44,3 +44,41 @@ export const editProfile = (fields: Partial<{ header: string; email: string; pas
 // по oid (номер замовлення), а не як зменшення ціни заздалегідь.
 export const applyPromoCode = (code: string, oid: string) =>
   inputPost({ mod: 'procode', code, oid, uidkey: currentUidKey() })
+
+// Нове замовлення (задокументована версія, opr=neworder). На відміну від старого order_new
+// (окремий /v1/json/order_new/ ендпоінт), це йде через /input, і відповідь дає лише `oid`
+// (номер замовлення), а не `hash` — ще НЕ перевірено на реальних даних, чи приймають
+// order_info/order_cancel/order_restore цей oid замість hash, чи це різні речі.
+export interface NewOrderPassenger { name: string; discount: string; place1?: string; place2?: string }
+
+export async function createOrderNew(
+  fields: { email: string; phone: string; header: string; price: string; crc: 'uah' | 'eur'; from: string; to: string; route1: string; route2?: string },
+  passengers: NewOrderPassenger[]
+) {
+  const body = new URLSearchParams()
+  body.set('work', 'work')
+  body.set('app', '1')
+  body.set('lng', 'uk')
+  body.set('uidkey', currentUidKey())
+  body.set('mod', 'apimobile')
+  body.set('opr', 'neworder')
+  for (const k of Object.keys(fields) as (keyof typeof fields)[]) {
+    const v = fields[k]
+    if (v !== undefined) body.set(k, String(v))
+  }
+  passengers.forEach(p => {
+    body.append('psgr_name[]', p.name)
+    body.append('psgr_dscnt[]', p.discount)
+    body.append('place_1[]', p.place1 ?? '')
+    if (p.place2 !== undefined) body.append('place_2[]', p.place2)
+  })
+  console.log('[EuroClub AUTH] → neworder', body.toString())
+  const res = await fetch(`${WORKER}/input`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  })
+  const raw = await res.text()
+  console.log('[EuroClub AUTH] ← RAW neworder status:', res.status, 'body:', raw)
+  return JSON.parse(raw)
+}
