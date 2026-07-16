@@ -29,7 +29,7 @@ interface BookingState {
   selectedSeats2: number[]
   passengerNames: Record<number, string>
   passengerDiscounts: Record<number, string> // index -> discountId (from trip.discounts)
-  contactEmail: string; contactPhone: string; contactPhone2: string
+  contactEmail: string; contactPhone: string; contactPhone2: string; payerName: string
   promoCode: string
   extraBaggage: number; oversizeBaggage: number
   orderHash: string; orderData: Record<string,unknown> | null
@@ -41,6 +41,7 @@ interface BookingState {
   setPassengerDiscount: (idx: number, discountId: string) => void
   removePassengerDataAt: (idx: number) => void
   setContact: (field: 'email'|'phone'|'phone2', val: string) => void
+  setPayerName: (val: string) => void
   setPromo: (p: string) => void
   setBaggage: (type: 'extra'|'oversize', val: number) => void
   setOrderResult: (hash: string, data: Record<string,unknown>) => void
@@ -79,7 +80,7 @@ export const useBookingStore = create<BookingState>((set) => ({
   selectedTrip: null, selectedSeats: [],
   selectedTrip2: null, selectedSeats2: [],
   passengerNames: {}, passengerDiscounts: {},
-  contactEmail: '', contactPhone: '', contactPhone2: '',
+  contactEmail: '', contactPhone: '', contactPhone2: '', payerName: '',
   promoCode: '', extraBaggage: 0, oversizeBaggage: 0,
   orderHash: '', orderData: null,
   setTrip: t => set({ selectedTrip: t, selectedSeats: [], passengerNames: {}, passengerDiscounts: {} }),
@@ -104,8 +105,9 @@ export const useBookingStore = create<BookingState>((set) => ({
     return { passengerNames: remap(s.passengerNames), passengerDiscounts: remap(s.passengerDiscounts) }
   }),
   setContact: (field, val) => set(field === 'email' ? { contactEmail: val } : field === 'phone' ? { contactPhone: val } : { contactPhone2: val }),
+  setPayerName: (val) => set({ payerName: val }),
   setPromo: promoCode => set({ promoCode }),
   setBaggage: (type, val) => type === 'extra' ? set({ extraBaggage: val }) : set({ oversizeBaggage: val }),
   setOrderResult: (hash, data) => set({ orderHash: hash, orderData: data }),
-  resetBooking: () => set({ selectedTrip: null, selectedSeats: [], selectedTrip2: null, selectedSeats2: [], passengerNames: {}, passengerDiscounts: {}, contactEmail: '', contactPhone: '', contactPhone2: '', promoCode: '', extraBaggage: 0, oversizeBaggage: 0, orderHash: '', orderData: null }),
+  resetBooking: () => set({ selectedTrip: null, selectedSeats: [], selectedTrip2: null, selectedSeats2: [], passengerNames: {}, passengerDiscounts: {}, contactEmail: '', contactPhone: '', contactPhone2: '', payerName: '', promoCode: '', extraBaggage: 0, oversizeBaggage: 0, orderHash: '', orderData: null }),
 }))

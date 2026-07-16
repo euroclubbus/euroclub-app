@@ -42,7 +42,7 @@ export default function Booking() {
   const { from, to, dateFrom, isOpenReturn, passengerCount, passengerCategories, addPassengerCategory, removePassengerCategoryAt } = useSearchStore()
   const {
     selectedTrip, selectedSeats, selectedTrip2, selectedSeats2,
-    passengerNames, passengerDiscounts, contactEmail, contactPhone,
+    passengerNames, passengerDiscounts, contactEmail, contactPhone, payerName, setPayerName,
     setSeats, setSeats2, setPassengerName, setPassengerDiscount, removePassengerDataAt, setContact, setOrderResult
   } = useBookingStore()
   const [savedPassengers] = useState(() => getSavedPassengers())
@@ -72,6 +72,7 @@ export default function Booking() {
   const { user } = useAuthStore()
   useEffect(() => { if (user?.email && !contactEmail) setContact('email', user.email) }, [user])
   useEffect(() => { if (user?.phone && !contactPhone) setContact('phone', user.phone) }, [user])
+  useEffect(() => { if (user?.header && !payerName) setPayerName(user.header) }, [user])
 
   const removePassenger = (idx: number) => {
     if (totalPax <= 1) return
@@ -156,6 +157,7 @@ export default function Booking() {
     if (missingName) { setError(t('booking.errorNames')); return }
     if (Number(trip?.place_select) === 1 && selectedSeats.filter((x: any) => x != null).length < totalPax) { setError(t('booking.errorSeatOutbound')); return }
     if (isRoundTrip && Number(trip2?.place_select) === 1 && selectedSeats2.filter((x: any) => x != null).length < totalPax) { setError(t('booking.errorSeatReturn')); return }
+    if (!payerName.trim()) { setError("Вкажіть ім'я та прізвище платника"); return }
     if (!contactPhone.trim()) { setError(t('booking.errorPhone')); return }
     if (!consentPrivacy || !consentTerms) { setError(t('booking.errorAgreements')); return }
     if (hasAnimalPax && !consentAnimal) { setError(t('booking.errorAnimal')); return }
@@ -172,7 +174,7 @@ export default function Booking() {
       const result: any = await createOrderNew({
         email: contactEmail.trim() || '',
         phone: contactPhone.trim(),
-        header: (passengerNames[0] || '').trim().toUpperCase() || 'PASSENGER',
+        header: (payerName || passengerNames[0] || '').trim().toUpperCase() || 'PASSENGER',
         price: String(total),
         crc: currency,
         from: String(from.id),
@@ -379,6 +381,7 @@ export default function Booking() {
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12 }}>
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Дані платника</div>
           {[
+            { label: 'Платник (ПІБ)', val: payerName, set: (v: string) => setPayerName(v), placeholder: "Ім'я та прізвище", required: true },
             { label: t('booking.email'), val: contactEmail, set: (v: string) => setContact('email', v), placeholder: 'your@email.com', required: false },
             { label: t('booking.phone'), val: contactPhone, set: (v: string) => setContact('phone', v), placeholder: '+380...', required: true },
           ].map((f, i) => (

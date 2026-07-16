@@ -20,8 +20,23 @@ function useUid() {
 
 type Step = 'nickname' | 'menu' | 'route' | 'bus' | 'passengers' | 'playing' | 'result' | 'leaderboard'
 
+// Поки що гра доступна тільки для тестування — один акаунт
+const ALLOWED_EMAILS = ['eclubbus21@gmail.com']
+
 export default function Game() {
   const nav = useNavigate()
+  const { user } = useAuthStore()
+  const allowed = ALLOWED_EMAILS.includes((user?.email || '').toLowerCase())
+  if (!allowed) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0B2E5E', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🚧</div>
+        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Гра ще тестується</div>
+        <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginBottom: 24 }}>Скоро буде доступна всім</div>
+        <button onClick={() => nav(-1)} style={{ padding: '12px 24px', background: '#F5A623', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer' }}>Назад</button>
+      </div>
+    )
+  }
   const uid = useUid()
   const [nick, setNick] = useState(() => { try { return localStorage.getItem(NICK_KEY) || '' } catch { return '' } })
   const [step, setStep] = useState<Step>(nick ? 'menu' : 'nickname')
