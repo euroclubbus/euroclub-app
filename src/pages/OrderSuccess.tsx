@@ -6,6 +6,7 @@ import { ticketAvailable, statusLabel, payInfo, needsPolling, canRestore } from 
 import { useOrderPolling } from '../useOrderPolling'
 import { useDisplayPrice } from '../currency'
 import SeatMap from './SeatMap'
+import { addBonusPayment, getUserOrders } from '../api/auth'
 import { useT } from '../i18n'
 
 const ORange = '#F5A623'
@@ -62,6 +63,33 @@ export default function OrderSuccess() {
   const transferStop = trip?.stopping?.find((s: any) => Number(s.transfer) === 1)
 
   const hash = orderHash || data?.hash || ''
+
+  // Списання бонусів (Cashback Club) — тільки перегляд і дія тут, на сторінці замовлення
+  const [cabBonus, setCabBonus] = useState<number | null>(null)
+  const [bonusInput, setBonusInput] = useState('')
+  const [bonusApplying, setBonusApplying] = useState(false)
+  const [bonusError, setBonusError] = useState('')
+  const [bonusApplied, setBonusApplied] = useState(false)
+  useEffect(() => {
+    getUserOrders().then((res: any) => setCabBonus(Number(res?.cab?.['b='] ?? 0))).catch(() => {})
+  }, [])
+  const applyBonus = async () => {
+    const amount = Number(bonusInput)
+    if (!amount || amount <= 0 || !hash) return
+    setBonusApplying(true); setBonusError('')
+    try {
+      const res: any = await addBonusPayment(String(amount), currencyCode === 'eur' ? 'eur' : 'uah', hash)
+      if (res?.status === 'ok') {
+        setBonusApplied(true)
+        setBonusInput('')
+        const fresh: any = await getOrderInfo(hash).catch(() => null)
+        if (fresh?.orders?.[0]) setOrderResult(hash, fresh.orders[0])
+      } else {
+        setBonusError(res?.error || 'Не вдалось списати бонуси')
+      }
+    } catch { setBonusError('Помилка мережі. Спробуйте ще раз.') }
+    finally { setBonusApplying(false) }
+  }
   const displayOrder = (() => {
     const src = String(data?.ticket || data?.link1 || data?.link2 || '')
     const m = src.match(/\/orders?\/(\d+)/)
@@ -296,6 +324,28 @@ export default function OrderSuccess() {
             <span>{format(summ, currencyCode)}</span>
           </div>
         </div>
+
+        {/* Бонуси Cashback Club — списати на це замовлення (до 10% від вартості, перевіряє бекенд) */}
+        {status === 'active' && !payInfo(data).fullyPaid && cabBonus != null && cabBonus > 0 && (
+          <div style={{ background: '#FFF9EF', borderRadius: 14, padding: 14, marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Списати бонуси</div>
+            <div style={{ fontSize: 12, color: Gray, marginBottom: 10 }}>Доступно: {format(cabBonus, currencyCode)} (максимум 10% від вартості замовлення)</div>
+            {bonusApplied ? (
+              <div style={{ color: '#2E7D32', fontWeight: 700, fontSize: 13 }}>Бонуси списано ✓</div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input value={bonusInput} onChange={e => setBonusInput(e.target.value)} type="number" min={0} max={cabBonus}
+                    placeholder="Сума" style={{ flex: 1, padding: '10px 12px', border: '1.5px solid #EEE', borderRadius: 10, fontSize: 14 }} />
+                  <button onClick={applyBonus} disabled={bonusApplying || !bonusInput} style={{ padding: '0 18px', background: ORange, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: bonusApplying ? 0.7 : 1 }}>
+                    {bonusApplying ? '...' : 'Списати'}
+                  </button>
+                </div>
+                {bonusError && <div style={{ color: '#E53935', fontSize: 12, marginTop: 8 }}>{bonusError}</div>}
+              </>
+            )}
+          </div>
+        )}
 
         {status === 'active' ? (
           <>

@@ -39,6 +39,15 @@ export const getUserOrders = () => inputPost({ opr: 'user-orders', uidkey: curre
 export const editProfile = (fields: Partial<{ header: string; email: string; pass: string; phone: string }>) =>
   inputPost({ opr: 'edit', uidkey: currentUidKey(), ...fields })
 
+// Зберегти FCM-токен пристрою для push-сповіщень
+export const saveDeviceToken = (token: string, app: '1' | '2') =>
+  inputPost({ mod: 'apimobile', opr: 'addtoken', token, app, uidkey: currentUidKey() })
+
+// Оплата бонусами: списати bonuse грн з рахунку користувача на замовлення oid.
+// Ліміт (10% від вартості) перевіряє сам бекенд, ми тут нічого не рахуємо самі.
+export const addBonusPayment = (bonuse: string, crc: 'uah' | 'eur', oid: string) =>
+  inputPost({ mod: 'addbonus', bonuse, crc, oid, uidkey: currentUidKey() })
+
 // Офіційне застосування промокоду до вже створеного замовлення (не наш ігровий, а справжній
 // метод бекенду). Працює інакше, ніж наш тимчасовий: списує знижку ПІСЛЯ створення замовлення,
 // по oid (номер замовлення), а не як зменшення ціни заздалегідь.

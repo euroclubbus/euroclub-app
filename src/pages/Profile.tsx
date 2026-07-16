@@ -1,11 +1,12 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, LogOut, Ticket, Mail, Phone, Pencil, Check, X, Plus, Trash2, Users } from 'lucide-react'
+import { User, LogOut, Ticket, Mail, Phone, Pencil, Check, X, Plus, Trash2, Users, Coins } from 'lucide-react'
 import { useAuthStore } from '../authStore'
-import { editProfile } from '../api/auth'
+import { editProfile, getUserOrders } from '../api/auth'
 import { getSavedPassengers, addSavedPassenger, removeSavedPassenger, setSavedPassengerBirthday, SavedPassenger } from '../savedPassengers'
 import Auth from './Auth'
 import { useT } from '../i18n'
+import { useDisplayPrice } from '../currency'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 
 const ORange = '#F5A623'
@@ -15,6 +16,12 @@ export default function Profile() {
   const nav = useNavigate()
   const t = useT()
   const { user, logout, setUser } = useAuthStore()
+  const { format } = useDisplayPrice()
+  const [cab, setCab] = useState<Record<string, any> | null>(null)
+  useEffect(() => {
+    if (!user) return
+    getUserOrders().then((res: any) => setCab(res?.cab || null)).catch(() => setCab(null))
+  }, [user])
   const fileRef = useRef<HTMLInputElement>(null)
   const [avatar, setAvatar] = useState<string>(() => { try { return localStorage.getItem('eclub_avatar') || '' } catch { return '' } })
   const pickAvatar = (e: any) => {
@@ -125,6 +132,60 @@ export default function Profile() {
             </div>
           )}
         </div>
+
+        {/* Бонуси (Cashback Club) */}
+        {cab && (
+          <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginTop: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <Coins size={18} color={ORange} />
+              <span style={{ fontWeight: 700, fontSize: 15 }}>Cashback Club</span>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+              <div style={{ flex: 1, background: '#FFF9EF', borderRadius: 12, padding: 12 }}>
+                <div style={{ fontSize: 11, color: Gray }}>Активні бонуси</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: ORange }}>{format(Number(cab['b='] || 0), 'uah')}</div>
+              </div>
+              <div style={{ flex: 1, background: '#F5F5F5', borderRadius: 12, padding: 12 }}>
+                <div style={{ fontSize: 11, color: Gray }}>В очікуванні</div>
+                <div style={{ fontSize: 20, fontWeight: 900 }}>{format(Number(cab['bw'] || 0), 'uah')}</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, padding: '6px 0', borderTop: '1px solid #F5F5F5' }}>
+              <span>Всього нараховано</span><span style={{ color: '#1A1A1A', fontWeight: 600 }}>{format(Number(cab['b+'] || 0), 'uah')}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, padding: '6px 0' }}>
+              <span>Всього використано</span><span style={{ color: '#1A1A1A', fontWeight: 600 }}>{format(Number(cab['bu'] || 0), 'uah')}</span>
+            </div>
+            <div style={{ fontSize: 11, color: Gray, marginTop: 10, lineHeight: 1.5 }}>
+              Списати бонуси на оплату можна на сторінці конкретного замовлення (до 10% від вартості) — в "Моїх замовленнях".
+            </div>
+          </div>
+        )}
+
+        {/* Статистика замовлень */}
+        {cab && (
+          <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginTop: 14 }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Статистика замовлень</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ background: '#F5F5F5', borderRadius: 12, padding: 12, textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 900 }}>{cab['oa'] ?? 0}</div>
+                <div style={{ fontSize: 11, color: Gray }}>Виконані</div>
+              </div>
+              <div style={{ background: '#F5F5F5', borderRadius: 12, padding: 12, textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 900 }}>{cab['ow'] ?? 0}</div>
+                <div style={{ fontSize: 11, color: Gray }}>Відкриті сплачені</div>
+              </div>
+              <div style={{ background: '#F5F5F5', borderRadius: 12, padding: 12, textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 900 }}>{cab['ou'] ?? 0}</div>
+                <div style={{ fontSize: 11, color: Gray }}>Не сплачені</div>
+              </div>
+              <div style={{ background: '#F5F5F5', borderRadius: 12, padding: 12, textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 900 }}>{cab['oc'] ?? 0}</div>
+                <div style={{ fontSize: 11, color: Gray }}>Скасовані</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Мова */}
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

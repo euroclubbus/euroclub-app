@@ -22,7 +22,8 @@ import Auth from './pages/Auth'
 import Splash from './pages/Splash'
 import CookieBanner from './components/CookieBanner'
 import { useAuthStore } from './authStore'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { registerPushToken } from './push'
 import { useLocation } from 'react-router-dom'
 
 function AppRoutes() {
@@ -61,6 +62,14 @@ const REQUIRE_LOGIN = true  // обов'язковий вхід; постав fa
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const user = useAuthStore(s => s.user)
+  useEffect(() => {
+    if (!user) return
+    // Якщо дозвіл на сповіщення вже надавали раніше — тихо перереєструємо токен
+    // (без нового запиту дозволу), щоб не втрачати токен між сесіями/оновленнями застосунку.
+    try {
+      if (localStorage.getItem('eclub_notif_asked') === '1') registerPushToken().catch(() => {})
+    } catch {}
+  }, [user])
   if (REQUIRE_LOGIN && !user) return <Auth />
   return <>{children}</>
 }
