@@ -21,6 +21,7 @@ export interface TripReportData {
   ticketNumbers: string[]
   tripDate: string // dd.mm.yyyy
   direction: string // "Kyiv → Berlin"
+  bookingDate: string // ISO — момент, коли додаток зафіксував бронювання (не з API)
 }
 
 export async function reportTrip(data: TripReportData) {

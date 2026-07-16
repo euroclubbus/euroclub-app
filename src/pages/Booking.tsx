@@ -185,13 +185,14 @@ export default function Booking() {
         // даних, чи order_info/order_cancel/order_restore приймають oid замість hash.
         // Поки що використовуємо oid скрізь, де раніше був hash — тестуємо на практиці.
         const oid = String(result.oid)
-        let order: any = { oid, hash: oid, from_city: from.name, to_city: to.name }
+        const bookingDate = new Date().toISOString()
+        let order: any = { oid, hash: oid, from_city: from.name, to_city: to.name, bookingDate }
         saveOrderLocally(oid, order)
         setOrderResult(oid, order)
 
         // Пробуємо одразу підтягнути повні дані замовлення тим самим методом, що й скрізь
         const fresh: any = await getOrderInfo(oid).catch(() => null)
-        if (fresh?.orders?.[0]) { order = fresh.orders[0]; setOrderResult(oid, order) }
+        if (fresh?.orders?.[0]) { order = { ...fresh.orders[0], bookingDate }; setOrderResult(oid, order) }
 
         if (promoApplied) {
           try {
@@ -199,7 +200,7 @@ export default function Booking() {
             if (promoRes?.status === 'ok') {
               redeemPromo(promoApplied.code, oid).catch(() => {})
               const fresh2: any = await getOrderInfo(oid).catch(() => null)
-              if (fresh2?.orders?.[0]) { order = fresh2.orders[0]; setOrderResult(oid, order) }
+              if (fresh2?.orders?.[0]) { order = { ...fresh2.orders[0], bookingDate }; setOrderResult(oid, order) }
             }
           } catch { /* не критично для успіху бронювання */ }
         }
@@ -214,6 +215,7 @@ export default function Booking() {
             ticketNumbers,
             tripDate: String(order.ftime || '').split(' ')[0],
             direction: `${order.from_city || from?.name || ''} → ${order.to_city || to?.name || ''}`,
+            bookingDate,
           })
         }
         nav('/order-success')

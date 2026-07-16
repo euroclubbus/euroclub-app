@@ -149,9 +149,14 @@ export default function MyTickets() {
                 <span style={{ fontWeight: 700, fontSize: 15 }}>{o.from_city} → {o.to_city}</span>
                 <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 20, background: st.bg, color: st.color }}>{st.text}</span>
               </div>
-              <div style={{ color: Gray, fontSize: 13, marginBottom: 10 }}>{o.ftime} → {o.ttime}</div>
-              <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 10 }}>
+              <div style={{ color: Gray, fontSize: 13, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span title="Дати рейсу">🚌</span>{o.ftime} → {o.ttime}
+              </div>
+              <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: Gray, fontSize: 12 }}>{orderNo(o)}</span>
+                {o.bookingDate && (
+                  <span style={{ color: Gray, fontSize: 11.5 }}>заброньовано {new Date(o.bookingDate).toLocaleDateString('uk-UA')}</span>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
                 <button onClick={() => openOrder(o)} style={{ flex: 1, padding: '11px 0', background: 'none', border: `2px solid ${ORange}`, borderRadius: 12, color: ORange, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
