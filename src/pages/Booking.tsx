@@ -176,8 +176,8 @@ export default function Booking() {
         crc: currency,
         from: String(from.id),
         to: String(to.id),
-        route1: String(trip.id),
-        route2: isRoundTrip ? String(trip2.id) : undefined,
+        route1: String(trip.id).split('-')[0],
+        route2: isRoundTrip ? String(trip2.id).split('-')[0] : undefined,
       }, passengers)
 
       if (result?.err === 0 && result.oid) {
