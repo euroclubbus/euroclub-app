@@ -1,5 +1,8 @@
 // Логіка оплати/статусів/квитка EuroClub.
-// Джерело оплати — pay_uah / pay_eur з order_info (конвертує система бронювання).
+// Джерело оплати — paid_uah / paid_eur (нові поля від прогера, є вже в neworder і в user-orders).
+// Фолбек на старі pay_uah / pay_eur — для замовлень, збережених локально до цього оновлення.
+// Залишок до сплати — needpay_uah / needpay_eur з бекенду; якщо їх нема (старі локальні дані),
+// рахуємо самі як summ - paid.
 // Квиток формується при оплаті >= 70% від суми і далі НЕ зникає (фіксуємо на пристрої).
 
 import { useLangStore } from './langStore'
@@ -18,7 +21,15 @@ export function currencySign(o: any): string {
 
 function paidAmount(o: any): number {
   const cur = String(o?.crc || 'uah').toLowerCase()
-  return cur === 'eur' ? num(o?.pay_eur) : num(o?.pay_uah)
+  return cur === 'eur' ? num(o?.paid_eur ?? o?.pay_eur) : num(o?.paid_uah ?? o?.pay_uah)
+}
+
+// Залишок до сплати з бекенду, якщо є (null, якщо поле відсутнє — тоді рахуємо самі)
+function needPayAmount(o: any): number | null {
+  const cur = String(o?.crc || 'uah').toLowerCase()
+  const v = cur === 'eur' ? o?.needpay_eur : o?.needpay_uah
+  if (v === undefined || v === null || v === '') return null
+  return num(v)
 }
 
 export interface PayInfo { summ: number; paid: number; ratio: number; remainder: number; ticketReady: boolean; fullyPaid: boolean; sign: string }
@@ -27,7 +38,8 @@ export function payInfo(o: any): PayInfo {
   const summ = num(o?.summ ?? o?.price)
   const paid = paidAmount(o)
   const ratio = summ > 0 ? paid / summ : 0
-  const remainder = Math.max(0, +(summ - paid).toFixed(2))
+  const serverRemainder = needPayAmount(o)
+  const remainder = serverRemainder != null ? Math.max(0, serverRemainder) : Math.max(0, +(summ - paid).toFixed(2))
   return { summ, paid, ratio, remainder, ticketReady: summ > 0 && ratio >= THRESHOLD, fullyPaid: summ > 0 && paid + 0.01 >= summ, sign: currencySign(o) }
 }
 

@@ -198,12 +198,20 @@ export default function Booking() {
           place: selectedSeats[i] != null ? String(selectedSeats[i]) : '',
           price: getPassengerPrice(i),
         }))
+        // paid_uah/paid_eur/needpay_uah/needpay_eur/link_liqpay/link_stripe тепер приходять
+        // одразу у відповіді neworder (раніше не було — доводилось ставити 0 і чекати order_info).
+        // Округлі й доступні як топ-рівневі поля result, так само як для одиночного замовлення.
         let order: any = {
           oid, hash: oid, bookingDate,
           from_city: from.name, to_city: to.name,
           ftime: dep?.time || '', ttime: arr?.time || '',
           summ: total, price: total, crc: currency,
-          pay_uah: 0, pay_eur: 0,
+          paid_uah: result?.paid_uah ?? 0,
+          paid_eur: result?.paid_eur ?? 0,
+          needpay_uah: result?.needpay_uah,
+          needpay_eur: result?.needpay_eur,
+          link_liqpay: result?.link_liqpay,
+          link_stripe: result?.link_stripe,
           passangers,
         }
         saveOrderLocally(oid, order)
