@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ArrowLeft, Phone, Mail, Globe, ShieldCheck } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
@@ -29,6 +29,12 @@ export default function TicketDetails() {
   const data = (orderData || {}) as any
   const hash = orderHash || data?.hash || ''
   const [priceReady, setPriceReady] = useState(() => !needsPolling(data))
+  useEffect(() => {
+    if (priceReady) return
+    const timer = setTimeout(() => setPriceReady(true), 4000)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   useOrderPolling(hash, needsPolling(data), (o) => { setOrderResult(hash, o); setPriceReady(true) })
   if (!priceReady) {
     return (

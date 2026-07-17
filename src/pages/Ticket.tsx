@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { ArrowLeft, Download, ChevronRight } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
@@ -25,6 +25,12 @@ export default function Ticket() {
   // Ціну на замовлення менеджер може змінити вручну — поки не оплачено повністю,
   // звіряємо з сервером кожні 0.3с, щоб цифри на екрані завжди були актуальні.
   const [priceReady, setPriceReady] = useState(() => !needsPolling(data))
+  useEffect(() => {
+    if (priceReady) return
+    const timer = setTimeout(() => setPriceReady(true), 4000)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   useOrderPolling(hash, needsPolling(data), (o) => { setOrderResult(hash, o); setPriceReady(true) })
 
   if (!priceReady) {

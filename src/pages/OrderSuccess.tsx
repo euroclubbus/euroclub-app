@@ -103,6 +103,14 @@ export default function OrderSuccess() {
   const passengers = data?.passangers || []
 
   const [priceReady, setPriceReady] = useState(() => !needsPolling(data))
+  useEffect(() => {
+    if (priceReady) return
+    // Запобіжник: order_info може зависнути/не спрацювати (ще не перевірено з новим oid) —
+    // якщо за 4с відповіді нема, все одно показуємо те, що вже маємо, а не крутимо спінер вічно.
+    const timer = setTimeout(() => setPriceReady(true), 4000)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   useOrderPolling(hash, needsPolling(data), (o) => { setOrderResult(hash, o); setPriceReady(true) })
 
   useEffect(() => {

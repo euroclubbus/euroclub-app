@@ -183,32 +183,53 @@ export default function Booking() {
       if (result?.err === 0 && result.oid) {
         // УВАГА: нова відповідь дає лише `oid`, не `hash` — ще не перевірено на реальних
         // даних, чи order_info/order_cancel/order_restore приймають oid замість hash.
-        // Поки що використовуємо oid скрізь, де раніше був hash — тестуємо на практиці.
+        //
+        // Дизайн-фікс: замовлення вже РЕАЛЬНО створене на бекенді (err:0, oid є) — незалежно
+        // від того, чи вдасться order_info. Тому НЕ чекаємо (await) відповідь order_info,
+        // щоб юзер не бачив вічний спінер, якщо цей виклик зависне чи впаде. Одразу будуємо
+        // повний локальний об'єкт із того, що вже знаємо (обрані рейси/місця/пасажири/ціна),
+        // переходимо на екран успіху, а order_info підвантажуємо у фоні й оновлюємо, якщо вийде.
         const oid = String(result.oid)
         const bookingDate = new Date().toISOString()
-        let order: any = { oid, hash: oid, from_city: from.name, to_city: to.name, bookingDate }
+        const dep = trip?.departure?.[0]
+        const arr = trip?.arrival?.[0]
+        const passangers = Array.from({ length: totalPax }, (_, i) => ({
+          name: (passengerNames[i] || '').trim().toUpperCase(),
+          place: selectedSeats[i] != null ? String(selectedSeats[i]) : '',
+          price: getPassengerPrice(i),
+        }))
+        let order: any = {
+          oid, hash: oid, bookingDate,
+          from_city: from.name, to_city: to.name,
+          ftime: dep?.time || '', ttime: arr?.time || '',
+          summ: total, price: total, crc: currency,
+          pay_uah: 0, pay_eur: 0,
+          passangers,
+        }
         saveOrderLocally(oid, order)
         setOrderResult(oid, order)
+        nav('/order-success')
 
-        // Пробуємо одразу підтягнути повні дані замовлення тим самим методом, що й скрізь
-        const fresh: any = await getOrderInfo(oid).catch(() => null)
-        if (fresh?.orders?.[0]) { order = { ...fresh.orders[0], bookingDate }; setOrderResult(oid, order) }
+        // Фонові дії — не блокують перехід на екран успіху
+        getOrderInfo(oid).then((fresh: any) => {
+          if (fresh?.orders?.[0]) { setOrderResult(oid, { ...fresh.orders[0], bookingDate }) }
+        }).catch(() => {})
 
         if (promoApplied) {
-          try {
-            const promoRes: any = await applyPromoCode(promoApplied.code, oid)
+          applyPromoCode(promoApplied.code, oid).then((promoRes: any) => {
             if (promoRes?.status === 'ok') {
               redeemPromo(promoApplied.code, oid).catch(() => {})
-              const fresh2: any = await getOrderInfo(oid).catch(() => null)
-              if (fresh2?.orders?.[0]) { order = { ...fresh2.orders[0], bookingDate }; setOrderResult(oid, order) }
+              getOrderInfo(oid).then((fresh2: any) => {
+                if (fresh2?.orders?.[0]) setOrderResult(oid, { ...fresh2.orders[0], bookingDate })
+              }).catch(() => {})
             }
-          } catch { /* не критично для успіху бронювання */ }
+          }).catch(() => {})
         }
 
         // Транзит агрегованих (не персональних) даних для звіту в панелі керування —
-        // нічого з цього не зберігається в самому додатку.
+        // нічого з цього не зберігається в самому додатку (фоновий виклик, не блокує).
         if (user?.id) {
-          const ticketNumbers = (order.passangers || []).map((p: any) => String(p.ticket || '')).filter(Boolean)
+          const ticketNumbers = passangers.map((p: any) => String(p.name || '')).filter(Boolean)
           reportTrip({
             userId: user!.id,
             orderNo: oid,
@@ -218,7 +239,6 @@ export default function Booking() {
             bookingDate,
           })
         }
-        nav('/order-success')
       } else {
         // Помилки конкретного відрізка (1 = туди, 2 = назад): зайняті місця / маршрут не
         // знайдено / нема вільних місць / міста недоступні — беремо перше повідомлення, що є.
