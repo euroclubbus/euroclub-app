@@ -20,11 +20,16 @@ jobs:
       - run: npx cap add android
       - run: npx cap sync android
       - run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
-      - run: rm -rf ~/.gradle/caches
-      # --no-parallel: відомий Gradle race condition при паралельній обробці одного jar
-      # кількома підпроєктами одночасно ламає створення кеш-файлу (bcprov-jdk18on тощо).
-      # --max-workers=1 додатково прибирає паралелізм на рівні воркерів.
-      - run: cd android && chmod +x gradlew && ./gradlew assembleDebug --no-daemon --no-parallel --max-workers=1 --refresh-dependencies
+      - run: rm -rf ~/.gradle/caches ~/.gradle/wrapper
+      - name: Build APK (retry up to 3x, flaky jar download)
+        run: |
+          cd android && chmod +x gradlew
+          for i in 1 2 3; do
+            ./gradlew assembleDebug --no-daemon --no-parallel --max-workers=1 --refresh-dependencies && break
+            echo "Attempt $i failed, retrying..."
+            rm -rf ~/.gradle/caches
+            sleep 5
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: EuroClub-debug-apk
