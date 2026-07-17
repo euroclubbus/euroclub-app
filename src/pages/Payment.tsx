@@ -38,16 +38,26 @@ export default function Payment() {
 
   const goSuccess = () => { if (doneRef.current) return; doneRef.current = true; closeBrowser(); nav('/order-success') }
 
-  // Автовідкриття при заході на екран оплати
+  const [waited, setWaited] = useState(false)
+  const openedRef = useRef(false)
+
+  // Автовідкриття при заході на екран оплати (і повторно, якщо посилання підвантажилось пізніше)
   useEffect(() => {
-    openPay()
+    if (payUrl && !openedRef.current) { openedRef.current = true; openPay() }
+    // eslint-disable-next-line
+  }, [payUrl])
+
+  useEffect(() => {
     const t = setTimeout(() => { if (!doneRef.current) { closeBrowser(); nav('/booking') } }, 5 * 60 * 1000)
-    return () => clearTimeout(t)
+    const w = setTimeout(() => setWaited(true), 6000) // після 6с без посилання показуємо реальну помилку, не крутимо вічно
+    return () => { clearTimeout(t); clearTimeout(w) }
     // eslint-disable-next-line
   }, [])
 
-  // Опитування order_info — щойно оплата >=70% → закриваємо вікно й ведемо на успіх
-  useOrderPolling(hash, !!payUrl && !doneRef.current, (o) => {
+  // Опитування order_info — доки нема посилання (могло ще не підвантажитись у фоні після
+  // бронювання) АБО оплата ще не підтверджена. Раніше умова вимагала payUrl вже готовим —
+  // тобто якщо посилання ще не підвантажилось, опитування взагалі не стартувало (глухий кут).
+  useOrderPolling(hash, !doneRef.current, (o) => {
     setOrderResult(hash, o)
     if (payInfo(o).ticketReady) goSuccess()
   })
@@ -75,6 +85,15 @@ export default function Payment() {
     return () => window.removeEventListener('message', onMsg)
     // eslint-disable-next-line
   }, [hash])
+
+  if (!payUrl && !waited) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#F5F5F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 36, height: 36, border: '3px solid #EEE', borderTopColor: ORange, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      </div>
+    )
+  }
 
   if (!payUrl) {
     return (
