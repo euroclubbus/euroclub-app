@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import type { TouchEvent } from 'react'
 import NotifPrompt from '../components/NotifPrompt'
 import SideMenu from '../components/SideMenu'
 import { useT, MONTHS, WEEKDAYS_MON, WEEKDAYS_SUN } from '../i18n'
@@ -18,7 +19,14 @@ const Gray = '#9E9E9E'
 function Calendar_({ value, onChange, minDate, onConfirm, departureSel, isOpen, onToggleOpen, showOpenDate }: any) {
   const t = useT()
   const today = new Date(); today.setHours(0,0,0,0)
-  const [cur, setCur] = useState(() => { const d = value ? new Date(value) : new Date(); return { y: d.getFullYear(), m: d.getMonth() } })
+  const [cur, setCur] = useState(() => {
+    if (value) { const d = new Date(value); return { y: d.getFullYear(), m: d.getMonth() } }
+    // Календар зворотної дати (є departureSel, ще нема обраної value) — стартуємо не з
+    // поточного місяця, а з місяця ПІСЛЯ дати першої поїздки: значно ближче до реального
+    // вибору, ніж гортати від сьогодні, якщо подорож у далекому майбутньому.
+    if (departureSel) { const d = new Date(departureSel); const next = new Date(d.getFullYear(), d.getMonth() + 1, 1); return { y: next.getFullYear(), m: next.getMonth() } }
+    const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }
+  })
   const lang = useLangStore(s => s.lang)
   const months = MONTHS[lang]
   const days = WEEKDAYS_MON[lang]
@@ -30,20 +38,34 @@ function Calendar_({ value, onChange, minDate, onConfirm, departureSel, isOpen, 
   const selDate = value ? new Date(value) : null; selDate?.setHours(0,0,0,0)
   const depDate = departureSel ? new Date(departureSel) : null; depDate?.setHours(0,0,0,0)
 
+  const prevMonth = () => setCur(c => { const d = new Date(c.y, c.m-1); return { y: d.getFullYear(), m: d.getMonth() } })
+  const nextMonth = () => setCur(c => { const d = new Date(c.y, c.m+1); return { y: d.getFullYear(), m: d.getMonth() } })
+
+  // Свайп/потягування по сітці календаря — вліво/вправо між місяцями, інтуітивно як стрічка.
+  const swipeRef = { x: 0, active: false }
+  const onTouchStart = (e: TouchEvent) => { swipeRef.x = e.touches[0].clientX; swipeRef.active = true }
+  const onTouchEnd = (e: TouchEvent) => {
+    if (!swipeRef.active) return
+    const dx = e.changedTouches[0].clientX - swipeRef.x
+    if (dx > 40) prevMonth()
+    else if (dx < -40) nextMonth()
+    swipeRef.active = false
+  }
+
   return (
     <div style={{ padding: '0 20px 20px' }}>
       <div style={{ opacity: isOpen ? 0.35 : 1, pointerEvents: isOpen ? 'none' : 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <span style={{ fontWeight: 700, fontSize: 17 }}>{months[cur.m]} {cur.y}</span>
           <div style={{ display: 'flex', gap: 16 }}>
-            <button onClick={() => setCur(c => { const d = new Date(c.y, c.m-1); return { y: d.getFullYear(), m: d.getMonth() } })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: Gray, fontSize: 18 }}>←</button>
-            <button onClick={() => setCur(c => { const d = new Date(c.y, c.m+1); return { y: d.getFullYear(), m: d.getMonth() } })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: ORange, fontSize: 18 }}>→</button>
+            <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: Gray, fontSize: 13 }}>←</button>
+            <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: ORange, fontSize: 13 }}>→</button>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '4px 0', marginBottom: 8 }}>
           {days.map(d => <span key={d} style={{ textAlign: 'center', fontSize: 12, color: Gray, paddingBottom: 8 }}>{d}</span>)}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '10px 0' }}>
+        <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '10px 0', touchAction: 'pan-y' }}>
           {cells.map((day, i) => {
             if (!day) return <span key={i} />
             const d = new Date(cur.y, cur.m, day); d.setHours(0,0,0,0)
@@ -176,7 +198,7 @@ const COUNTRY_NAMES: Record<string,string> = {
   ro: 'Румунія', bg: 'Болгарія', rs: 'Сербія', lt: 'Литва', lv: 'Латвія', ee: 'Естонія',
 }
 
-function CityPicker({ open, onClose }: { open: boolean; onClose: () => void }) {
+function CityPicker({ open, onClose, initialField }: { open: boolean; onClose: () => void; initialField?: 'from'|'to' }) {
   const t = useT()
   const { from, to, setFrom, setTo } = useSearchStore()
   const [activeField, setActiveField] = useState<'from'|'to'>('from')
@@ -185,7 +207,10 @@ function CityPicker({ open, onClose }: { open: boolean; onClose: () => void }) {
 
   useEffect(() => {
     if (!open) return
-    setActiveField(from ? 'to' : 'from')
+    // Відкриваємо саме те поле, на яке натиснув користувач (from/to) — а не завжди 'to'
+    // тільки тому, що 'from' вже заповнене. Раніше клік по вже обраному "Львів" все одно
+    // відкривав фокус на "to", і поміняти саме from можна було лише додатковим тапом.
+    setActiveField(initialField || (from ? 'to' : 'from'))
     setQuery('')
     getCities().then((data: any) => {
       const raw = data.cities || data || {}
@@ -310,7 +335,8 @@ export default function Home() {
   const t = useT()
   const [menuOpen, setMenuOpen] = useState(false)
   const nav = useNavigate()
-  const { from, to, dateFrom, dateTo, isOpenReturn, passengerCount, setDateFrom, setDateTo, setOpenReturn, swap } = useSearchStore()
+  const { from, to, dateFrom, dateTo, isOpenReturn, roundTripWanted, passengerCount, setDateFrom, setDateTo, setOpenReturn, setRoundTripWanted, swap } = useSearchStore()
+  const [cityField, setCityField] = useState<'from'|'to'>('from')
   const [showCity, setShowCity] = useState(false)
   const [showDateFrom, setShowDateFrom] = useState(false)
   const [showDateTo, setShowDateTo] = useState(false)
@@ -348,7 +374,7 @@ export default function Home() {
       {/* Search Card */}
       <div style={{ margin: '-30px 16px 0', background: '#fff', borderRadius: 20, padding: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.1)', position: 'relative', zIndex: 10 }}>
         {/* From */}
-        <button onClick={() => setShowCity(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer', marginBottom: 10, ...ring('from') }}>
+        <button onClick={() => { setCityField('from'); setShowCity(true) }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer', marginBottom: 10, ...ring('from') }}>
           <Navigation size={18} color={ORange} />
           <div style={{ flex: 1, textAlign: 'left' }}>
             {from?.name && <div style={{ fontSize: 11, color: Gray }}>{t('home.from')}</div>}
@@ -360,12 +386,32 @@ export default function Home() {
         </button>
 
         {/* To */}
-        <button onClick={() => setShowCity(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer', marginBottom: 10, ...ring('to') }}>
+        <button onClick={() => { setCityField('to'); setShowCity(true) }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer', marginBottom: 10, ...ring('to') }}>
           <MapPin size={18} color={Gray} />
           <div style={{ flex: 1, textAlign: 'left' }}>
             {to?.name && <div style={{ fontSize: 11, color: Gray }}>{t('home.to')}</div>}
             <div style={{ fontSize: 16, color: to?.name ? '#1A1A1A' : Gray, fontWeight: to?.name ? 600 : 400 }}>{to?.name || t('home.to')}</div>
           </div>
+        </button>
+
+        {/* Зворотній квиток — чекбокс, який відкриває доступ до поля дати назад.
+            Якщо зняти — обрана дата назад і "відкрита дата" скидаються (без напівстану). */}
+        <button onClick={() => setRoundTripWanted(!roundTripWanted)} style={{
+          width: '100%', marginBottom: 10, padding: '12px 16px',
+          background: roundTripWanted ? '#FFF3DC' : '#F9F9F9',
+          border: roundTripWanted ? `1.5px solid ${ORange}` : '1px solid #EEE',
+          borderRadius: 14, display: 'flex', gap: 12, alignItems: 'center',
+          cursor: 'pointer', textAlign: 'left',
+        }}>
+          <div style={{
+            width: 20, height: 20, borderRadius: 6, flexShrink: 0,
+            border: `2px solid ${roundTripWanted ? ORange : '#DDD'}`,
+            background: roundTripWanted ? ORange : 'transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {roundTripWanted && <span style={{ color: '#fff', fontSize: 12, fontWeight: 700 }}>✓</span>}
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 600, color: roundTripWanted ? ORange : '#555' }}>Зворотній квиток</span>
         </button>
 
         {/* Date From */}
@@ -378,8 +424,15 @@ export default function Home() {
             </div>
           </button>
 
-          {/* Date To — якщо відкрита дата активна, клік не відкриває календар */}
-          <button onClick={() => !isOpenReturn && setShowDateTo(true)} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '14px 12px', background: '#F9F9F9', borderRadius: 14, border: isOpenReturn ? `1.5px solid ${ORange}` : '1px solid #EEE', cursor: 'pointer' }}>
+          {/* Date To — доступне лише коли увімкнено "Зворотній квиток"; якщо відкрита дата
+              активна, клік не відкриває календар (нема що там гортати). */}
+          <button onClick={() => roundTripWanted && !isOpenReturn && setShowDateTo(true)} disabled={!roundTripWanted} style={{
+            flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '14px 12px',
+            background: '#F9F9F9', borderRadius: 14,
+            border: isOpenReturn ? `1.5px solid ${ORange}` : '1px solid #EEE',
+            cursor: roundTripWanted ? 'pointer' : 'default',
+            opacity: roundTripWanted ? 1 : 0.5,
+          }}>
             <Calendar size={16} color={isOpenReturn ? ORange : Gray} />
             <div style={{ textAlign: 'left' }}>
               {(dateTo || isOpenReturn) && <div style={{ fontSize: 11, color: isOpenReturn ? ORange : Gray }}>{t('home.dateTo')}</div>}
@@ -389,28 +442,6 @@ export default function Home() {
             </div>
           </button>
         </div>
-
-        {/* Відкрита дата — чекбокс на головній */}
-        <button onClick={() => {
-          setOpenReturn(!isOpenReturn)
-          if (!isOpenReturn) setDateTo('')
-        }} style={{
-          width: '100%', marginBottom: 10, padding: '12px 16px',
-          background: isOpenReturn ? '#FFF3DC' : '#F9F9F9',
-          border: isOpenReturn ? `1.5px solid ${ORange}` : '1px solid #EEE',
-          borderRadius: 14, display: 'flex', gap: 12, alignItems: 'center',
-          cursor: 'pointer', textAlign: 'left',
-        }}>
-          <div style={{
-            width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-            border: `2px solid ${isOpenReturn ? ORange : '#DDD'}`,
-            background: isOpenReturn ? ORange : 'transparent',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            {isOpenReturn && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
-          </div>
-          <span style={{ fontSize: 14, fontWeight: 600, color: isOpenReturn ? ORange : '#555' }}>{t('home.openReturn')}</span>
-        </button>
 
         {/* Passengers */}
         <button onClick={() => setShowPass(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer', marginBottom: 16 }}>
@@ -444,7 +475,7 @@ export default function Home() {
         <Typewriter />
       </div>
 
-      <CityPicker open={showCity} onClose={() => setShowCity(false)} />
+      <CityPicker open={showCity} onClose={() => setShowCity(false)} initialField={cityField} />
 
       <BottomSheet open={showDateFrom} onClose={() => setShowDateFrom(false)} title={t('home.dateFrom')}>
         <Calendar_ value={dateFrom} onChange={setDateFrom} minDate={new Date().toISOString().split('T')[0]}

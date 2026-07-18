@@ -5,11 +5,13 @@ interface City { id: string; name: string; country: string; i2: string }
 interface SearchState {
   from: City | null; to: City | null
   dateFrom: string; dateTo: string; isOpenReturn: boolean
+  roundTripWanted: boolean
   passengerCount: number
   passengerCategories: string[] // склад по категоріях (id з глобального discount)
   setFrom: (c: City | null) => void; setTo: (c: City | null) => void
   setDateFrom: (d: string) => void; setDateTo: (d: string) => void
   setOpenReturn: (v: boolean) => void
+  setRoundTripWanted: (v: boolean) => void
   setPassengerCount: (n: number) => void
   setPassengerCategories: (c: string[]) => void
   addPassengerCategory: (catId: string) => void
@@ -61,6 +63,7 @@ export const useUiStore = create<UiState>((set) => ({
 
 export const useSearchStore = create<SearchState>((set) => ({
   from: null, to: null, dateFrom: '', dateTo: '', isOpenReturn: false,
+  roundTripWanted: false,
   passengerCount: 1,
   passengerCategories: [],
   setFrom: from => set({ from }),
@@ -68,12 +71,15 @@ export const useSearchStore = create<SearchState>((set) => ({
   setDateFrom: dateFrom => set({ dateFrom }),
   setDateTo: dateTo => set({ dateTo }),
   setOpenReturn: isOpenReturn => set({ isOpenReturn }),
+  // Зняття галочки "зворотній квиток" скидає вже обрану зворотну дату/відкриту дату —
+  // щоб не лишалось "напівобраного" стану, коли чекбокс вимкнено, а дата ще пам'ятається.
+  setRoundTripWanted: (v) => set(v ? { roundTripWanted: v } : { roundTripWanted: v, dateTo: '', isOpenReturn: false }),
   setPassengerCount: (n) => set({ passengerCount: Math.max(1, n) }),
   setPassengerCategories: (c) => set({ passengerCategories: c, passengerCount: Math.max(1, c.length) }),
   addPassengerCategory: (catId) => set(s => { const c = [...s.passengerCategories, catId]; return { passengerCategories: c, passengerCount: c.length } }),
   removePassengerCategoryAt: (idx) => set(s => { const c = s.passengerCategories.filter((_, i) => i !== idx); return { passengerCategories: c, passengerCount: Math.max(1, c.length) } }),
   swap: () => set(s => ({ from: s.to, to: s.from })),
-  reset: () => set({ from: null, to: null, dateFrom: '', dateTo: '', passengerCount: 1, passengerCategories: [] }),
+  reset: () => set({ from: null, to: null, dateFrom: '', dateTo: '', isOpenReturn: false, roundTripWanted: false, passengerCount: 1, passengerCategories: [] }),
 }))
 
 export const useBookingStore = create<BookingState>((set) => ({
