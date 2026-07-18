@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getLocalOrders, saveOrderLocally, getOrderInfo } from '../api/euroclub'
 import { getUserOrders } from '../api/auth'
@@ -16,7 +16,13 @@ export default function MyTickets() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  // Синхронний виклик щоразу, коли пасажир реально бачить цю вкладку — не лише при першому
+  // заході по роутеру (це й так спрацьовує), а й коли застосунок повертається з фону
+  // (visibilitychange/focus) без повної навігації, або вручну кнопкою "Оновити". Саме так
+  // замовлення, які вже скасовані на бекенді, але лишились локально як "очікує оплати",
+  // підтягують актуальний статус.
+  const loadOrders = useCallback(() => {
+    setLoading(true)
     const local = getLocalOrders()
 
     // Довантажити свіжий order_info для всіх активних (ще не завершених/скасованих) замовлень.
@@ -27,7 +33,10 @@ export default function MyTickets() {
       const needsFresh = list.filter((o: any) => !isCancelled(o) && !isCompleted(o) && o?.hash)
       if (needsFresh.length > 0) {
         const fresh = await Promise.all(
-          needsFresh.map((o: any) => getOrderInfo(o.hash).then((r: any) => r.orders?.[0] || r).catch(() => null))
+          needsFresh.map((o: any) => getOrderInfo(o.hash).then((r: any) => r.orders?.[0] || r).catch((e) => {
+            console.error('[MyTickets] order_info refresh failed for', o.hash, e)
+            return null
+          }))
         )
         fresh.forEach((f: any, i: number) => {
           if (f) byHash[needsFresh[i].hash] = { ...byHash[needsFresh[i].hash], ...f }
@@ -60,14 +69,28 @@ export default function MyTickets() {
 
         finish(await refreshFresh(byHash))
       })
-      .catch(async () => {
+      .catch((e) => {
+        console.error('[MyTickets] user-orders failed, falling back to per-order refresh', e)
         // user-orders недоступний (падає) — все одно звіряємо кожне локально відоме
         // замовлення напряму через order_info, щоб статус/ціна не лишались застарілими.
         const byHash: Record<string, any> = {}
         for (const o of Object.values(local)) if ((o as any).hash) byHash[(o as any).hash] = { ...(o as any) }
-        finish(await refreshFresh(byHash))
+        refreshFresh(byHash).then(finish)
       })
   }, [])
+
+  useEffect(() => {
+    loadOrders()
+
+    // Застосунок повернувся на передній план, поки вкладка вже була відкрита — теж оновити.
+    const onVisible = () => { if (document.visibilityState === 'visible') loadOrders() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', loadOrders)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', loadOrders)
+    }
+  }, [loadOrders])
 
   function parseOrderDate(str: any): number {
     const m = String(str || '').match(/(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2}))?/)
@@ -110,7 +133,7 @@ export default function MyTickets() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, padding: '14px 16px 0', overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: 8, padding: '14px 16px 0', overflowX: 'auto', alignItems: 'center' }}>
         {([
           ['active', `${t('orders.active')}${counts.active ? ` (${counts.active})` : ''}`],
           ['completed', `${t('orders.completed')}${counts.completed ? ` (${counts.completed})` : ''}`],
@@ -125,6 +148,12 @@ export default function MyTickets() {
             boxShadow: filter === key ? 'none' : '0 1px 4px rgba(0,0,0,0.08)',
           }}>{label}</button>
         ))}
+        <button onClick={loadOrders} disabled={loading} aria-label={t('common.refresh') || 'Оновити'} style={{
+          marginLeft: 'auto', flexShrink: 0, width: 34, height: 34, borderRadius: '50%', border: 'none',
+          background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', cursor: loading ? 'default' : 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
+          opacity: loading ? 0.5 : 1,
+        }}>{loading ? '…' : '⟳'}</button>
       </div>
 
       <div style={{ padding: 16 }}>
