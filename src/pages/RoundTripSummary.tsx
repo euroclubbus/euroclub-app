@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { findTwoWayGroupPrice } from '../priceEngine'
+import { perPassengerOneWayPrices } from '../passengerPricing'
 import { useDisplayPrice } from '../currency'
 import CurrencyToggle from '../components/CurrencyToggle'
 import { useT } from '../i18n'
@@ -21,17 +22,6 @@ function calcDuration(depStr?: string, arrStr?: string) {
   if (diffMin <= 0) return ''
   const h = Math.floor(diffMin / 60), m = diffMin % 60
   return m > 0 ? `${h}г ${m}хв` : `${h}г`
-}
-
-function perPassengerPrices(trip: any, cats: string[]): number[] {
-  const opts: any[] = trip?.discounts || []
-  const def = opts.find(d => d.default === 1 || d.default === '1') || opts[0]
-  const fullPrice = Number(def?.price ?? trip?.price ?? 0)
-  const list = cats.length ? cats : ['__one__']
-  return list.map(catId => {
-    const opt = opts.find(d => String(d.id) === String(catId))
-    return Number(opt?.price ?? fullPrice)
-  })
 }
 
 function LegCard({ title, trip }: { title: string; trip: any }) {
@@ -79,7 +69,7 @@ export default function RoundTripSummary() {
   }
 
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
-  const twoWay = from && to ? findTwoWayGroupPrice(perPassengerPrices(trip, passengerCategories), from.id, to.id, direction) : null
+  const twoWay = from && to ? findTwoWayGroupPrice(perPassengerOneWayPrices(trip, passengerCategories), from.id, to.id, direction) : null
   const total = twoWay?.total ?? 0
 
   return (

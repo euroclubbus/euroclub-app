@@ -4,6 +4,7 @@ import { ArrowLeft, Clock, Wifi, Zap, Bus, MessageCircle, AlertTriangle } from '
 import { useSearchStore, useBookingStore } from '../store'
 import { getRoutes } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
+import { perPassengerOneWayPrices } from '../passengerPricing'
 import { useDisplayPrice } from '../currency'
 import BottomSheet from '../components/BottomSheet'
 import CurrencyToggle from '../components/CurrencyToggle'
@@ -87,17 +88,6 @@ function computeGroupPrice(trip: any, cats: string[]) {
 }
 
 // Ціна кожного пасажира окремо (для розрахунку тарифу в 2 боки по кожному пасажиру, а не групою)
-function perPassengerPrices(trip: any, cats: string[]): number[] {
-  const opts: any[] = trip?.discounts || []
-  const def = opts.find(d => d.default === 1 || d.default === '1') || opts[0]
-  const fullPrice = Number(def?.price ?? trip?.price ?? 0)
-  const list = cats.length ? cats : ['__one__']
-  return list.map(catId => {
-    const opt = opts.find(d => String(d.id) === String(catId))
-    return Number(opt?.price ?? fullPrice)
-  })
-}
-
 // ─── Trip Card ─────────────────────────────────────────────────────────────
 function TripCard({ trip, cats, onBook, roundTripPrice, hidePrice, bookLabel }: { trip: any; cats: string[]; onBook: () => void; roundTripPrice?: number | null; hidePrice?: boolean; bookLabel: string }) {
   const t = useT()
@@ -279,7 +269,7 @@ export default function Results() {
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
   // На кроці "назад" ціна вже зафіксована рейсом "туди" — рахуємо один раз і показуємо як банер
   const lockedTwoWay = (leg === 'return' && selectedTrip && from && to)
-    ? findTwoWayGroupPrice(perPassengerPrices(selectedTrip, passengerCategories), from.id, to.id, direction)
+    ? findTwoWayGroupPrice(perPassengerOneWayPrices(selectedTrip, passengerCategories), from.id, to.id, direction)
     : null
 
   const handlePrev = () => { if (stripStart > 0) setStripStart(s => s - 1) }
@@ -449,7 +439,7 @@ export default function Results() {
 
         {availableTrips.map((trip, i) => {
           const cardTwoWay = (isRoundTrip && leg === 'out' && from && to)
-            ? findTwoWayGroupPrice(perPassengerPrices(trip, passengerCategories), from.id, to.id, direction).total
+            ? findTwoWayGroupPrice(perPassengerOneWayPrices(trip, passengerCategories), from.id, to.id, direction).total
             : null
           const bookLabel = isRoundTrip ? (leg === 'out' ? t('results.selectRoute1') : t('results.selectRoute2')) : t('results.booking')
           return (

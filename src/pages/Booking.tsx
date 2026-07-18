@@ -5,6 +5,7 @@ import { useSearchStore, useBookingStore } from '../store'
 import { useAuthStore } from '../authStore'
 import { saveOrderLocally, getOrderInfo } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
+import { resolveDiscountId, resolvePassengerPrice } from '../passengerPricing'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
 import { validatePromo, redeemPromo } from '../game/gameApi'
@@ -83,22 +84,16 @@ export default function Booking() {
   const addPassenger = (catId: string) => { addPassengerCategory(catId); setShowAddPicker(false) }
 
 
-  const defaultDiscount = discountOptions.find(d => d.default === 1) || discountOptions[0]
   const { format, displayCurrency } = useDisplayPrice()
 
-  // Знижка пасажира: ручний вибір → категорія зі складу пошуку (якщо діє на рейсі) → повний тариф
-  const effectiveDiscountId = (idx: number) => {
-    if (passengerDiscounts[idx] != null) return String(passengerDiscounts[idx])
-    const catId = passengerCategories[idx]
-    if (catId && discountOptions.some(d => String(d.id) === String(catId))) return String(catId)
-    return String(defaultDiscount?.id ?? 0)
-  }
+  // Знижка пасажира: ручний вибір → категорія зі складу пошуку (якщо діє на рейсі) → повний тариф.
+  // Спільна функція з passengerPricing.ts — та сама, що рахує прев'ю ціни на екрані результатів,
+  // щоб ціна не розходилась між прев'ю і фактичним бронюванням.
+  const effectiveDiscountId = (idx: number) =>
+    resolveDiscountId(passengerCategories[idx], discountOptions, passengerDiscounts[idx])
 
-  const getPassengerPrice = (idx: number) => {
-    const discountId = effectiveDiscountId(idx)
-    const opt = discountOptions.find(d => String(d.id) === discountId)
-    return opt?.price ?? Number(trip?.price ?? 0)
-  }
+  const getPassengerPrice = (idx: number) =>
+    resolvePassengerPrice(passengerCategories[idx], discountOptions, trip?.price, passengerDiscounts[idx])
 
   const subtotal = Array.from({ length: totalPax }, (_, i) => getPassengerPrice(i)).reduce((s, p) => s + p, 0)
   // Ціна другого напрямку (для фолбеку, якщо шаблон не знайдено) — рахуємо по його власних знижках
