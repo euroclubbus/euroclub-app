@@ -148,10 +148,15 @@ function PassengersSheet({ open, onClose }: { open: boolean; onClose: () => void
   const t = useT()
   const { passengerCategories, setPassengerCategories } = useSearchStore()
   const [cats, setCats] = useState<any[]>([])
+  // Чернетка — зміни (+/-) не йдуть напряму в стор, а лише в локальний стан.
+  // Застосовуються (setPassengerCategories) тільки по натисканню "OK". "✕" — закриває
+  // без збереження, чернетка просто скидається наступного відкриття.
+  const [draft, setDraft] = useState<string[]>(passengerCategories)
 
   // Глобальний каталог категорій пасажира (id спільні з trip.discounts)
   useEffect(() => {
     if (!open) return
+    setDraft(passengerCategories)
     getDiscounts().then((data: any) => {
       const raw = data.discount || data.discounts || data || {}
       const arr = Array.isArray(raw) ? raw : Object.values(raw)
@@ -161,27 +166,31 @@ function PassengersSheet({ open, onClose }: { open: boolean; onClose: () => void
       const rest = clean.filter((d: any) => !isFull(d))
       setCats([fullFare, ...rest])
     }).catch(() => setCats([{ id: 0, default: 1, name: 'Повний тариф' }]))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  // Насіння: якщо склад порожній — 1 пасажир категорії за замовчуванням
+  // Насіння: якщо склад порожній (перше відкриття) — 1 пасажир категорії за замовчуванням
   useEffect(() => {
-    if (!open || cats.length === 0 || passengerCategories.length > 0) return
+    if (!open || cats.length === 0 || draft.length > 0) return
     const def = cats.find((d: any) => d.default === 1 || d.default === '1') || cats[0]
-    if (def) setPassengerCategories([String(def.id)])
+    if (def) setDraft([String(def.id)])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, cats])
 
   const counts: Record<string, number> = {}
-  passengerCategories.forEach(id => { counts[id] = (counts[id] || 0) + 1 })
-  const total = passengerCategories.length
+  draft.forEach(id => { counts[id] = (counts[id] || 0) + 1 })
+  const total = draft.length
 
   const change = (id: string, delta: number) => {
     const cur = counts[id] || 0
     const next = Math.max(0, cur + delta)
-    const others = passengerCategories.filter(c => c !== id)
+    const others = draft.filter(c => c !== id)
     const rebuilt = [...others, ...Array(next).fill(id)]
     if (rebuilt.length < 1) return // мінімум 1 пасажир
-    setPassengerCategories(rebuilt)
+    setDraft(rebuilt)
   }
+
+  const confirm = () => { setPassengerCategories(draft); onClose() }
 
   return (
     <BottomSheet open={open} onClose={onClose} title={t('home.passengersSheetTitle')}>
@@ -204,10 +213,16 @@ function PassengersSheet({ open, onClose }: { open: boolean; onClose: () => void
         <div style={{ color: Gray, fontSize: 13, textAlign: 'center', margin: '16px 0', lineHeight: 1.5 }}>
           Всього пасажирів: <strong style={{ color: '#1A1A1A' }}>{total}</strong>. Вартість зі знижками з'явиться на результатах пошуку — по кожному рейсу окремо.
         </div>
-        <button onClick={onClose} style={{
-          width: '100%', padding: 16, background: ORange, color: '#fff',
-          border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer'
-        }}>Підтвердити</button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={onClose} aria-label="Закрити без збереження" style={{
+            width: 52, flexShrink: 0, padding: 16, background: '#F5F5F5', color: '#555',
+            border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 18, cursor: 'pointer'
+          }}>✕</button>
+          <button onClick={confirm} style={{
+            flex: 1, padding: 16, background: ORange, color: '#fff',
+            border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer'
+          }}>OK</button>
+        </div>
       </div>
     </BottomSheet>
   )
