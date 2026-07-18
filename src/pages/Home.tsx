@@ -364,17 +364,19 @@ export default function Home() {
     return `${days[d.getDay()]}, ${d.getDate().toString().padStart(2,'0')}.${(d.getMonth()+1).toString().padStart(2,'0')}.${String(d.getFullYear()).slice(2)}`
   }
 
-  const canSearch = !!from && !!to && !!dateFrom
+  const canSearch = !!from && !!to && !!dateFrom && (!roundTripWanted || !!dateTo || isOpenReturn)
 
   // ── наскрізний патерн: підсвітка наступного кроку + підказка про незаповнене ──
   const [tried, setTried] = useState(false)
-  const nextField: 'from' | 'to' | 'dateFrom' | null =
-    !from ? 'from' : !to ? 'to' : !dateFrom ? 'dateFrom' : null
+  const nextField: 'from' | 'to' | 'dateFrom' | 'dateTo' | null =
+    !from ? 'from' : !to ? 'to' : !dateFrom ? 'dateFrom'
+      : (roundTripWanted && !dateTo && !isOpenReturn) ? 'dateTo' : null
   const missingMsg =
     nextField === 'from' ? t('home.chooseCity') + ' (' + t('home.from') + ')' :
     nextField === 'to' ? t('home.chooseCity') + ' (' + t('home.to') + ')' :
-    nextField === 'dateFrom' ? 'Оберіть дату відправлення' : ''
-  const ring = (f: 'from' | 'to' | 'dateFrom') =>
+    nextField === 'dateFrom' ? 'Оберіть дату відправлення' :
+    nextField === 'dateTo' ? 'Оберіть дату повернення' : ''
+  const ring = (f: 'from' | 'to' | 'dateFrom' | 'dateTo') =>
     nextField === f
       ? { border: `1.5px solid ${ORange}`, background: '#FFF7EC', boxShadow: '0 0 0 3px rgba(245,166,35,0.12)' }
       : {}
@@ -447,6 +449,7 @@ export default function Home() {
             border: isOpenReturn ? `1.5px solid ${ORange}` : '1px solid #EEE',
             cursor: roundTripWanted ? 'pointer' : 'default',
             opacity: roundTripWanted ? 1 : 0.5,
+            ...ring('dateTo'),
           }}>
             <Calendar size={16} color={isOpenReturn ? ORange : Gray} />
             <div style={{ textAlign: 'left' }}>
