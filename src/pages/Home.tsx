@@ -269,9 +269,16 @@ function CityPicker({ open, onClose, initialField }: { open: boolean; onClose: (
   const allowedIds = otherCity
     ? new Set(getAllowedCities(ruleCities, { id: otherCity.id, name: otherCity.name, i2: otherCity.i2 }, otherIsFrom).map(c => c.id))
     : null
+  // Пошук по синонімах — /cities/ віддає назву кожного міста кількома мовами (uk/en/de/pl/ru),
+  // звіряємось з полями напряму (звірено на реальній відповіді API — не вигадано).
+  // Українською лишається тільки ВІДОБРАЖЕННЯ (c.uk), пошук працює по всіх полях одразу.
+  const matchesQuery = (c: any) => {
+    const q = query.toLowerCase()
+    if (!q) return true
+    return [c.uk, c.en, c.de, c.pl, c.ru].some((n: any) => String(n || '').toLowerCase().startsWith(q))
+  }
   const filtered = cities.filter((c: any) =>
-    (!allowedIds || allowedIds.has(String(c.id))) &&
-    (c.uk || '').toLowerCase().startsWith(query.toLowerCase())
+    (!allowedIds || allowedIds.has(String(c.id))) && matchesQuery(c)
   )
 
   if (!open) return null
