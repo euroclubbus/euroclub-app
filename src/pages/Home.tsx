@@ -298,7 +298,12 @@ function CityPicker({ open, onClose, initialField }: { open: boolean; onClose: (
           {filtered.map((c: any) => (
             <button key={c.id} onClick={() => {
               const cityObj = { id: String(c.id), name: c.uk, country: COUNTRY_NAMES[c.i2] || c.i2, i2: c.i2 }
-              if (activeField === 'from') { setFrom(cityObj); setActiveField('to'); setQuery('') }
+              if (activeField === 'from') {
+                setFrom(cityObj)
+                // "to" вже обране і список і так відфільтрований під сумісність з ним (allowedIds
+                // рахується від otherCity) — тому повторно питати "to" не треба, просто закриваємо.
+                if (to) { setQuery(''); onClose() } else { setActiveField('to'); setQuery('') }
+              }
               else { setTo(cityObj); setQuery(''); onClose() }
             }} style={{ width: '100%', display: 'flex', flexDirection: 'column', padding: '12px 20px', background: 'none', border: 'none', borderBottom: '1px solid #F0F0F0', cursor: 'pointer', textAlign: 'left' }}>
               <span style={{ fontSize: 16, fontWeight: 600, color: '#1A1A1A' }}>{c.uk}</span>
