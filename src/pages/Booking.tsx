@@ -256,8 +256,8 @@ export default function Booking() {
             : legErr.err === 2 ? 'Нема вільних місць на цей рейс'
             : legErr.err === 3 ? 'Ці міста недоступні на цьому рейсі'
             : legErr.err === 1 ? 'Маршрут не знайдено'
-            : `код помилки ${legErr.err}`)
-          : `код помилки ${result?.err}`
+            : `код помилки ${legErr.err} (${JSON.stringify(legErr)})`)
+          : `неочікувана відповідь сервера: ${JSON.stringify(result)}`
         setError(t('booking.bookingError') + ': ' + msg)
       }
     } catch {
