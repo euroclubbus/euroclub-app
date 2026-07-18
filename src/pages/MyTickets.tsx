@@ -8,6 +8,7 @@ import { useT } from '../i18n'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
+const Navy = '#0A4684'
 
 export default function MyTickets() {
   const nav = useNavigate()
@@ -47,7 +48,7 @@ export default function MyTickets() {
 
     function finish(merged: any[]) {
       merged.forEach((o: any) => saveOrderLocally(o.hash, o)) // кешуємо серверні дані локально
-      merged.sort((a: any, b: any) => parseOrderDate(b.ftime) - parseOrderDate(a.ftime))
+      merged.sort((a: any, b: any) => orderSortKey(b) - orderSortKey(a))
       setOrders(merged)
       setLoading(false)
     }
@@ -96,6 +97,14 @@ export default function MyTickets() {
     const m = String(str || '').match(/(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2}))?/)
     if (!m) return 0
     return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0)).getTime()
+  }
+
+  // Ротація списку — за датою БРОНЮВАННЯ (коли замовлення зроблено), найновіше вгорі.
+  // Фолбек на дату рейсу — для замовлень без локальної bookingDate (синхронізовані з
+  // іншого пристрою через user-orders, де бекенд поки не віддає дату створення).
+  function orderSortKey(o: any): number {
+    const bd = o?.bookingDate ? new Date(o.bookingDate).getTime() : NaN
+    return !isNaN(bd) ? bd : parseOrderDate(o?.ftime)
   }
 
   const openTicket = (o: any) => { setOrderResult(o.hash, o); nav('/ticket') }
@@ -174,12 +183,20 @@ export default function MyTickets() {
           const paid = ticketAvailable(o, o.hash)
           return (
             <div key={i} style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <span style={{ fontWeight: 700, fontSize: 15 }}>{o.from_city} → {o.to_city}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 20, background: st.bg, color: st.color }}>{st.text}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+                <span style={{ fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.from_city} → {o.to_city}</span>
+                  {o.roundTrip && (
+                    <span title="Туди-назад" style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: '#EAF1FB', color: Navy }}>⇄ туди-назад</span>
+                  )}
+                </span>
+                <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 20, background: st.bg, color: st.color }}>{st.text}</span>
               </div>
-              <div style={{ color: Gray, fontSize: 13, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span title="Дати рейсу">🚌</span>{o.ftime} → {o.ttime}
+              <div style={{ color: Gray, fontSize: 13, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span title="Дати рейсу туди">🚌</span>{o.ftime} → {o.ttime}</span>
+                {o.roundTrip && o.ftime2 && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span title="Дати рейсу назад">🔄</span>{o.ftime2} → {o.ttime2}</span>
+                )}
               </div>
               <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: Gray, fontSize: 12 }}>{orderNo(o)}</span>

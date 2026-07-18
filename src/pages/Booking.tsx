@@ -218,6 +218,9 @@ export default function Booking() {
           link_liqpay: result?.link_liqpay,
           link_stripe: result?.link_stripe,
           passangers: result?.passangers || localPassangers,
+          roundTrip: isRoundTrip,
+          ftime2: isRoundTrip ? (dep2?.time || '') : undefined,
+          ttime2: isRoundTrip ? (arr2?.time || '') : undefined,
         }
         saveOrderLocally(oid, order)
         setOrderResult(oid, order)
