@@ -48,7 +48,6 @@ export default function MyTickets() {
 
     function finish(merged: any[]) {
       merged.forEach((o: any) => saveOrderLocally(o.hash, o)) // кешуємо серверні дані локально
-      merged.sort((a: any, b: any) => orderSortKey(b) - orderSortKey(a))
       setOrders(merged)
       setLoading(false)
     }
@@ -99,12 +98,16 @@ export default function MyTickets() {
     return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0)).getTime()
   }
 
-  // Ротація списку — за датою БРОНЮВАННЯ (коли замовлення зроблено), найновіше вгорі.
-  // Фолбек на дату рейсу — для замовлень без локальної bookingDate (синхронізовані з
-  // іншого пристрою через user-orders, де бекенд поки не віддає дату створення).
+  // Ротація списку — за датою БРОНЮВАННЯ (коли замовлення зроблено) або за датою РЕЙСУ
+  // (коли сама поїздка) — перемикається кнопкою; в обох випадках найновіше/найближче вгорі.
+  // Фолбек на іншу дату, якщо основна для цього режиму відсутня (наприклад, старі замовлення
+  // без локальної bookingDate, синхронізовані з іншого пристрою через user-orders).
+  const [sortMode, setSortMode] = useState<'booking' | 'trip'>('booking')
   function orderSortKey(o: any): number {
     const bd = o?.bookingDate ? new Date(o.bookingDate).getTime() : NaN
-    return !isNaN(bd) ? bd : parseOrderDate(o?.ftime)
+    const td = parseOrderDate(o?.ftime)
+    if (sortMode === 'trip') return td || bd || 0
+    return !isNaN(bd) ? bd : td
   }
 
   const openTicket = (o: any) => { setOrderResult(o.hash, o); nav('/ticket') }
@@ -125,7 +128,8 @@ export default function MyTickets() {
     return 'active'
   }
   const [filter, setFilter] = useState<Cat | 'all'>('active')
-  const filtered = filter === 'all' ? orders : orders.filter(o => category(o) === filter)
+  const sortedOrders = [...orders].sort((a, b) => orderSortKey(b) - orderSortKey(a))
+  const filtered = filter === 'all' ? sortedOrders : sortedOrders.filter(o => category(o) === filter)
   const counts = {
     active: orders.filter(o => category(o) === 'active').length,
     completed: orders.filter(o => category(o) === 'completed').length,
@@ -164,6 +168,24 @@ export default function MyTickets() {
           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
           opacity: loading ? 0.5 : 1,
         }}>{loading ? '…' : '⟳'}</button>
+      </div>
+
+      {/* Перемикач сортування: за датою бронювання (коли оформлено) чи за датою рейсу (коли поїздка) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px 0' }}>
+        <span style={{ fontSize: 12, color: Gray }}>Сортувати:</span>
+        <div style={{ display: 'inline-flex', borderRadius: 20, background: '#fff', padding: 3, gap: 2, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+          {([
+            ['booking', 'За датою бронювання'],
+            ['trip', 'За датою поїздки'],
+          ] as const).map(([key, label]) => (
+            <button key={key} onClick={() => setSortMode(key)} style={{
+              padding: '6px 12px', borderRadius: 17, border: 'none', cursor: 'pointer',
+              fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
+              background: sortMode === key ? ORange : 'transparent',
+              color: sortMode === key ? '#fff' : '#999',
+            }}>{label}</button>
+          ))}
+        </div>
       </div>
 
       <div style={{ padding: 16 }}>
