@@ -38,8 +38,10 @@ function Calendar_({ value, onChange, minDate, onConfirm, departureSel, isOpen, 
   const selDate = value ? new Date(value) : null; selDate?.setHours(0,0,0,0)
   const depDate = departureSel ? new Date(departureSel) : null; depDate?.setHours(0,0,0,0)
 
-  const prevMonth = () => setCur(c => { const d = new Date(c.y, c.m-1); return { y: d.getFullYear(), m: d.getMonth() } })
-  const nextMonth = () => setCur(c => { const d = new Date(c.y, c.m+1); return { y: d.getFullYear(), m: d.getMonth() } })
+  const [slideKey, setSlideKey] = useState(0)
+  const [slideDir, setSlideDir] = useState<1 | -1>(1)
+  const prevMonth = () => { setSlideDir(-1); setSlideKey(k => k + 1); setCur(c => { const d = new Date(c.y, c.m-1); return { y: d.getFullYear(), m: d.getMonth() } }) }
+  const nextMonth = () => { setSlideDir(1); setSlideKey(k => k + 1); setCur(c => { const d = new Date(c.y, c.m+1); return { y: d.getFullYear(), m: d.getMonth() } }) }
 
   // Свайп/потягування по сітці календаря — вліво/вправо між місяцями, інтуітивно як стрічка.
   const swipeRef = { x: 0, active: false }
@@ -54,18 +56,26 @@ function Calendar_({ value, onChange, minDate, onConfirm, departureSel, isOpen, 
 
   return (
     <div style={{ padding: '0 20px 20px' }}>
+      {/* Видима анімація перемикання місяця (0.2с), в один бік для → і в інший для ← */}
+      <style>{`
+        @keyframes euroclubCalSlideR { from { transform: translateX(28px); opacity: 0.3; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes euroclubCalSlideL { from { transform: translateX(-28px); opacity: 0.3; } to { transform: translateX(0); opacity: 1; } }
+      `}</style>
       <div style={{ opacity: isOpen ? 0.35 : 1, pointerEvents: isOpen ? 'none' : 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <span style={{ fontWeight: 700, fontSize: 17 }}>{months[cur.m]} {cur.y}</span>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: Gray, fontSize: 13 }}>←</button>
-            <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: ORange, fontSize: 13 }}>→</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={prevMonth} aria-label="Попередній місяць" style={{ background: 'none', border: 'none', cursor: 'pointer', color: Gray, fontSize: 26, width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>←</button>
+            <button onClick={nextMonth} aria-label="Наступний місяць" style={{ background: 'none', border: 'none', cursor: 'pointer', color: ORange, fontSize: 26, width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>→</button>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '4px 0', marginBottom: 8 }}>
           {days.map(d => <span key={d} style={{ textAlign: 'center', fontSize: 12, color: Gray, paddingBottom: 8 }}>{d}</span>)}
         </div>
-        <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '10px 0', touchAction: 'pan-y' }}>
+        <div key={slideKey} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{
+          display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '10px 0', touchAction: 'pan-y',
+          animation: `${slideDir === 1 ? 'euroclubCalSlideR' : 'euroclubCalSlideL'} 0.2s ease-out`,
+        }}>
           {cells.map((day, i) => {
             if (!day) return <span key={i} />
             const d = new Date(cur.y, cur.m, day); d.setHours(0,0,0,0)
@@ -394,34 +404,34 @@ export default function Home() {
           </div>
         </button>
 
-        {/* Зворотній квиток — чекбокс, який відкриває доступ до поля дати назад.
-            Якщо зняти — обрана дата назад і "відкрита дата" скидаються (без напівстану). */}
-        <button onClick={() => setRoundTripWanted(!roundTripWanted)} style={{
-          width: '100%', marginBottom: 10, padding: '12px 16px',
-          background: roundTripWanted ? '#FFF3DC' : '#F9F9F9',
-          border: roundTripWanted ? `1.5px solid ${ORange}` : '1px solid #EEE',
-          borderRadius: 14, display: 'flex', gap: 12, alignItems: 'center',
-          cursor: 'pointer', textAlign: 'left',
-        }}>
-          <div style={{
-            width: 20, height: 20, borderRadius: 6, flexShrink: 0,
-            border: `2px solid ${roundTripWanted ? ORange : '#DDD'}`,
-            background: roundTripWanted ? ORange : 'transparent',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            {roundTripWanted && <span style={{ color: '#fff', fontSize: 12, fontWeight: 700 }}>✓</span>}
+        {/* Дата виїзду — окремим рядком */}
+        <button onClick={() => setShowDateFrom(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '14px 12px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer', marginBottom: 10, ...ring('dateFrom') }}>
+          <Calendar size={16} color={Gray} />
+          <div style={{ textAlign: 'left' }}>
+            {dateFrom && <div style={{ fontSize: 11, color: Gray }}>{t('home.dateFrom')}</div>}
+            <div style={{ fontSize: 14, color: dateFrom ? '#1A1A1A' : Gray, fontWeight: dateFrom ? 600 : 400 }}>{dateFrom ? fmtDate(dateFrom) : t('home.dateFrom')}</div>
           </div>
-          <span style={{ fontSize: 14, fontWeight: 600, color: roundTripWanted ? ORange : '#555' }}>Зворотній квиток</span>
         </button>
 
-        {/* Date From */}
+        {/* Зворотній квиток — чекбокс і поле дати назад в один рядок.
+            Якщо зняти галочку — обрана дата назад і "відкрита дата" скидаються (без напівстану). */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-          <button onClick={() => setShowDateFrom(true)} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '14px 12px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer', ...ring('dateFrom') }}>
-            <Calendar size={16} color={Gray} />
-            <div style={{ textAlign: 'left' }}>
-              {dateFrom && <div style={{ fontSize: 11, color: Gray }}>{t('home.dateFrom')}</div>}
-              <div style={{ fontSize: 14, color: dateFrom ? '#1A1A1A' : Gray, fontWeight: dateFrom ? 600 : 400 }}>{dateFrom ? fmtDate(dateFrom) : t('home.dateFrom')}</div>
+          <button onClick={() => setRoundTripWanted(!roundTripWanted)} style={{
+            flex: 1, padding: '12px 14px',
+            background: roundTripWanted ? '#FFF3DC' : '#F9F9F9',
+            border: roundTripWanted ? `1.5px solid ${ORange}` : '1px solid #EEE',
+            borderRadius: 14, display: 'flex', gap: 10, alignItems: 'center',
+            cursor: 'pointer', textAlign: 'left',
+          }}>
+            <div style={{
+              width: 20, height: 20, borderRadius: 6, flexShrink: 0,
+              border: `2px solid ${roundTripWanted ? ORange : '#DDD'}`,
+              background: roundTripWanted ? ORange : 'transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {roundTripWanted && <span style={{ color: '#fff', fontSize: 12, fontWeight: 700 }}>✓</span>}
             </div>
+            <span style={{ fontSize: 13, fontWeight: 600, color: roundTripWanted ? ORange : '#555' }}>Зворотній квиток</span>
           </button>
 
           {/* Date To — доступне лише коли увімкнено "Зворотній квиток"; якщо відкрита дата
@@ -442,6 +452,28 @@ export default function Home() {
             </div>
           </button>
         </div>
+
+        {/* Відкрита дата — окремий чекбокс під рядком вище, доступний лише коли "Зворотній
+            квиток" увімкнено. Дублює toggle всередині календаря — тут для швидкого доступу
+            без відкриття самого календаря. */}
+        <button onClick={() => { if (!roundTripWanted) return; setOpenReturn(!isOpenReturn); if (!isOpenReturn) setDateTo('') }} disabled={!roundTripWanted} style={{
+          width: '100%', marginBottom: 10, padding: '12px 16px',
+          background: isOpenReturn ? '#FFF3DC' : '#F9F9F9',
+          border: isOpenReturn ? `1.5px solid ${ORange}` : '1px solid #EEE',
+          borderRadius: 14, display: 'flex', gap: 12, alignItems: 'center',
+          cursor: roundTripWanted ? 'pointer' : 'default', textAlign: 'left',
+          opacity: roundTripWanted ? 1 : 0.5,
+        }}>
+          <div style={{
+            width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+            border: `2px solid ${isOpenReturn ? ORange : '#DDD'}`,
+            background: isOpenReturn ? ORange : 'transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {isOpenReturn && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 600, color: isOpenReturn ? ORange : '#555' }}>{t('home.openReturn')}</span>
+        </button>
 
         {/* Passengers */}
         <button onClick={() => setShowPass(true)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#F9F9F9', borderRadius: 14, border: '1px solid #EEE', cursor: 'pointer', marginBottom: 16 }}>
