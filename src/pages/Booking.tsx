@@ -180,46 +180,56 @@ export default function Booking() {
         route2: isRoundTrip ? String(trip2.id).split('-')[0] : undefined,
       }, passengers)
 
-      if (result?.err === 0 && result.oid) {
-        // УВАГА: нова відповідь дає лише `oid`, не `hash` — ще не перевірено на реальних
-        // даних, чи order_info/order_cancel/order_restore приймають oid замість hash.
-        //
-        // Дизайн-фікс: замовлення вже РЕАЛЬНО створене на бекенді (err:0, oid є) — незалежно
-        // від того, чи вдасться order_info. Тому НЕ чекаємо (await) відповідь order_info,
-        // щоб юзер не бачив вічний спінер, якщо цей виклик зависне чи впаде. Одразу будуємо
-        // повний локальний об'єкт із того, що вже знаємо (обрані рейси/місця/пасажири/ціна),
-        // переходимо на екран успіху, а order_info підвантажуємо у фоні й оновлюємо, якщо вийде.
-        const oid = String(result.oid)
+      // Успіх визначаємо НЕ через result?.err === 0 (на реальному успіху відповідь — це повний
+      // об'єкт замовлення, як запис user-orders, і поля `err` там може взагалі не бути — воно є
+      // лише у форматі помилки {err, oid, 1, 2}). Натомість перевіряємо: є ідентифікатор
+      // замовлення (hash або oid, і не "-1") і нема помилки по жодному з відрізків.
+      const legErr1 = result?.[1] && Number(result[1].err) !== 0 ? result[1] : null
+      const legErr2 = result?.[2] && Number(result[2].err) !== 0 ? result[2] : null
+      const orderId = result?.hash ?? result?.oid
+      const success = !legErr1 && !legErr2 && orderId != null && String(orderId) !== '' && String(orderId) !== '-1'
+
+      if (success) {
+        // Дизайн-фікс: замовлення вже РЕАЛЬНО створене на бекенді — незалежно від того, чи
+        // вдасться order_info. Тому НЕ чекаємо (await) відповідь order_info, щоб юзер не бачив
+        // вічний спінер, якщо цей виклик зависне чи впаде. Одразу будуємо повний локальний
+        // об'єкт з реальних полів відповіді (hash/summ/paid_*/link_*), доповнюючи тим, чого
+        // там нема, локально відомими даними (обрані рейси/місця/пасажири), переходимо на
+        // екран успіху, а order_info підвантажуємо у фоні й оновлюємо, якщо вийде.
+        const oid = String(orderId)
         const bookingDate = new Date().toISOString()
         const dep = trip?.departure?.[0]
         const arr = trip?.arrival?.[0]
-        const passangers = Array.from({ length: totalPax }, (_, i) => ({
+        const localPassangers = Array.from({ length: totalPax }, (_, i) => ({
           name: (passengerNames[i] || '').trim().toUpperCase(),
           place: selectedSeats[i] != null ? String(selectedSeats[i]) : '',
           price: getPassengerPrice(i),
         }))
-        // paid_uah/paid_eur/needpay_uah/needpay_eur/link_liqpay/link_stripe тепер приходять
-        // одразу у відповіді neworder (раніше не було — доводилось ставити 0 і чекати order_info).
-        // Округлі й доступні як топ-рівневі поля result, так само як для одиночного замовлення.
         let order: any = {
-          oid, hash: oid, bookingDate,
-          from_city: from.name, to_city: to.name,
-          ftime: dep?.time || '', ttime: arr?.time || '',
-          summ: total, price: total, crc: currency,
+          ...result,
+          oid, hash: result?.hash ? String(result.hash) : oid,
+          bookingDate,
+          from_city: result?.from_city || from.name,
+          to_city: result?.to_city || to.name,
+          ftime: result?.ftime || dep?.time || '',
+          ttime: result?.ttime || arr?.time || '',
+          summ: result?.summ ?? result?.price ?? total,
+          price: result?.price ?? total,
+          crc: result?.crc || currency,
           paid_uah: result?.paid_uah ?? 0,
           paid_eur: result?.paid_eur ?? 0,
           needpay_uah: result?.needpay_uah,
           needpay_eur: result?.needpay_eur,
           link_liqpay: result?.link_liqpay,
           link_stripe: result?.link_stripe,
-          passangers,
+          passangers: result?.passangers || localPassangers,
         }
         saveOrderLocally(oid, order)
         setOrderResult(oid, order)
         nav('/order-success')
 
         // Фонові дії — не блокують перехід на екран успіху
-        getOrderInfo(oid).then((fresh: any) => {
+        getOrderInfo(order.hash).then((fresh: any) => {
           if (fresh?.orders?.[0]) { setOrderResult(oid, { ...fresh.orders[0], bookingDate }) }
         }).catch(() => {})
 
@@ -227,7 +237,7 @@ export default function Booking() {
           applyPromoCode(promoApplied.code, oid).then((promoRes: any) => {
             if (promoRes?.status === 'ok') {
               redeemPromo(promoApplied.code, oid).catch(() => {})
-              getOrderInfo(oid).then((fresh2: any) => {
+              getOrderInfo(order.hash).then((fresh2: any) => {
                 if (fresh2?.orders?.[0]) setOrderResult(oid, { ...fresh2.orders[0], bookingDate })
               }).catch(() => {})
             }
@@ -237,7 +247,7 @@ export default function Booking() {
         // Транзит агрегованих (не персональних) даних для звіту в панелі керування —
         // нічого з цього не зберігається в самому додатку (фоновий виклик, не блокує).
         if (user?.id) {
-          const ticketNumbers = passangers.map((p: any) => String(p.name || '')).filter(Boolean)
+          const ticketNumbers = order.passangers.map((p: any) => String(p.name || '')).filter(Boolean)
           reportTrip({
             userId: user!.id,
             orderNo: oid,
@@ -250,7 +260,7 @@ export default function Booking() {
       } else {
         // Помилки конкретного відрізка (1 = туди, 2 = назад): зайняті місця / маршрут не
         // знайдено / нема вільних місць / міста недоступні — беремо перше повідомлення, що є.
-        const legErr = result?.[1] || result?.[2]
+        const legErr = legErr1 || legErr2
         const msg = legErr
           ? (legErr.err === 21 ? `Місця вже зайняті: ${(legErr.places || []).join(', ')}`
             : legErr.err === 2 ? 'Нема вільних місць на цей рейс'
