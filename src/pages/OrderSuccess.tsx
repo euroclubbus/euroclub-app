@@ -93,8 +93,8 @@ export default function OrderSuccess() {
   const displayOrder = (() => {
     const src = String(data?.ticket || data?.link1 || data?.link2 || '')
     const m = src.match(/\/orders?\/(\d+)/)
-    if (m) return '000' + m[1]
-    return hash ? '000' + hash.slice(-6).toUpperCase() : '000000000'
+    const num = m ? m[1] : String(hash || data?.oid || '')
+    return num ? num.padStart(9, '0') : '000000000'
   })()
   const currencyCode = data?.crc || trip?.currency || 'uah'
   const { format } = useDisplayPrice()

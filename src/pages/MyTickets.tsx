@@ -113,7 +113,8 @@ export default function MyTickets() {
   const orderNo = (o: any) => {
     const src = String(o.ticket || o.link1 || '')
     const m = src.match(/\/orders?\/(\d+)/)
-    return m ? '000' + m[1] : (o.hash ? '000' + o.hash.slice(-6).toUpperCase() : '')
+    const num = m ? m[1] : String(o.hash || o.oid || '')
+    return num ? num.padStart(9, '0') : ''
   }
 
   // Категорія замовлення для фільтра
