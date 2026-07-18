@@ -7,7 +7,8 @@ const STORAGE_KEY = 'eclub_lang'
 function loadLang(): Lang {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved === 'uk' || saved === 'en' || saved === 'de' || saved === 'ru') return saved
+    // 'ru' прибрано з мов інтерфейсу сайту — якщо раніше було збережено, повертаємось на uk.
+    if (saved === 'uk' || saved === 'en' || saved === 'de') return saved
   } catch {}
   return 'uk'
 }
