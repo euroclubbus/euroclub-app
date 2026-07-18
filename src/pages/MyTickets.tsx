@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getLocalOrders, saveOrderLocally, getOrderInfo } from '../api/euroclub'
 import { getUserOrders } from '../api/auth'
 import { useBookingStore } from '../store'
-import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted } from '../orderStatus'
+import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted, isPaidCancellation } from '../orderStatus'
 import { useT } from '../i18n'
 
 const ORange = '#F5A623'
@@ -204,8 +204,13 @@ export default function MyTickets() {
         {filtered.map((o, i) => {
           const st = statusLabel(o)
           const paid = ticketAvailable(o, o.hash)
+          const alertPaidCancel = isPaidCancellation(o)
           return (
-            <div key={i} style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
+            <div key={i} style={{
+              background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12,
+              boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+              border: alertPaidCancel ? '2px solid #E53935' : 'none',
+            }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 }}>
                 <span style={{ fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.from_city} → {o.to_city}</span>
@@ -221,6 +226,17 @@ export default function MyTickets() {
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span title="Дати рейсу назад">🔄</span>{o.ftime2} → {o.ttime2}</span>
                 )}
               </div>
+              {alertPaidCancel && (
+                <div style={{ background: '#FDECEA', border: '1px solid #E53935', borderRadius: 12, padding: '10px 12px', marginBottom: 10 }}>
+                  <div style={{ color: '#E53935', fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
+                    Замовлення оплачене, але скасоване — зверніться в службу підтримки
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    <a href="tel:+380674875878" style={{ color: '#E53935', fontSize: 13, fontWeight: 700, textDecoration: 'underline' }}>+380674875878</a>
+                    <a href="tel:+491522503600" style={{ color: '#E53935', fontSize: 13, fontWeight: 700, textDecoration: 'underline' }}>+491522503600</a>
+                  </div>
+                </div>
+              )}
               <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: Gray, fontSize: 12 }}>{orderNo(o)}</span>
                 {o.bookingDate && (

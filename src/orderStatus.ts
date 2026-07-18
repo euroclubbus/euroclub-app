@@ -47,6 +47,12 @@ export function isCancelled(o: any): boolean {
   const s = String(o?.status || '').toLowerCase()
   return s.includes('cancel') || s.includes('скасов')
 }
+
+// Оплачене замовлення, яке потім скасували — критичний випадок (гроші вже списані, а
+// поїздка не відбудеться), потребує звернення до підтримки, а не просто "скасовано".
+export function isPaidCancellation(o: any): boolean {
+  return isCancelled(o) && payInfo(o).paid > 0
+}
 export function cancelledByPassenger(o: any): boolean {
   // TODO: потрібне поле cancel_by від прогера (passenger/manager). Поки — завжди false.
   return String(o?.cancel_by || '').toLowerCase() === 'passenger'
@@ -99,6 +105,7 @@ export function ticketAvailable(o: any, hash?: string): boolean {
 export function statusLabel(o: any): { text: string; color: string; bg: string } {
   const lang = useLangStore.getState().lang
   const L = (key: string) => dict[key]?.[lang] ?? dict[key]?.uk ?? key
+  if (isPaidCancellation(o)) return { text: 'Скасовано, кошти сплачено', color: '#fff', bg: '#E53935' }
   if (isCancelled(o)) return cancelledByPassenger(o)
     ? { text: L('orders.cancelledByPassenger'), color: '#E53935', bg: '#FDECEA' }
     : { text: L('orders.cancelledStatus'), color: '#E53935', bg: '#FDECEA' }
