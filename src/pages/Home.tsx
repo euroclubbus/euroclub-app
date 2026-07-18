@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { TouchEvent } from 'react'
 import NotifPrompt from '../components/NotifPrompt'
 import SideMenu from '../components/SideMenu'
@@ -44,14 +44,25 @@ function Calendar_({ value, onChange, minDate, onConfirm, departureSel, isOpen, 
   const nextMonth = () => { setSlideDir(1); setSlideKey(k => k + 1); setCur(c => { const d = new Date(c.y, c.m+1); return { y: d.getFullYear(), m: d.getMonth() } }) }
 
   // Свайп/потягування по сітці календаря — вліво/вправо між місяцями, інтуітивно як стрічка.
-  const swipeRef = { x: 0, active: false }
-  const onTouchStart = (e: TouchEvent) => { swipeRef.x = e.touches[0].clientX; swipeRef.active = true }
+  // useRef, а не звичайний об'єкт — щоб стан жесту не губився між touchstart і touchend
+  // (звичайний об'єкт перестворювався б при кожному ре-рендері компонента).
+  const swipeRef = useRef({ x: 0, active: false })
+  const onTouchStart = (e: TouchEvent) => { swipeRef.current = { x: e.touches[0].clientX, active: true } }
   const onTouchEnd = (e: TouchEvent) => {
-    if (!swipeRef.active) return
-    const dx = e.changedTouches[0].clientX - swipeRef.x
+    if (!swipeRef.current.active) return
+    const dx = e.changedTouches[0].clientX - swipeRef.current.x
     if (dx > 40) prevMonth()
     else if (dx < -40) nextMonth()
-    swipeRef.active = false
+    swipeRef.current.active = false
+  }
+  // Мишею (десктоп/тестування) — той самий жест перетягування
+  const onMouseDown = (e: React.MouseEvent) => { swipeRef.current = { x: e.clientX, active: true } }
+  const onMouseUp = (e: React.MouseEvent) => {
+    if (!swipeRef.current.active) return
+    const dx = e.clientX - swipeRef.current.x
+    if (dx > 40) prevMonth()
+    else if (dx < -40) nextMonth()
+    swipeRef.current.active = false
   }
 
   return (
@@ -65,14 +76,16 @@ function Calendar_({ value, onChange, minDate, onConfirm, departureSel, isOpen, 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <span style={{ fontWeight: 700, fontSize: 17 }}>{months[cur.m]} {cur.y}</span>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={prevMonth} aria-label="Попередній місяць" style={{ background: 'none', border: 'none', cursor: 'pointer', color: Gray, fontSize: 26, width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>←</button>
+            {/* Обидві стрілки однаково підсвічені (оранжевим) — раніше ← була сірою, ніби
+                неактивна, хоча технічно так само гортала назад, і це збивало з пантелику. */}
+            <button onClick={prevMonth} aria-label="Попередній місяць" style={{ background: 'none', border: 'none', cursor: 'pointer', color: ORange, fontSize: 26, width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>←</button>
             <button onClick={nextMonth} aria-label="Наступний місяць" style={{ background: 'none', border: 'none', cursor: 'pointer', color: ORange, fontSize: 26, width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>→</button>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '4px 0', marginBottom: 8 }}>
           {days.map(d => <span key={d} style={{ textAlign: 'center', fontSize: 12, color: Gray, paddingBottom: 8 }}>{d}</span>)}
         </div>
-        <div key={slideKey} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{
+        <div key={slideKey} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} onMouseDown={onMouseDown} onMouseUp={onMouseUp} style={{
           display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '10px 0', touchAction: 'pan-y',
           animation: `${slideDir === 1 ? 'euroclubCalSlideR' : 'euroclubCalSlideL'} 0.2s ease-out`,
         }}>
