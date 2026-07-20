@@ -16,6 +16,14 @@ function platformSuffix() {
   return /iphone|ipad|ipod/i.test(ua) ? 'API' : 'PAG' // iOS → API, Android/веб → PAG
 }
 
+// Українська плюралізація: 1 квиток, 2-4 квитки, 5+ (і 11-14) квитків
+function ticketWord(n: number): string {
+  const mod10 = n % 10, mod100 = n % 100
+  if (mod10 === 1 && mod100 !== 11) return 'квиток'
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'квитки'
+  return 'квитків'
+}
+
 export default function Ticket() {
   const nav = useNavigate()
   const { orderHash, orderData, selectedTrip, selectedSeats, passengerNames, setOrderResult } = useBookingStore()
@@ -176,8 +184,14 @@ export default function Ticket() {
                   </div>
                   {!hasMultiple && (
                     <>
+                      {data?.roundTrip && data?.tariff != null && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, fontSize: 12.5, color: Gray }}>
+                          <span>Тариф рейсу у додатку</span>
+                          <span>{format(data.tariff, currency)}</span>
+                        </div>
+                      )}
                       <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12, marginTop: 4, borderTop: '1px solid #EEE' }}>
-                        <span style={{ fontSize: 15, fontWeight: 700 }}>Разом</span>
+                        <span style={{ fontSize: 15, fontWeight: 700 }}>{data?.roundTrip && data?.tariff != null ? `Ціна ${passengers.length} ${ticketWord(passengers.length)}` : 'Разом'}</span>
                         <span style={{ fontSize: 18, fontWeight: 800 }}>{format(data?.summ ?? data?.price ?? trip?.price, currency)}</span>
                       </div>
                       {(() => { const pi = payInfo(data); return pi.remainder > 0 ? (
@@ -211,8 +225,14 @@ export default function Ticket() {
       {/* Загальна сума замовлення (коли квитків декілька) */}
       {hasMultiple && (
         <div className="no-print" style={{ margin: '8px 16px 0', background: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: '12px 16px' }}>
+          {data?.roundTrip && data?.tariff != null && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>Тариф рейсу у додатку</span>
+              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12.5 }}>{format(data.tariff, currency)}</span>
+            </div>
+          )}
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 600 }}>Разом за замовлення</span>
+            <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 600 }}>{data?.roundTrip && data?.tariff != null ? `Ціна ${passengers.length} ${ticketWord(passengers.length)}` : 'Разом за замовлення'}</span>
             <span style={{ color: '#fff', fontSize: 15, fontWeight: 800 }}>{format(data?.summ ?? data?.price ?? trip?.price, currency)}</span>
           </div>
           {(() => { const pi = payInfo(data); return pi.remainder > 0 && (

@@ -4,7 +4,7 @@ import { ArrowLeft, Clock, Wifi, Zap, Bus, MessageCircle, AlertTriangle } from '
 import { useSearchStore, useBookingStore } from '../store'
 import { getRoutes } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
-import { perPassengerOneWayPrices } from '../passengerPricing'
+import { perPassengerOneWayPrices, fullFareOneWayPrice } from '../passengerPricing'
 import { useDisplayPrice } from '../currency'
 import CurrencyToggle from '../components/CurrencyToggle'
 import { useT } from '../i18n'
@@ -358,7 +358,7 @@ export default function Results() {
   // Напрямок для підбору шаблону ціни: відправлення з України -> UAH, з Європи -> EUR
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
   const twoWay = (isRoundTrip && ready && from && to)
-    ? findTwoWayGroupPrice(perPassengerOneWayPrices(outTrip, passengerCategories), from.id, to.id, direction)
+    ? findTwoWayGroupPrice(perPassengerOneWayPrices(outTrip, passengerCategories), fullFareOneWayPrice(outTrip), from.id, to.id, direction)
     : null
 
   const handleSelect = () => {

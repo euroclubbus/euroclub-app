@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { findTwoWayGroupPrice } from '../priceEngine'
-import { perPassengerOneWayPrices } from '../passengerPricing'
+import { perPassengerOneWayPrices, fullFareOneWayPrice } from '../passengerPricing'
 import { useDisplayPrice } from '../currency'
 import CurrencyToggle from '../components/CurrencyToggle'
 import { useT } from '../i18n'
@@ -69,7 +69,7 @@ export default function RoundTripSummary() {
   }
 
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
-  const twoWay = from && to ? findTwoWayGroupPrice(perPassengerOneWayPrices(trip, passengerCategories), from.id, to.id, direction) : null
+  const twoWay = from && to ? findTwoWayGroupPrice(perPassengerOneWayPrices(trip, passengerCategories), fullFareOneWayPrice(trip), from.id, to.id, direction) : null
   const total = twoWay?.total ?? 0
 
   return (

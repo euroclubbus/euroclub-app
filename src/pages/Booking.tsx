@@ -5,7 +5,7 @@ import { useSearchStore, useBookingStore } from '../store'
 import { useAuthStore } from '../authStore'
 import { saveOrderLocally, getOrderInfo } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
-import { resolveDiscountId, resolvePassengerPrice } from '../passengerPricing'
+import { resolveDiscountId, resolvePassengerPrice, fullFareOneWayPrice } from '../passengerPricing'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
 import { validatePromo, redeemPromo } from '../game/gameApi'
@@ -110,8 +110,15 @@ export default function Booking() {
   // рейсу 1), підсумок — сума цих тарифів. Показуємо юзеру лише один фінальний тариф, без розбивки.
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
   const perPassengerOneWay = Array.from({ length: totalPax }, (_, i) => getPassengerPrice(i))
-  const twoWayGroup = isRoundTrip && from && to ? findTwoWayGroupPrice(perPassengerOneWay, from.id, to.id, direction) : null
+  const twoWayGroup = isRoundTrip && from && to
+    ? findTwoWayGroupPrice(perPassengerOneWay, fullFareOneWayPrice(trip), from.id, to.id, direction)
+    : null
   const total = isRoundTrip ? (twoWayGroup?.total ?? subtotal) : subtotal
+  // Тариф — базова ціна ОДНОГО повного квитка в два боки, саме вона йде в бронювання
+  // (`price` в neworder), незалежно від кількості пасажирів чи їхніх знижок. Система
+  // бронювання сама рахує суму по пасажирах зі своїх кодів знижок. У прев'ю/на екрані —
+  // завжди показуємо `total` (нашу ціну), а не тариф.
+  const tariff = isRoundTrip ? (twoWayGroup?.tariff ?? subtotal) : subtotal
 
   // Промокод (наприклад, приз за гру EuroClub Racer) — знижка застосовується лише в застосунку,
   // на боці eclub.com.ua не існує (поки прогер не додасть офіційне поле для промокодів).
@@ -168,7 +175,7 @@ export default function Booking() {
         email: contactEmail.trim() || '',
         phone: contactPhone.trim(),
         header: (payerName || passengerNames[0] || '').trim().toUpperCase() || 'PASSENGER',
-        price: String(total),
+        price: String(tariff),
         crc: currency,
         from: String(from.id),
         to: String(to.id),
@@ -220,6 +227,7 @@ export default function Booking() {
           link_stripe: result?.link_stripe,
           passangers: result?.passangers || localPassangers,
           roundTrip: isRoundTrip,
+          tariff: isRoundTrip ? tariff : undefined,
           ftime2: isRoundTrip ? (dep2?.time || '') : undefined,
           ttime2: isRoundTrip ? (arr2?.time || '') : undefined,
         }

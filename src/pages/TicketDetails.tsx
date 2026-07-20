@@ -13,6 +13,14 @@ const NavyDeep = '#082349'
 const Gray = '#8A8A8A'
 const Line = '#EEF0F3'
 
+// Українська плюралізація: 1 квиток, 2-4 квитки, 5+ (і 11-14) квитків
+function ticketWord(n: number): string {
+  const mod10 = n % 10, mod100 = n % 100
+  if (mod10 === 1 && mod100 !== 11) return 'квиток'
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'квитки'
+  return 'квитків'
+}
+
 function platformSuffix() {
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
   return /iphone|ipad|ipod/i.test(ua) ? 'API' : 'PAG'
@@ -120,8 +128,13 @@ export default function TicketDetails() {
       {/* Статус оплати */}
       <div style={{ margin: '12px 16px 0', display: 'flex', gap: 10 }}>
         <div style={{ flex: 1, background: '#fff', borderRadius: 16, padding: '12px 14px' }}>
-          <div style={{ fontSize: 10.5, color: Gray, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>Вартість</div>
+          <div style={{ fontSize: 10.5, color: Gray, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+            {data?.roundTrip && data?.tariff != null ? `Ціна ${passengers.length} ${ticketWord(passengers.length)}` : 'Вартість'}
+          </div>
           <div style={{ fontSize: 17, fontWeight: 800, marginTop: 2 }}>{format(data?.summ ?? data?.price, currency)}</div>
+          {data?.roundTrip && data?.tariff != null && (
+            <div style={{ fontSize: 10.5, color: Gray, marginTop: 2 }}>Тариф рейсу у додатку: {format(data.tariff, currency)}</div>
+          )}
         </div>
         <div style={{ flex: 1, background: pi.remainder > 0 ? '#FFF5E6' : '#EAF7ED', borderRadius: 16, padding: '12px 14px' }}>
           <div style={{ fontSize: 10.5, color: Gray, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>{pi.remainder > 0 ? 'Доплата' : 'Статус'}</div>

@@ -69,28 +69,38 @@ export function findTwoWayPrice(
 }
 
 /**
- * Ціна "в два боки" для всієї групи пасажирів: КОЖЕН пасажир отримує свій тариф
- * в два боки окремо (за своєю знижкою/one-way ціною), підсумок — це сума цих тарифів.
- * Це навмисно НЕ "групова сума туди" зіставлена одним рядком шаблону — так було
- * неправильно для 2+ пасажирів з різними знижками.
+ * Тариф + ціна "в два боки" для групи пасажирів.
+ *
+ * ВАЖЛИВО (узгоджено з Кепом): є ДВА окремих поняття.
+ * - "Тариф" — базова ціна за ОДИН повний (без знижок) квиток в два боки. Визначається ОДИН раз —
+ *   нейближчим шаблоном до ПОВНОЇ (без знижки) one-way ціни рейсу 1. Це і є те число, яке йде
+ *   в бронювання (`price` в neworder) — система бронювання сама рахує суму по пасажирах зі своїх знижок.
+ * - "Ціна" — те, що бачить і платить юзер: тариф, помножений на індивідуальне співвідношення
+ *   знижки кожного пасажира (їхня one-way ціна / повна one-way ціна), підсумовано по всіх.
+ *
+ * Раніше кожен пасажир окремо шукав найближчий рядок шаблону по СВОЇЙ (вже дисконтованій)
+ * one-way ціні — це могло зачепити зовсім інший рядок шаблону з іншим тарифом для кожного
+ * пасажира. Тепер шаблон шукається один раз (по повній ціні), а знижки застосовуються
+ * пропорційно до вже знайденого тарифу.
+ *
  * @param perPassengerOneWayPrices one-way ціна кожного пасажира окремо (з їхньою знижкою)
+ * @param fullOneWayPrice          one-way ціна ПОВНОГО (без знижки) квитка на рейс 1 — саме вона
+ *                                 йде в пошук найближчого шаблону, а не ціна конкретного пасажира
  */
 export function findTwoWayGroupPrice(
   perPassengerOneWayPrices: number[],
+  fullOneWayPrice: number,
   fromCityId: string | number,
   toCityId: string | number,
   direction: Direction
-): { total: number; anyFallback: boolean } {
-  let total = 0
-  let anyFallback = false
-  for (const p of perPassengerOneWayPrices) {
-    const res = findTwoWayPrice(fromCityId, toCityId, direction, p)
-    if (res) {
-      total += res.price
-    } else {
-      total += p * 2 // нема жодного рядка шаблону для цієї пари міст — оцінка х2 від one-way
-      anyFallback = true
-    }
-  }
-  return { total, anyFallback }
+): { tariff: number; total: number; perPassenger: number[]; anyFallback: boolean } {
+  const res = findTwoWayPrice(fromCityId, toCityId, direction, fullOneWayPrice)
+  const tariff = res ? res.price : fullOneWayPrice * 2 // нема рядка шаблону — оцінка х2 від one-way
+  const anyFallback = !res
+  const perPassenger = perPassengerOneWayPrices.map(p => {
+    const ratio = fullOneWayPrice > 0 ? p / fullOneWayPrice : 1
+    return Math.round(tariff * ratio)
+  })
+  const total = perPassenger.reduce((s, p) => s + p, 0)
+  return { tariff, total, perPassenger, anyFallback }
 }

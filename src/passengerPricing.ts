@@ -30,8 +30,11 @@ export function resolvePassengerPrice(
   return Number(opt?.price ?? fallbackPrice ?? 0)
 }
 
-// Ціни "в один бік" по кожному пасажиру для рейсу (для прев'ю на пошуку — без ручних override,
-// їх там ще не може бути; для бронювання — передавай manualOverrides з passengerDiscounts)
+// Ціна ПОВНОГО (без знижки) квитка "в один бік" для рейсу — база для пошуку тарифу в два боки
+export function fullFareOneWayPrice(trip: any): number {
+  return resolvePassengerPrice(undefined, trip?.discounts || [], trip?.price)
+}
+
 export function perPassengerOneWayPrices(
   trip: any,
   cats: string[],
