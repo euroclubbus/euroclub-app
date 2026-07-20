@@ -4,7 +4,7 @@ import { ArrowLeft, Phone, Mail, Globe, ShieldCheck } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
 import { useDisplayPrice } from '../currency'
-import { payInfo, needsPolling } from '../orderStatus'
+import { payInfo, needsPolling, keepOurPrice } from '../orderStatus'
 import { useOrderPolling } from '../useOrderPolling'
 
 const ORange = '#F5A623'
@@ -43,7 +43,7 @@ export default function TicketDetails() {
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  useOrderPolling(hash, needsPolling(data), (o) => { setOrderResult(hash, o); setPriceReady(true) })
+  useOrderPolling(hash, needsPolling(data), (o) => { setOrderResult(hash, keepOurPrice(data, o)); setPriceReady(true) })
   if (!priceReady) {
     return (
       <div style={{ minHeight: '100vh', background: '#F2F4F7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

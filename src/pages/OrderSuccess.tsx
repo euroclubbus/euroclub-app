@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBookingStore, useSearchStore } from '../store'
 import { cancelOrder, restoreOrder, getOrderInfo, getCities, getRoutes } from '../api/euroclub'
-import { ticketAvailable, statusLabel, payInfo, needsPolling, canRestore } from '../orderStatus'
+import { ticketAvailable, statusLabel, payInfo, needsPolling, canRestore, keepOurPrice } from '../orderStatus'
 import { useOrderPolling } from '../useOrderPolling'
 import { useDisplayPrice } from '../currency'
 import SeatMap from './SeatMap'
@@ -111,7 +111,7 @@ export default function OrderSuccess() {
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  useOrderPolling(hash, needsPolling(data), (o) => { setOrderResult(hash, o); setPriceReady(true) })
+  useOrderPolling(hash, needsPolling(data), (o) => { setOrderResult(hash, keepOurPrice(data, o)); setPriceReady(true) })
 
   useEffect(() => {
     if (data?.status) {

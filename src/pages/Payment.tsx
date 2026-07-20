@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ShieldCheck } from 'lucide-react'
 import { useBookingStore } from '../store'
 import { getOrderInfo } from '../api/euroclub'
-import { payInfo } from '../orderStatus'
+import { payInfo, keepOurPrice } from '../orderStatus'
 import { useOrderPolling } from '../useOrderPolling'
 import { useT } from '../i18n'
 
@@ -58,8 +58,9 @@ export default function Payment() {
   // бронювання) АБО оплата ще не підтверджена. Раніше умова вимагала payUrl вже готовим —
   // тобто якщо посилання ще не підвантажилось, опитування взагалі не стартувало (глухий кут).
   useOrderPolling(hash, !doneRef.current, (o) => {
-    setOrderResult(hash, o)
-    if (payInfo(o).ticketReady) goSuccess()
+    const merged = keepOurPrice(data, o)
+    setOrderResult(hash, merged)
+    if (payInfo(merged).ticketReady) goSuccess()
   })
 
   const checkPaid = async () => {
@@ -68,8 +69,9 @@ export default function Payment() {
     try {
       const res: any = await getOrderInfo(hash)
       const o = res.orders?.[0] || res
-      if (o && (o.hash || o.status)) setOrderResult(hash, o)
-      if (payInfo(o).ticketReady) { goSuccess(); return }
+      const merged = keepOurPrice(data, o)
+      if (o && (o.hash || o.status)) setOrderResult(hash, merged)
+      if (payInfo(merged).ticketReady) { goSuccess(); return }
     } catch {}
     setChecking(false)
   }

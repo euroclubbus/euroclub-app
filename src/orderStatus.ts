@@ -43,6 +43,22 @@ export function payInfo(o: any): PayInfo {
   return { summ, paid, ratio, remainder, ticketReady: summ > 0 && ratio >= THRESHOLD, fullyPaid: summ > 0 && paid + 0.01 >= summ, sign: currencySign(o) }
 }
 
+// Зливаємо свіжу відповідь order_info з уже відомим замовленням, АЛЕ навмисно не даємо
+// ціновим полям (summ/price/tariff) перезаписатись бекендом — це наша розрахована ціна
+// з екрану бронювання, і вона має лишатись незмінною на всіх наступних кроках, незалежно
+// від того, що поверне бекенд. Статус оплати/посилання й далі беруться live з fresh.
+export function keepOurPrice(current: any, fresh: any) {
+  return {
+    ...fresh,
+    summ: current?.summ,
+    price: current?.price,
+    tariff: current?.tariff,
+    roundTrip: current?.roundTrip,
+    ftime2: current?.ftime2,
+    ttime2: current?.ttime2,
+  }
+}
+
 export function isCancelled(o: any): boolean {
   const s = String(o?.status || '').toLowerCase()
   return s.includes('cancel') || s.includes('скасов')

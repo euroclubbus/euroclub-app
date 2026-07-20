@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getLocalOrders, saveOrderLocally, getOrderInfo } from '../api/euroclub'
 import { getUserOrders } from '../api/auth'
 import { useBookingStore } from '../store'
-import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted, isPaidCancellation } from '../orderStatus'
+import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted, isPaidCancellation, keepOurPrice } from '../orderStatus'
 import { useT } from '../i18n'
 
 const ORange = '#F5A623'
@@ -40,7 +40,10 @@ export default function MyTickets() {
           }))
         )
         fresh.forEach((f: any, i: number) => {
-          if (f) byHash[needsFresh[i].hash] = { ...byHash[needsFresh[i].hash], ...f }
+          if (!f) return
+          const key = needsFresh[i].hash
+          const cur = byHash[key]
+          byHash[key] = cur ? keepOurPrice(cur, f) : f
         })
       }
       return Object.values(byHash)
@@ -65,7 +68,10 @@ export default function MyTickets() {
         // тож локально закешовані повні дані (звідки summ/pay_* вже відомі) не мають загубитись.
         const byHash: Record<string, any> = {}
         for (const o of Object.values(local)) if ((o as any).hash) byHash[(o as any).hash] = { ...(o as any) }
-        for (const o of remote) if (o.hash) byHash[o.hash] = { ...(byHash[o.hash] || {}), ...o }
+        for (const o of remote) {
+          if (!o.hash) continue
+          byHash[o.hash] = byHash[o.hash] ? keepOurPrice(byHash[o.hash], o) : o
+        }
 
         finish(await refreshFresh(byHash))
       })

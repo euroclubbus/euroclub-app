@@ -216,8 +216,8 @@ export default function Booking() {
           to_city: result?.to_city || to.name,
           ftime: result?.ftime || dep?.time || '',
           ttime: result?.ttime || arr?.time || '',
-          summ: result?.summ ?? result?.price ?? total,
-          price: result?.price ?? total,
+          summ: finalTotal,
+          price: finalTotal,
           crc: result?.crc || currency,
           paid_uah: result?.paid_uah ?? 0,
           paid_eur: result?.paid_eur ?? 0,
@@ -235,9 +235,15 @@ export default function Booking() {
         setOrderResult(oid, order)
         nav('/order-success')
 
-        // Фонові дії — не блокують перехід на екран успіху
+        // Фонові дії — не блокують перехід на екран успіху.
+        // ВАЖЛИВО: summ/price/tariff НЕ беремо зі свіжої відповіді — це наша ціна з екрану
+        // бронювання, і вона має лишатись такою на всіх наступних кроках (успіх/оплата),
+        // навіть якщо бекенд поверне інше число в order_info. Звідти беремо тільки статус
+        // оплати/посилання — те, що дійсно змінюється в часі.
         getOrderInfo(order.hash).then((fresh: any) => {
-          if (fresh?.orders?.[0]) { setOrderResult(oid, { ...fresh.orders[0], bookingDate }) }
+          if (fresh?.orders?.[0]) {
+            setOrderResult(oid, { ...fresh.orders[0], bookingDate, summ: order.summ, price: order.price, tariff: order.tariff, roundTrip: order.roundTrip, ftime2: order.ftime2, ttime2: order.ttime2 })
+          }
         }).catch(() => {})
 
         if (promoApplied) {
@@ -245,7 +251,7 @@ export default function Booking() {
             if (promoRes?.status === 'ok') {
               redeemPromo(promoApplied.code, oid).catch(() => {})
               getOrderInfo(order.hash).then((fresh2: any) => {
-                if (fresh2?.orders?.[0]) setOrderResult(oid, { ...fresh2.orders[0], bookingDate })
+                if (fresh2?.orders?.[0]) setOrderResult(oid, { ...fresh2.orders[0], bookingDate, summ: order.summ, price: order.price, tariff: order.tariff, roundTrip: order.roundTrip, ftime2: order.ftime2, ttime2: order.ttime2 })
               }).catch(() => {})
             }
           }).catch(() => {})
