@@ -21,7 +21,7 @@ export default function SideMenu({ open, onClose }: { open: boolean; onClose: ()
     { icon: FileText, label: t('home.rules'), url: 'https://eclub.com.ua/ua/oferta/' },
     { icon: Gift, label: t('home.cashback'), url: 'https://eclub.com.ua/ua/' },
     { icon: Map, label: t('home.routes'), url: 'https://eclub.com.ua/ua/' },
-    { icon: Bus, label: t('home.fleet'), url: 'https://eclub.com.ua/ua/bus/' },
+    { icon: Bus, label: t('home.fleet'), internal: '/fleet' },
     { icon: Star, label: t('home.feedback'), url: 'https://eclub.com.ua/ua/' },
     { icon: Share2, label: t('home.social'), url: 'https://eclub.com.ua/ua/' },
     { icon: Info, label: t('home.usefulInfo'), url: 'https://eclub.com.ua/ua/' },

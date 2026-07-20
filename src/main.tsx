@@ -20,6 +20,7 @@ import Profile from './pages/Profile'
 import Notifications from './pages/Notifications'
 import Auth from './pages/Auth'
 import Splash from './pages/Splash'
+import Fleet from './pages/Fleet'
 import CookieBanner from './components/CookieBanner'
 import { useAuthStore } from './authStore'
 import { useState, useEffect } from 'react'
@@ -48,6 +49,7 @@ function AppRoutes() {
           <Route path="/agreement-contract" element={<AgreementContract />} />
           <Route path="/agreement-offer" element={<AgreementOffer />} />
           <Route path="/tickets" element={<MyTickets />} />
+          <Route path="/fleet" element={<Fleet />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="*" element={<Home />} />
