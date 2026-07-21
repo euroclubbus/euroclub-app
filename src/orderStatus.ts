@@ -48,6 +48,14 @@ export function payInfo(o: any): PayInfo {
 // з екрану бронювання, і вона має лишатись незмінною на всіх наступних кроках, незалежно
 // від того, що поверне бекенд. Статус оплати/посилання й далі беруться live з fresh.
 export function keepOurPrice(current: any, fresh: any) {
+  const freshPaid = Number(fresh?.paid_uah ?? fresh?.pay_uah ?? 0) || Number(fresh?.paid_eur ?? fresh?.pay_eur ?? 0)
+  // Щойно бекенд повідомляє про РЕАЛЬНУ оплату (є сума, яку хтось справді вніс) — довіряємо
+  // вже його summ/price. Це вже факт транзакції, а не наша попередня оцінка: якщо й далі
+  // рахувати % оплати від НАШОЇ ціни, а бекенд порахував трохи іншу суму — застосунок може
+  // вічно чекати недосяжні 70%, хоча людина вже реально все оплатила.
+  if (freshPaid > 0) {
+    return { ...fresh, tariff: current?.tariff, roundTrip: current?.roundTrip, ftime2: current?.ftime2, ttime2: current?.ttime2 }
+  }
   return {
     ...fresh,
     summ: current?.summ,

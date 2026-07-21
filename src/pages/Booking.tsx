@@ -6,6 +6,7 @@ import { useAuthStore } from '../authStore'
 import { saveOrderLocally, getOrderInfo } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
 import { resolveDiscountId, resolvePassengerPrice, fullFareOneWayPrice } from '../passengerPricing'
+import { keepOurPrice } from '../orderStatus'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
 import { validatePromo, redeemPromo } from '../game/gameApi'
@@ -236,13 +237,12 @@ export default function Booking() {
         nav('/order-success')
 
         // Фонові дії — не блокують перехід на екран успіху.
-        // ВАЖЛИВО: summ/price/tariff НЕ беремо зі свіжої відповіді — це наша ціна з екрану
-        // бронювання, і вона має лишатись такою на всіх наступних кроках (успіх/оплата),
-        // навіть якщо бекенд поверне інше число в order_info. Звідти беремо тільки статус
-        // оплати/посилання — те, що дійсно змінюється в часі.
+        // Ціну лишаємо нашою (keepOurPrice), АЛЕ тільки доки нема реальної оплати — щойно
+        // бекенд повідомить справжню сплачену суму, довіряємо вже його числам (див. коментар
+        // у orderStatus.ts:keepOurPrice).
         getOrderInfo(order.hash).then((fresh: any) => {
           if (fresh?.orders?.[0]) {
-            setOrderResult(oid, { ...fresh.orders[0], bookingDate, summ: order.summ, price: order.price, tariff: order.tariff, roundTrip: order.roundTrip, ftime2: order.ftime2, ttime2: order.ttime2 })
+            setOrderResult(oid, { ...keepOurPrice(order, fresh.orders[0]), bookingDate })
           }
         }).catch(() => {})
 
@@ -251,7 +251,7 @@ export default function Booking() {
             if (promoRes?.status === 'ok') {
               redeemPromo(promoApplied.code, oid).catch(() => {})
               getOrderInfo(order.hash).then((fresh2: any) => {
-                if (fresh2?.orders?.[0]) setOrderResult(oid, { ...fresh2.orders[0], bookingDate, summ: order.summ, price: order.price, tariff: order.tariff, roundTrip: order.roundTrip, ftime2: order.ftime2, ttime2: order.ttime2 })
+                if (fresh2?.orders?.[0]) setOrderResult(oid, { ...keepOurPrice(order, fresh2.orders[0]), bookingDate })
               }).catch(() => {})
             }
           }).catch(() => {})

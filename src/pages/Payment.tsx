@@ -67,12 +67,19 @@ export default function Payment() {
     if (!hash) return
     setChecking(true)
     try {
-      const res: any = await getOrderInfo(hash)
+      // Запобіжник: якщо сам запит підвисне (мережа), кнопка не має лишатись
+      // "Перевірка..." назавжди — за 10с скидаємо стан незалежно від результату.
+      const res: any = await Promise.race([
+        getOrderInfo(hash),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
+      ])
       const o = res.orders?.[0] || res
       const merged = keepOurPrice(data, o)
       if (o && (o.hash || o.status)) setOrderResult(hash, merged)
       if (payInfo(merged).ticketReady) { goSuccess(); return }
-    } catch {}
+    } catch (e) {
+      console.error('[Payment] checkPaid failed', e)
+    }
     setChecking(false)
   }
 
