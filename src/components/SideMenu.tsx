@@ -20,10 +20,10 @@ export default function SideMenu({ open, onClose }: { open: boolean; onClose: ()
     { icon: Gamepad2, label: '🎮 Гра EuroClub Racer', internal: '/game' },
     { icon: FileText, label: t('home.rules'), url: 'https://eclub.com.ua/ua/oferta/' },
     { icon: Gift, label: t('home.cashback'), url: 'https://eclub.com.ua/ua/' },
-    { icon: Map, label: t('home.routes'), url: 'https://eclub.com.ua/ua/' },
+    { icon: Map, label: t('home.routes'), internal: '/routes' },
     { icon: Bus, label: t('home.fleet'), internal: '/fleet' },
-    { icon: Star, label: t('home.feedback'), url: 'https://eclub.com.ua/ua/' },
-    { icon: Share2, label: t('home.social'), url: 'https://eclub.com.ua/ua/' },
+    { icon: Star, label: t('home.feedback'), internal: '/feedback' },
+    { icon: Share2, label: t('home.social'), internal: '/page/social' },
     { icon: Info, label: t('home.usefulInfo'), url: 'https://eclub.com.ua/ua/' },
   ]
   if (!open) return null

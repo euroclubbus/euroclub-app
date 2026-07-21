@@ -3,7 +3,8 @@
 // окрім одноразової відправки в Firestore (панель керування).
 //
 // Дозволені поля (узгоджено з Кепом) — тільки нечутливі, агреговані:
-//   userId, orderNo, ticketNumbers, tripDate, direction
+//   userId, orderNo, ticketNumbers, tripDate, direction, fromCity/toCity, passengerCount,
+//   discountIds (коди знижок, не імена), roundTrip
 // НІЯКИХ імен пасажирів, телефонів, email, адрес — цього тут бути не повинно.
 //
 // Дані з локального списку "збережені пасажири" (діти/родина, src/savedPassengers.ts)
@@ -20,7 +21,12 @@ export interface TripReportData {
   orderNo: string
   ticketNumbers: string[]
   tripDate: string // dd.mm.yyyy
-  direction: string // "Kyiv → Berlin"
+  direction: string // "Kyiv → Berlin" — лишається для зворотної сумісності з тим, що вже показувалось
+  fromCity: string // окремим полем — для фільтра "місто відправлення" у звіті
+  toCity: string // окремим полем — для фільтра "місто прибуття"
+  passengerCount: number
+  discountIds: string[] // код знижки кожного пасажира ("0" = повний тариф, без фіксованої знижки)
+  roundTrip: boolean
   bookingDate: string // ISO — момент, коли додаток зафіксував бронювання (не з API)
 }
 

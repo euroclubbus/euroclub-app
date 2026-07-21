@@ -261,12 +261,18 @@ export default function Booking() {
         // нічого з цього не зберігається в самому додатку (фоновий виклик, не блокує).
         if (user?.id) {
           const ticketNumbers = order.passangers.map((p: any) => String(p.name || '')).filter(Boolean)
+          const discountIds = Array.from({ length: totalPax }, (_, i) => String(effectiveDiscountId(i)))
           reportTrip({
             userId: user!.id,
             orderNo: oid,
             ticketNumbers,
             tripDate: String(order.ftime || '').split(' ')[0],
             direction: `${order.from_city || from?.name || ''} → ${order.to_city || to?.name || ''}`,
+            fromCity: order.from_city || from?.name || '',
+            toCity: order.to_city || to?.name || '',
+            passengerCount: totalPax,
+            discountIds,
+            roundTrip: isRoundTrip,
             bookingDate,
           })
         }

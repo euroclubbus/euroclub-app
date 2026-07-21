@@ -21,6 +21,9 @@ import Notifications from './pages/Notifications'
 import Auth from './pages/Auth'
 import Splash from './pages/Splash'
 import Fleet from './pages/Fleet'
+import RoutesPage from './pages/Routes'
+import StaticPage from './pages/StaticPage'
+import Feedback from './pages/Feedback'
 import CookieBanner from './components/CookieBanner'
 import { useAuthStore } from './authStore'
 import { useState, useEffect } from 'react'
@@ -50,6 +53,9 @@ function AppRoutes() {
           <Route path="/agreement-offer" element={<AgreementOffer />} />
           <Route path="/tickets" element={<MyTickets />} />
           <Route path="/fleet" element={<Fleet />} />
+          <Route path="/routes" element={<RoutesPage />} />
+          <Route path="/page/:slug" element={<StaticPage />} />
+          <Route path="/feedback" element={<Feedback />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="*" element={<Home />} />
