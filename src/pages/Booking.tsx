@@ -228,7 +228,6 @@ export default function Booking() {
           link_stripe: result?.link_stripe,
           passangers: result?.passangers || localPassangers,
           roundTrip: isRoundTrip,
-          tariff: isRoundTrip ? tariff : undefined,
           ftime2: isRoundTrip ? (dep2?.time || '') : undefined,
           ttime2: isRoundTrip ? (arr2?.time || '') : undefined,
         }

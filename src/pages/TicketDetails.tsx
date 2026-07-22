@@ -130,12 +130,9 @@ export default function TicketDetails() {
       <div style={{ margin: '12px 16px 0', display: 'flex', gap: 10 }}>
         <div style={{ flex: 1, background: '#fff', borderRadius: 16, padding: '12px 14px' }}>
           <div style={{ fontSize: 10.5, color: Gray, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-            {data?.roundTrip && data?.tariff != null ? `Ціна ${passengers.length} ${ticketWord(passengers.length)}` : 'Вартість'}
+            {data?.roundTrip ? `Тариф квитка (${passengers.length} ${ticketWord(passengers.length)})` : 'Тариф квитка'}
           </div>
           <div style={{ fontSize: 17, fontWeight: 800, marginTop: 2 }}>{format(data?.summ ?? data?.price, currency)}</div>
-          {data?.roundTrip && data?.tariff != null && (
-            <div style={{ fontSize: 10.5, color: Gray, marginTop: 2 }}>Тариф квитка: {format(data.tariff, currency)}</div>
-          )}
         </div>
         <div style={{ flex: 1, background: pi.remainder > 0 ? '#FFF5E6' : '#EAF7ED', borderRadius: 16, padding: '12px 14px' }}>
           <div style={{ fontSize: 10.5, color: Gray, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>{pi.remainder > 0 ? 'Доплата' : 'Статус'}</div>

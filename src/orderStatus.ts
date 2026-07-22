@@ -47,20 +47,18 @@ export function payInfo(o: any): PayInfo {
 // ціновим полям (summ/price/tariff) перезаписатись бекендом — це наша розрахована ціна
 // з екрану бронювання, і вона має лишатись незмінною на всіх наступних кроках, незалежно
 // від того, що поверне бекенд. Статус оплати/посилання й далі беруться live з fresh.
+// Зливаємо свіжу відповідь user-orders з уже відомим замовленням.
+// Узгоджено з Кепом: "тариф" = summ (живий, з бекенду — може змінитись: менеджер додав
+// платну послугу, знижку, штраф за зміну дати тощо), "оплачено" = paid_uah/paid_eur
+// (живе), "доплата" = тариф - оплачено (див. payInfo().remainder). Нічого з цього більше
+// не заморожуємо — тільки те, чого user-orders реально не дає під очікуваними іменами:
+// ідентифікатор замовлення (hash/oid — все ще підтверджено, що там не hash, а номер) і
+// назви міст/час (там лише from1/to1/date1 — id міст і дата без години).
 export function keepOurPrice(current: any, fresh: any) {
-  const freshPaid = Number(fresh?.paid_uah ?? fresh?.pay_uah ?? 0) || Number(fresh?.paid_eur ?? fresh?.pay_eur ?? 0)
-  // ВАЖЛИВО: hash/oid НІКОЛИ не беремо зі свіжої відповіді. Підтверджено прогером —
-  // neworder не повертає hash взагалі (тільки номер і дані), а те, що order_info віддає
-  // в полі "hash" — виявилось номером платежу LiqPay, а не стабільним ідентифікатором
-  // замовлення. Якщо дати цьому полю перезаписати наш order.hash (=реальний номер
-  // замовлення) — усі наступні запити order_info підуть по хибному ідентифікатору,
-  // і застосунок перестає бачити власне щойно створене замовлення.
-  //
-  // Так само from_city/to_city/ftime/ttime/fstation/tstation — реальний user-orders
-  // не дає назв міст і повного часу під цими іменами (тільки from1/to1/date1 — id міст
-  // і сама дата, без години). Якщо не підстрахувати — після мержу з реальними даними
-  // ці поля лишаються порожніми (звідси "Дата відправлення:" без значення).
-  const displayFields = {
+  return {
+    ...fresh,
+    hash: current?.hash,
+    oid: current?.oid,
     from_city: fresh?.from_city || current?.from_city,
     to_city: fresh?.to_city || current?.to_city,
     fstation: fresh?.fstation || current?.fstation,
@@ -70,21 +68,6 @@ export function keepOurPrice(current: any, fresh: any) {
     roundTrip: current?.roundTrip,
     ftime2: current?.ftime2,
     ttime2: current?.ttime2,
-  }
-  if (freshPaid > 0) {
-    // Оплата вже реально відбулась — ціну (summ/price) більше не тримаємо нашою, довіряємо
-    // фактичній сумі з бекенду (менеджер міг додати/змінити ціну). АЛЕ тариф — не чіпаємо:
-    // менеджер тариф ніколи не міняє, це стала характеристика самого квитка.
-    return { ...fresh, hash: current?.hash, oid: current?.oid, tariff: current?.tariff, ...displayFields }
-  }
-  return {
-    ...fresh,
-    hash: current?.hash,
-    oid: current?.oid,
-    summ: current?.summ,
-    price: current?.price,
-    tariff: current?.tariff,
-    ...displayFields,
   }
 }
 
