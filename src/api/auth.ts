@@ -33,7 +33,7 @@ export const authRepass2 = (email: string, code: string) => inputPost({ opr: 're
 export const authRepass3 = (email: string, pass: string, code: string) => inputPost({ opr: 'repass_3', email, pass, code, mod: 'apimobile' })
 
 // Історія всіх замовлень користувача (не тільки ті, що збережені локально на цьому пристрої)
-export const getUserOrders = () => inputPost({ opr: 'user-orders', uidkey: currentUidKey() })
+export const getUserOrders = () => inputPost({ mod: 'apimobile', opr: 'user-orders', uidkey: currentUidKey() })
 
 // order_info вже НЕ використовується (підтверджено прогером) — замість нього user-orders,
 // звідти шукаємо потрібне замовлення за oid. Це єдиний офіційний спосіб оновити статус/
@@ -46,7 +46,7 @@ export async function findUserOrder(oid: string): Promise<any | null> {
 
 // Редагування профілю. Поля можна передавати разом або окремо: header/email/pass/phone
 export const editProfile = (fields: Partial<{ header: string; email: string; pass: string; phone: string }>) =>
-  inputPost({ opr: 'edit', uidkey: currentUidKey(), ...fields })
+  inputPost({ mod: 'apimobile', opr: 'edit', uidkey: currentUidKey(), ...fields })
 
 // Зберегти FCM-токен пристрою для push-сповіщень
 export const saveDeviceToken = (token: string, app: '1' | '2') =>
