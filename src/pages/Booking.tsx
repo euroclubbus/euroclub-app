@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Pencil, X, Plus } from 'lucide-react'
+import { ArrowLeft, Pencil, X, Plus, Trash2 } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { useAuthStore } from '../authStore'
 import { saveOrderLocally } from '../api/euroclub'
@@ -70,6 +70,7 @@ export default function Booking() {
   const orderedDiscounts = [ fullFare, ...discountOptions.filter(d => !isFull(d)) ]
   const catName = (d: any) => d.name && d.name.trim() ? d.name : t('booking.fullFare')
   const [showDiscountFor, setShowDiscountFor] = useState<number | null>(null)
+  const [draftDiscountId, setDraftDiscountId] = useState<string | null>(null)
   const [showAddPicker, setShowAddPicker] = useState(false)
   const { user } = useAuthStore()
   useEffect(() => { if (user?.email && !contactEmail) setContact('email', user.email) }, [user])
@@ -120,6 +121,15 @@ export default function Booking() {
   // бронювання сама рахує суму по пасажирах зі своїх кодів знижок. У прев'ю/на екрані —
   // завжди показуємо `total` (нашу ціну), а не тариф.
   const tariff = isRoundTrip ? (twoWayGroup?.tariff ?? subtotal) : subtotal
+
+  // Ціна конкретної категорії знижки для показу в пікерах вибору — якщо це рейс в два боки,
+  // категорія має показувати ціну В ДВА БОКИ (тариф, масштабований за співвідношенням
+  // знижки цієї категорії до повної one-way ціни), а не саму one-way ціну зі знижкою.
+  // Раніше пікер завжди показував d.price напряму (one-way) — тому "Повний тариф" показував
+  // 5500 замість 9500+ для рейсу в два боки.
+  const fullOneWay = fullFareOneWayPrice(trip)
+  const categoryPrice = (oneWayPrice: number) =>
+    isRoundTrip && fullOneWay > 0 ? Math.round(tariff * (oneWayPrice / fullOneWay)) : oneWayPrice
 
   // Промокод (наприклад, приз за гру EuroClub Racer) — знижка застосовується лише в застосунку,
   // на боці eclub.com.ua не існує (поки прогер не додасть офіційне поле для промокодів).
@@ -320,17 +330,10 @@ export default function Booking() {
               <div key={idx} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: idx < totalPax - 1 ? '1px solid #F5F5F5' : 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <span style={{ fontWeight: 700, fontSize: 14 }}>Пасажир {idx + 1}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <button onClick={() => setShowDiscountFor(isEditing ? null : idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isEditing ? ORange : Gray, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Pencil size={15} color={isEditing ? ORange : Gray} />
-                      <span style={{ fontSize: 12, color: isEditing ? ORange : Gray }}>Знижка</span>
-                    </button>
-                    {totalPax > 1 && (
-                      <button onClick={() => removePassenger(idx)} aria-label="Видалити пасажира" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                        <X size={17} color="#C4C4C4" />
-                      </button>
-                    )}
-                  </div>
+                  <button onClick={() => { setDraftDiscountId(effectiveDiscountId(idx)); setShowDiscountFor(isEditing ? null : idx) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isEditing ? ORange : Gray, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Pencil size={15} color={isEditing ? ORange : Gray} />
+                    <span style={{ fontSize: 12, color: isEditing ? ORange : Gray }}>Знижка</span>
+                  </button>
                 </div>
                 <input
                   placeholder={t('booking.namePlaceholder')}
@@ -351,25 +354,43 @@ export default function Booking() {
                 {/* Поточна знижка */}
                 {currentDiscount && !isEditing && (
                   <div style={{ fontSize: 13, color: Gray, marginBottom: 4 }}>
-                    {currentDiscount.name} — <strong>{format(currentDiscount.price, trip?.currency)}</strong>
+                    {currentDiscount.name} — <strong>{format(categoryPrice(currentDiscount.price), trip?.currency)}</strong>
                   </div>
                 )}
-                {/* Редагування знижки */}
+                {/* Редагування знижки — вибір лише підсвічує (чернетка), застосовується по OK */}
                 {isEditing && orderedDiscounts.length > 0 && (
                   <div style={{ background: '#F9F9F9', borderRadius: 12, padding: 12, marginBottom: 8 }}>
                     <div style={{ fontSize: 12, color: Gray, marginBottom: 8, fontWeight: 600 }}>Оберіть категорію:</div>
                     {orderedDiscounts.map(d => (
-                      <button key={d.id} onClick={() => { setPassengerDiscount(idx, String(d.id)); setShowDiscountFor(null) }} style={{
-                        width: '100%', padding: '10px 14px', background: String(d.id) === currentDiscountId ? '#FFF3DC' : '#fff',
-                        border: String(d.id) === currentDiscountId ? `1.5px solid ${ORange}` : '1.5px solid #EEE',
+                      <button key={d.id} onClick={() => setDraftDiscountId(String(d.id))} style={{
+                        width: '100%', padding: '10px 14px', background: String(d.id) === draftDiscountId ? '#FFF3DC' : '#fff',
+                        border: String(d.id) === draftDiscountId ? `1.5px solid ${ORange}` : '1.5px solid #EEE',
                         borderRadius: 10, cursor: 'pointer', textAlign: 'left', marginBottom: 6,
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                       }}>
-                        <span style={{ fontSize: 13, fontWeight: String(d.id) === currentDiscountId ? 700 : 400 }}>{catName(d)}</span>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(d.price, trip?.currency)}</span>
+                        <span style={{ fontSize: 13, fontWeight: String(d.id) === draftDiscountId ? 700 : 400 }}>{catName(d)}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(categoryPrice(d.price), trip?.currency)}</span>
                       </button>
                     ))}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                      <button onClick={() => setShowDiscountFor(null)} aria-label="Закрити без збереження" style={{
+                        width: 44, flexShrink: 0, padding: 10, background: '#fff', border: '1.5px solid #EEE',
+                        borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}><X size={16} color={Gray} /></button>
+                      <button onClick={() => { if (draftDiscountId) setPassengerDiscount(idx, draftDiscountId); setShowDiscountFor(null) }} style={{
+                        flex: 1, padding: 10, background: ORange, border: 'none', color: '#fff',
+                        borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 13,
+                      }}>OK</button>
+                    </div>
                   </div>
+                )}
+                {totalPax > 1 && !isEditing && (
+                  <button onClick={() => removePassenger(idx)} style={{
+                    display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none',
+                    cursor: 'pointer', color: '#C4645A', fontSize: 12, fontWeight: 600, padding: 0, marginTop: 6,
+                  }}>
+                    <Trash2 size={14} /> Видалити пасажира
+                  </button>
                 )}
               </div>
             )
@@ -394,7 +415,7 @@ export default function Booking() {
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                 }}>
                   <span style={{ fontSize: 13 }}>{catName(d)}</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(d.price, trip?.currency)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(categoryPrice(d.price), trip?.currency)}</span>
                 </button>
               ))}
             </div>
