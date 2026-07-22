@@ -194,33 +194,33 @@ function PassengersSheet({ open, onClose }: { open: boolean; onClose: () => void
 
   return (
     <BottomSheet open={open} onClose={onClose} title={t('home.passengersSheetTitle')}>
-      <div style={{ padding: '4px 20px 24px' }}>
+      <div style={{ padding: '0 20px 16px' }}>
         {cats.length === 0 && <div style={{ textAlign: 'center', color: Gray, padding: 24 }}>Завантаження...</div>}
         {cats.map((d: any) => {
           const id = String(d.id)
           const n = counts[id] || 0
           return (
-            <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #F2F2F2' }}>
-              <span style={{ fontSize: 15, fontWeight: 600, color: '#1A1A1A' }}>{d.name}</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <button onClick={() => change(id, -1)} disabled={n === 0} style={{ width: 36, height: 36, borderRadius: '50%', border: '1.5px solid #DDD', background: 'none', cursor: n === 0 ? 'default' : 'pointer', fontSize: 20, color: n === 0 ? '#DDD' : '#555', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
-                <span style={{ width: 20, textAlign: 'center', fontWeight: 700, fontSize: 18 }}>{n}</span>
-                <button onClick={() => change(id, 1)} style={{ width: 36, height: 36, borderRadius: '50%', border: `1.5px solid ${ORange}`, background: 'none', cursor: 'pointer', fontSize: 20, color: ORange, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+            <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F2F2F2' }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A' }}>{d.name}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button onClick={() => change(id, -1)} disabled={n === 0} style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid #DDD', background: 'none', cursor: n === 0 ? 'default' : 'pointer', fontSize: 17, color: n === 0 ? '#DDD' : '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>−</button>
+                <span style={{ width: 16, textAlign: 'center', fontWeight: 700, fontSize: 15 }}>{n}</span>
+                <button onClick={() => change(id, 1)} style={{ width: 30, height: 30, borderRadius: '50%', border: `1.5px solid ${ORange}`, background: 'none', cursor: 'pointer', fontSize: 17, color: ORange, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>+</button>
               </div>
             </div>
           )
         })}
-        <div style={{ color: Gray, fontSize: 13, textAlign: 'center', margin: '16px 0', lineHeight: 1.5 }}>
-          Всього пасажирів: <strong style={{ color: '#1A1A1A' }}>{total}</strong>. Вартість зі знижками з'явиться на результатах пошуку — по кожному рейсу окремо.
+        <div style={{ color: Gray, fontSize: 11.5, textAlign: 'center', margin: '10px 0', lineHeight: 1.4 }}>
+          Всього пасажирів: <strong style={{ color: '#1A1A1A' }}>{total}</strong>. Вартість зі знижками з'явиться на результатах пошуку.
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={onClose} aria-label="Закрити без збереження" style={{
-            width: 52, flexShrink: 0, padding: 16, background: '#F5F5F5', color: '#555',
-            border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 18, cursor: 'pointer'
+            width: 46, flexShrink: 0, padding: 12, background: '#F5F5F5', color: '#555',
+            border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 16, cursor: 'pointer'
           }}>✕</button>
           <button onClick={confirm} style={{
-            flex: 1, padding: 16, background: ORange, color: '#fff',
-            border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer'
+            flex: 1, padding: 12, background: ORange, color: '#fff',
+            border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer'
           }}>OK</button>
         </div>
       </div>
