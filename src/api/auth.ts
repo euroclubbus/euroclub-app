@@ -64,9 +64,10 @@ export const applyPromoCode = (code: string, oid: string) =>
   inputPost({ mod: 'procode', code, oid, uidkey: currentUidKey() })
 
 // Нове замовлення (задокументована версія, opr=neworder). На відміну від старого order_new
-// (окремий /v1/json/order_new/ ендпоінт), це йде через /input, і відповідь дає лише `oid`
-// (номер замовлення), а не `hash` — ще НЕ перевірено на реальних даних, чи приймають
-// order_info/order_cancel/order_restore цей oid замість hash, чи це різні речі.
+// (окремий /v1/json/order_new/ ендпоінт), це йде через /input. ПІДТВЕРДЖЕНО прогером:
+// відповідь дає `oid` (номер замовлення), НЕ `hash` — order_info більше не використовується
+// взагалі (застарілий метод), для оновлення статусу/оплати — тільки user-orders + пошук за oid
+// (див. findUserOrder нижче).
 export interface NewOrderPassenger { name: string; discount: string; place1?: string; place2?: string }
 
 export async function createOrderNew(
