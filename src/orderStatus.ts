@@ -55,8 +55,26 @@ export function keepOurPrice(current: any, fresh: any) {
   // замовлення. Якщо дати цьому полю перезаписати наш order.hash (=реальний номер
   // замовлення) — усі наступні запити order_info підуть по хибному ідентифікатору,
   // і застосунок перестає бачити власне щойно створене замовлення.
+  //
+  // Так само from_city/to_city/ftime/ttime/fstation/tstation — реальний user-orders
+  // не дає назв міст і повного часу під цими іменами (тільки from1/to1/date1 — id міст
+  // і сама дата, без години). Якщо не підстрахувати — після мержу з реальними даними
+  // ці поля лишаються порожніми (звідси "Дата відправлення:" без значення).
+  const displayFields = {
+    from_city: fresh?.from_city || current?.from_city,
+    to_city: fresh?.to_city || current?.to_city,
+    fstation: fresh?.fstation || current?.fstation,
+    tstation: fresh?.tstation || current?.tstation,
+    ftime: fresh?.ftime || current?.ftime,
+    ttime: fresh?.ttime || current?.ttime,
+    roundTrip: current?.roundTrip,
+    ftime2: current?.ftime2,
+    ttime2: current?.ttime2,
+  }
   if (freshPaid > 0) {
-    return { ...fresh, hash: current?.hash, oid: current?.oid, tariff: current?.tariff, roundTrip: current?.roundTrip, ftime2: current?.ftime2, ttime2: current?.ttime2 }
+    // Оплата вже реально відбулась — тариф (наша ДОоплатна оцінка) більше не показуємо,
+    // він міг не збігтись з тим, що менеджер виставив по факту в системі бронювання.
+    return { ...fresh, hash: current?.hash, oid: current?.oid, ...displayFields }
   }
   return {
     ...fresh,
@@ -65,10 +83,20 @@ export function keepOurPrice(current: any, fresh: any) {
     summ: current?.summ,
     price: current?.price,
     tariff: current?.tariff,
-    roundTrip: current?.roundTrip,
-    ftime2: current?.ftime2,
-    ttime2: current?.ttime2,
+    ...displayFields,
   }
+}
+
+// Формат місця в два боки — бекенд віддає "47/44" (місце туди/місце назад через слеш).
+// В один бік — просто число, лишаємо як є.
+export function formatSeat(place: any): string {
+  const s = String(place ?? '').trim()
+  if (!s || s === '0') return '—'
+  if (s.includes('/')) {
+    const [out, back] = s.split('/')
+    return `туди ${out} · назад ${back}`
+  }
+  return s
 }
 
 export function isCancelled(o: any): boolean {

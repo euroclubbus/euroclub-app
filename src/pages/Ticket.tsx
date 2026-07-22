@@ -3,7 +3,7 @@ import { useRef, useState, useEffect } from 'react'
 import { ArrowLeft, Download, ChevronRight } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
-import { ticketAvailable, payInfo, needsPolling, keepOurPrice } from '../orderStatus'
+import { ticketAvailable, payInfo, needsPolling, keepOurPrice, formatSeat } from '../orderStatus'
 import { useDisplayPrice } from '../currency'
 import { useOrderPolling } from '../useOrderPolling'
 
@@ -185,7 +185,7 @@ export default function Ticket() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 600 }}>{p.name || '—'}</div>
-                      {p.ticket && <div style={{ fontSize: 11, color: Gray }}>Квиток № {p.ticket}{suffix} · Місце {p.place && p.place !== '0' ? p.place : '—'}</div>}
+                      {p.ticket && <div style={{ fontSize: 11, color: Gray }}>Квиток № {p.ticket}{suffix} · Місце {formatSeat(p.place)}</div>}
                     </div>
                     <div style={{ fontSize: 15, fontWeight: 700 }}>{format(passengers.length === 1 ? (data?.summ ?? data?.price) : (p.price ?? data?.summ ?? data?.price), currency)}</div>
                   </div>

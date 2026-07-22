@@ -4,7 +4,7 @@ import { ArrowLeft, Phone, Mail, Globe, ShieldCheck } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
 import { useDisplayPrice } from '../currency'
-import { payInfo, needsPolling, keepOurPrice } from '../orderStatus'
+import { payInfo, needsPolling, keepOurPrice, formatSeat } from '../orderStatus'
 import { useOrderPolling } from '../useOrderPolling'
 
 const ORange = '#F5A623'
@@ -163,7 +163,7 @@ export default function TicketDetails() {
             <div>
               <div style={{ fontSize: 14.5, fontWeight: 700 }}>{p.name || '—'}</div>
               <div style={{ fontSize: 11.5, color: Gray, marginTop: 2 }}>
-                {p.ticket && <>№ {p.ticket}{suffix} · </>}Місце {p.place && p.place !== '0' ? p.place : '—'}
+                {p.ticket && <>№ {p.ticket}{suffix} · </>}Місце {formatSeat(p.place)}
               </div>
             </div>
             <div style={{ fontSize: 14.5, fontWeight: 700 }}>{format(passengers.length === 1 ? (data?.summ ?? data?.price) : (p.price ?? data?.summ ?? data?.price), currency)}</div>
