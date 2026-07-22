@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, Wifi, Zap, Bus, MessageCircle, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Clock, Wifi, Zap, Bus, MessageCircle, AlertTriangle, Menu } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { getRoutes } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
 import { perPassengerOneWayPrices, fullFareOneWayPrice } from '../passengerPricing'
 import { useDisplayPrice } from '../currency'
 import CurrencyToggle from '../components/CurrencyToggle'
+import SideMenu from '../components/SideMenu'
 import { useT } from '../i18n'
 
 const ORange = '#F5A623'
@@ -330,6 +331,7 @@ function BlockedLegCard({ label, cities, leg, requestedISO, onBack }: { label: s
 // ─── Main Page ─────────────────────────────────────────────────────────────
 export default function Results() {
   const nav = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
   const { from, to, dateFrom, dateTo, isOpenReturn, passengerCategories } = useSearchStore()
   const { setTrip, setTrip2 } = useBookingStore()
 
@@ -385,6 +387,9 @@ export default function Results() {
               <ArrowLeft size={24} color="#fff" />
             </button>
             <span style={{ color: '#fff', fontSize: 20, fontWeight: 800, flex: 1 }}>Результати пошуку</span>
+            <button onClick={() => setMenuOpen(true)} aria-label="Меню" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+              <Menu size={24} color="#fff" />
+            </button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#fff' }}>
             <span style={{ fontWeight: 700, fontSize: 16, whiteSpace: 'nowrap' }}>{from?.name}</span>
@@ -453,6 +458,7 @@ export default function Results() {
           </>
         )}
       </div>
+      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
     </div>
   )
 }

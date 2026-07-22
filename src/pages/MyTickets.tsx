@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Menu } from 'lucide-react'
 import { getLocalOrders, saveOrderLocally } from '../api/euroclub'
 import { getUserOrders } from '../api/auth'
 import { useBookingStore } from '../store'
 import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted, isPaidCancellation, keepOurPrice } from '../orderStatus'
+import SideMenu from '../components/SideMenu'
 import { useT } from '../i18n'
 
 const ORange = '#F5A623'
@@ -14,6 +16,7 @@ export default function MyTickets() {
   const nav = useNavigate()
   const { setOrderResult } = useBookingStore()
   const t = useT()
+  const [menuOpen, setMenuOpen] = useState(false)
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -130,8 +133,11 @@ export default function MyTickets() {
       <div style={{ position: 'relative', overflow: 'hidden' }}>
         <img src="/bus-hero.png" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(7px) brightness(0.7)', transform: 'scale(1.1)' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,28,58,0.45)' }} />
-        <div style={{ position: 'relative', padding: 'calc(env(safe-area-inset-top) + 20px) 16px 16px' }}>
+        <div style={{ position: 'relative', padding: 'calc(env(safe-area-inset-top) + 20px) 16px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>{t('orders.title')}</span>
+          <button onClick={() => setMenuOpen(true)} aria-label="Меню" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            <Menu size={24} color="#fff" />
+          </button>
         </div>
       </div>
 
@@ -245,6 +251,7 @@ export default function MyTickets() {
           )
         })}
       </div>
+      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
     </div>
   )
 }

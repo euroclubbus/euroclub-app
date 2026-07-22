@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, LogOut, Ticket, Mail, Phone, Pencil, Check, X, Plus, Trash2, Users, Coins } from 'lucide-react'
+import { User, LogOut, Ticket, Mail, Phone, Pencil, Check, X, Plus, Trash2, Users, Coins, Menu } from 'lucide-react'
 import { useAuthStore } from '../authStore'
 import { editProfile, getUserOrders } from '../api/auth'
 import { getSavedPassengers, addSavedPassenger, removeSavedPassenger, setSavedPassengerBirthday, SavedPassenger } from '../savedPassengers'
@@ -8,6 +8,7 @@ import Auth from './Auth'
 import { useT } from '../i18n'
 import { useDisplayPrice } from '../currency'
 import LanguageSwitcher from '../components/LanguageSwitcher'
+import SideMenu from '../components/SideMenu'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -15,6 +16,7 @@ const Gray = '#9E9E9E'
 export default function Profile() {
   const nav = useNavigate()
   const t = useT()
+  const [menuOpen, setMenuOpen] = useState(false)
   const { user, logout, setUser } = useAuthStore()
   const { format } = useDisplayPrice()
   const [cab, setCab] = useState<Record<string, any> | null>(null)
@@ -94,10 +96,13 @@ export default function Profile() {
             <span style={{ position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, borderRadius: '50%', background: ORange, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fff' }}>✎</span>
           </div>
           <input ref={fileRef} type="file" accept="image/*" onChange={pickAvatar} style={{ display: 'none' }} />
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ color: '#fff', fontSize: 18, fontWeight: 800 }}>{user.header || t('profile.title')}</div>
             <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13 }}>{user.email}</div>
           </div>
+          <button onClick={() => setMenuOpen(true)} aria-label="Меню" style={{ background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+            <Menu size={24} color="#fff" />
+          </button>
         </div>
       </div>
 
@@ -241,6 +246,7 @@ export default function Profile() {
           <LogOut size={18} /> {t('profile.logout')}
         </button>
       </div>
+      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
     </div>
   )
 }
