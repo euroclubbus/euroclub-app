@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBookingStore, useSearchStore } from '../store'
 import { cancelOrder, restoreOrder, getCities, getRoutes } from '../api/euroclub'
-import { ticketAvailable, statusLabel, payInfo, needsPolling, canRestore, keepOurPrice } from '../orderStatus'
+import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat } from '../orderStatus'
 import { useOrderPolling } from '../useOrderPolling'
 import { useDisplayPrice } from '../currency'
 import SeatMap from './SeatMap'
@@ -70,6 +70,7 @@ export default function OrderSuccess() {
   const [bonusApplying, setBonusApplying] = useState(false)
   const [bonusError, setBonusError] = useState('')
   const [bonusApplied, setBonusApplied] = useState(false)
+  const [wantsBonus, setWantsBonus] = useState(false)
   useEffect(() => {
     getUserOrders().then((res: any) => setCabBonus(Number(res?.cab?.['b='] ?? 0))).catch(() => {})
   }, [])
@@ -100,7 +101,16 @@ export default function OrderSuccess() {
   const { format } = useDisplayPrice()
   const price = data?.summ ?? data?.price ?? trip?.price ?? 0
   const summ = data?.summ ?? price
-  const passengers = data?.passangers || []
+  // Бекенд (справжня відповідь) віддає passengers[] (без "а") з полями name/dsc/prc/tck/plc —
+  // а не passangers[]/place/price, як ми самі називаємо в локально побудованих об'єктах при
+  // створенні (Booking.tsx). Раніше тут читалось лише data?.passangers (з друкарською
+  // помилкою) — тому після фонового оновлення реальними даними пасажири зникали з екрану.
+  const rawPax = data?.passengers?.length ? data.passengers : data?.passangers
+  let passengers: any[] = (rawPax || []).map((p: any) => ({ name: p.name, place: p.plc ?? p.place, price: p.prc ?? p.price }))
+  {
+    const split = passengerDisplayPrices(Number(summ) || 0, passengers)
+    passengers = passengers.map((p, i) => ({ ...p, price: split[i] }))
+  }
 
   const [priceReady, setPriceReady] = useState(() => !needsPolling(data))
   useEffect(() => {
@@ -316,9 +326,9 @@ export default function OrderSuccess() {
               <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', marginBottom: 4, fontSize: 14 }}>
                 <div style={{ fontWeight: 600 }}>{p.name}</div>
                 <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                  <span>💺</span><span>{p.place}</span>
+                  <span>💺</span><span>{formatSeat(p.place)}</span>
                 </div>
-                <div style={{ textAlign: 'right', fontWeight: 600 }}>{format(passengers.length === 1 ? price : (p.price ?? price), currencyCode)}</div>
+                <div style={{ textAlign: 'right', fontWeight: 600 }}>{format(p.price, currencyCode)}</div>
               </div>
             ))}
           </div>
@@ -336,20 +346,38 @@ export default function OrderSuccess() {
         {/* Бонуси Cashback Club — списати на це замовлення (до 10% від вартості, перевіряє бекенд) */}
         {status === 'active' && !payInfo(data).fullyPaid && cabBonus != null && cabBonus > 0 && (
           <div style={{ background: '#FFF9EF', borderRadius: 14, padding: 14, marginBottom: 20 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Списати бонуси</div>
-            <div style={{ fontSize: 12, color: Gray, marginBottom: 10 }}>Доступно: {format(cabBonus, currencyCode)} (максимум 10% від вартості замовлення)</div>
-            {bonusApplied ? (
-              <div style={{ color: '#2E7D32', fontWeight: 700, fontSize: 13 }}>Бонуси списано ✓</div>
-            ) : (
+            <button onClick={() => setWantsBonus(v => !v)} style={{
+              width: '100%', display: 'flex', gap: 10, alignItems: 'center',
+              background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0,
+              marginBottom: wantsBonus ? 10 : 0,
+            }}>
+              <div style={{
+                width: 18, height: 18, borderRadius: 5, flexShrink: 0,
+                border: `2px solid ${wantsBonus ? ORange : '#DDD'}`,
+                background: wantsBonus ? ORange : 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {wantsBonus && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
+              </div>
+              <span style={{ fontWeight: 700, fontSize: 14 }}>Списати бонуси</span>
+            </button>
+            {wantsBonus && (
               <>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input value={bonusInput} onChange={e => setBonusInput(e.target.value)} type="number" min={0} max={cabBonus}
-                    placeholder="Сума" style={{ flex: 1, padding: '10px 12px', border: '1.5px solid #EEE', borderRadius: 10, fontSize: 14 }} />
-                  <button onClick={applyBonus} disabled={bonusApplying || !bonusInput} style={{ padding: '0 18px', background: ORange, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: bonusApplying ? 0.7 : 1 }}>
-                    {bonusApplying ? '...' : 'Списати'}
-                  </button>
-                </div>
-                {bonusError && <div style={{ color: '#E53935', fontSize: 12, marginTop: 8 }}>{bonusError}</div>}
+                <div style={{ fontSize: 12, color: Gray, marginBottom: 10 }}>Доступно: {format(cabBonus, currencyCode)} (максимум 10% від вартості замовлення)</div>
+                {bonusApplied ? (
+                  <div style={{ color: '#2E7D32', fontWeight: 700, fontSize: 13 }}>Бонуси списано ✓</div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input value={bonusInput} onChange={e => setBonusInput(e.target.value)} type="number" min={0} max={cabBonus}
+                        placeholder="Сума" style={{ flex: 1, padding: '10px 12px', border: '1.5px solid #EEE', borderRadius: 10, fontSize: 14 }} />
+                      <button onClick={applyBonus} disabled={bonusApplying || !bonusInput} style={{ padding: '0 18px', background: ORange, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: bonusApplying ? 0.7 : 1 }}>
+                        {bonusApplying ? '...' : 'Списати'}
+                      </button>
+                    </div>
+                    {bonusError && <div style={{ color: '#E53935', fontSize: 12, marginTop: 8 }}>{bonusError}</div>}
+                  </>
+                )}
               </>
             )}
           </div>
@@ -375,8 +403,8 @@ export default function OrderSuccess() {
           <button onClick={handleRestore} disabled={loading} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
             {loading ? '...' : t('os.restore')}
           </button>
-        ) : !canRestore(data) ? (
-          // Неоплачене, скасоване, до рейсу лишилось <=24 год — відновлення закрите
+        ) : restoreEligibility(data) === 'too_close' ? (
+          // Неоплачене, скасоване, підтверджено <24 год до рейсу — відновлення закрите
           <div style={{ textAlign: 'center', color: Gray, fontSize: 14, padding: '10px 4px', lineHeight: 1.5 }}>
             {t('os.restoreUnavailable')}
           </div>

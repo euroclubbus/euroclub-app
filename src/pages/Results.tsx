@@ -254,7 +254,7 @@ function legNeedsConfirm(leg: LegState): boolean {
 type LegSearchResult = LegState & { setAgreed: (v: boolean) => void }
 
 // Блок "на цю дату немає рейсу, пропонуємо найближчу" — чекбокс явного погодження.
-function DateFallbackCard({ label, requestedISO, leg }: { label: string; requestedISO: string; leg: LegSearchResult }) {
+function DateFallbackCard({ label, requestedISO, leg, onPickDate }: { label: string; requestedISO: string; leg: LegSearchResult; onPickDate: (iso: string) => void }) {
   return (
     <div style={{ background: '#fff', borderRadius: 20, padding: 20, marginBottom: 14 }}>
       <div style={{ fontSize: 15, fontWeight: 700, color: '#1A1A1A', marginBottom: 6 }}>
@@ -282,6 +282,22 @@ function DateFallbackCard({ label, requestedISO, leg }: { label: string; request
           Погодитись з іншою датою ({fmtLongISO(leg.nearest!.date)})
         </span>
       </button>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+        <div style={{ flex: 1, borderTop: '1px solid #EEE' }} />
+        <span style={{ fontSize: 12, color: Gray }}>або</span>
+        <div style={{ flex: 1, borderTop: '1px solid #EEE' }} />
+      </div>
+      <label style={{ display: 'block', marginTop: 12, position: 'relative' }}>
+        <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 6 }}>Обрати іншу дату в календарі</span>
+        <input
+          type="date"
+          defaultValue=""
+          min={new Date().toISOString().split('T')[0]}
+          onChange={e => e.target.value && onPickDate(e.target.value)}
+          style={{ width: '100%', padding: '12px 14px', border: '1px solid #EEE', borderRadius: 14, fontSize: 14, color: '#1A1A1A' }}
+        />
+      </label>
     </div>
   )
 }
@@ -329,10 +345,38 @@ function BlockedLegCard({ label, cities, leg, requestedISO, onBack }: { label: s
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
+// Компактна стрічка дат над результатами — 7 днів навколо обраної, тап міняє дату
+// виїзду й автоматично перезапускає пошук (через залежність useLegSearch від dateFrom).
+const DOW_SHORT = ['нд','пн','вт','ср','чт','пт','сб']
+function DateStrip({ dateISO, onChange }: { dateISO: string; onChange: (iso: string) => void }) {
+  if (!dateISO) return null
+  const center = new Date(dateISO)
+  const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(center); d.setDate(d.getDate() + i - 3); return d })
+  return (
+    <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '10px 16px', background: '#fff' }}>
+      {days.map(d => {
+        const iso = d.toISOString().split('T')[0]
+        const isPast = d < new Date(new Date().toDateString())
+        const isSel = iso === dateISO
+        return (
+          <button key={iso} onClick={() => !isPast && onChange(iso)} disabled={isPast} style={{
+            flexShrink: 0, minWidth: 46, padding: '6px 4px', borderRadius: 12, border: 'none',
+            background: isSel ? ORange : '#F5F5F5', color: isSel ? '#fff' : isPast ? '#CCC' : '#333',
+            cursor: isPast ? 'default' : 'pointer', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 10, opacity: 0.85 }}>{DOW_SHORT[d.getDay()]}</div>
+            <div style={{ fontSize: 15, fontWeight: 800 }}>{d.getDate()}</div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function Results() {
   const nav = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
-  const { from, to, dateFrom, dateTo, isOpenReturn, passengerCategories } = useSearchStore()
+  const { from, to, dateFrom, dateTo, isOpenReturn, passengerCategories, setDateFrom } = useSearchStore()
   const { setTrip, setTrip2 } = useBookingStore()
 
   const isRoundTrip = !!dateTo || isOpenReturn
@@ -369,10 +413,8 @@ export default function Results() {
     if (isRoundTrip) {
       if (!retTrip) return
       setTrip2(retTrip)
-      nav('/round-trip-summary')
-    } else {
-      nav('/booking')
     }
+    nav('/booking')
   }
 
   return (
@@ -405,6 +447,8 @@ export default function Results() {
           </div>
         </div>
       </div>
+
+      <DateStrip dateISO={dateFrom} onChange={setDateFrom} />
 
       {/* Results */}
       <div style={{ padding: '16px 16px 0', minHeight: 'calc(100vh - 200px)' }}>

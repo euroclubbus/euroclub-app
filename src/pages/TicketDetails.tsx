@@ -135,7 +135,7 @@ export default function TicketDetails() {
       <div style={{ margin: '12px 16px 0', display: 'flex', gap: 10 }}>
         <div style={{ flex: 1, background: '#fff', borderRadius: 16, padding: '12px 14px' }}>
           <div style={{ fontSize: 10.5, color: Gray, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-            {data?.roundTrip ? `Тариф квитка (${passengers.length} ${ticketWord(passengers.length)})` : 'Тариф квитка'}
+            {'Усього'}
           </div>
           <div style={{ fontSize: 17, fontWeight: 800, marginTop: 2 }}>{format(data?.summ ?? data?.price, currency)}</div>
         </div>

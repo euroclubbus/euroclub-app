@@ -199,7 +199,7 @@ export default function Ticket() {
                   {!hasMultiple && (
                     <>
                       <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12, marginTop: 4, borderTop: '1px solid #EEE' }}>
-                        <span style={{ fontSize: 15, fontWeight: 700 }}>{data?.roundTrip ? `Тариф квитка (${passengers.length} ${ticketWord(passengers.length)})` : 'Тариф квитка'}</span>
+                        <span style={{ fontSize: 15, fontWeight: 700 }}>{'Усього'}</span>
                         <span style={{ fontSize: 18, fontWeight: 800 }}>{format(data?.summ ?? data?.price ?? trip?.price, currency)}</span>
                       </div>
                       {(() => { const pi = payInfo(data); return pi.remainder > 0 ? (
@@ -234,7 +234,7 @@ export default function Ticket() {
       {hasMultiple && (
         <div className="no-print" style={{ margin: '8px 16px 0', background: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: '12px 16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 600 }}>{data?.roundTrip ? `Тариф квитка (${passengers.length} ${ticketWord(passengers.length)})` : 'Тариф квитка'}</span>
+            <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 600 }}>{'Усього'}</span>
             <span style={{ color: '#fff', fontSize: 15, fontWeight: 800 }}>{format(data?.summ ?? data?.price ?? trip?.price, currency)}</span>
           </div>
           {(() => { const pi = payInfo(data); return pi.remainder > 0 && (

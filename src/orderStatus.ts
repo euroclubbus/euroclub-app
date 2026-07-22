@@ -134,12 +134,21 @@ export function hoursUntilDeparture(o: any): number | null {
   return d ? (d.getTime() - Date.now()) / 3600000 : null
 }
 
-// Відновити можна лише неоплачене і скасоване замовлення, і лише якщо до рейсу > 24 год
-export function canRestore(o: any): boolean {
-  if (!isCancelled(o)) return false
-  if (payInfo(o).paid > 0) return false
+// Відновити можна лише неоплачене і скасоване замовлення, і лише якщо до рейсу > 24 год.
+// ВАЖЛИВО: якщо ftime невідомий (не завжди повертається в user-orders — див. коментарі
+// в keepOurPrice), це НЕ означає "менше 24 годин" — це "не можемо перевірити". Раніше обидва
+// випадки показували один і той самий текст "менше 24 годин", що вводило в оману, коли
+// причина була просто у відсутніх даних, а не в реальній близькості рейсу.
+export type RestoreBlockReason = 'ok' | 'too_close' | 'unknown_date' | 'paid' | 'not_cancelled'
+export function restoreEligibility(o: any): RestoreBlockReason {
+  if (!isCancelled(o)) return 'not_cancelled'
+  if (payInfo(o).paid > 0) return 'paid'
   const h = hoursUntilDeparture(o)
-  return h !== null && h > 24
+  if (h === null) return 'unknown_date'
+  return h > 24 ? 'ok' : 'too_close'
+}
+export function canRestore(o: any): boolean {
+  return restoreEligibility(o) === 'ok'
 }
 
 // --- «Квиток сформовано» — фіксація на пристрої (не зникає) ---

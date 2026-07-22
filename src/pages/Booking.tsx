@@ -250,9 +250,18 @@ export default function Booking() {
         // бекенд повідомить справжню сплачену суму, довіряємо вже його числам (див. коментар
         // у orderStatus.ts:keepOurPrice). order_info вже не використовується (прогер
         // підтвердив, що метод застарів) — шукаємо це замовлення через user-orders за oid.
-        findUserOrder(oid).then((fresh: any) => {
-          if (fresh) setOrderResult(oid, { ...keepOurPrice(order, fresh), bookingDate })
-        }).catch(() => {})
+        //
+        // ВАЖЛИВО: невеликий проміжок ПЕРЕД першим запитом — одразу після створення
+        // бекенд ще міг не встигнути остаточно порахувати summ (підтверджено: LiqPay сторінка
+        // оплати за мить показувала правильну суму, що збігалась з нашим початковим
+        // розрахунком, тоді як миттєвий user-orders одразу після створення віддавав інше,
+        // тимчасове число). Без цієї паузи користувач бачить хибне значення, яке саме
+        // виправилось би за секунду.
+        setTimeout(() => {
+          findUserOrder(oid).then((fresh: any) => {
+            if (fresh) setOrderResult(oid, { ...keepOurPrice(order, fresh), bookingDate })
+          }).catch(() => {})
+        }, 2500)
 
         if (promoApplied) {
           applyPromoCode(promoApplied.code, oid).then((promoRes: any) => {
@@ -468,66 +477,6 @@ export default function Booking() {
           ))}
         </div>
 
-        {/* Trip summary */}
-        <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{t('booking.yourBooking')}</div>
-          {isRoundTrip && <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>{t('booking.outbound')}</div>}
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, marginBottom: 6 }}>
-            <span>{dep?.time?.split(' ')[0]} → {arr?.time?.split(' ')[0]}</span>
-            <span>⏱ {calcDuration(dep?.time, arr?.time)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 22 }}>{dep?.time?.split(' ')[1]}</div>
-              <div style={{ fontSize: 13 }}>{dep?.city}</div>
-              <div style={{ fontSize: 11, color: Gray }}>{dep?.name}</div>
-            </div>
-            <span style={{ fontSize: 24 }}>🚌</span>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontWeight: 800, fontSize: 22 }}>{arr?.time?.split(' ')[1]}</div>
-              <div style={{ fontSize: 13 }}>{arr?.city}</div>
-              <div style={{ fontSize: 11, color: Gray }}>{arr?.name}</div>
-            </div>
-          </div>
-
-          {isRoundTrip && (
-            <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 12, marginBottom: 8 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>{t('booking.return')}</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, marginBottom: 6 }}>
-                <span>{dep2?.time?.split(' ')[0]} → {arr2?.time?.split(' ')[0]}</span>
-                <span>⏱ {calcDuration(dep2?.time, arr2?.time)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 22 }}>{dep2?.time?.split(' ')[1]}</div>
-                  <div style={{ fontSize: 13 }}>{dep2?.city}</div>
-                  <div style={{ fontSize: 11, color: Gray }}>{dep2?.name}</div>
-                </div>
-                <span style={{ fontSize: 24 }}>🚌</span>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 800, fontSize: 22 }}>{arr2?.time?.split(' ')[1]}</div>
-                  <div style={{ fontSize: 13 }}>{arr2?.city}</div>
-                  <div style={{ fontSize: 11, color: Gray }}>{arr2?.name}</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 18, marginBottom: 8 }}>
-              <span>{t('booking.total')}{isRoundTrip ? t('booking.totalRoundTrip') : ''}</span>
-              <span>{format(total, trip?.currency)}</span>
-            </div>
-            {promoApplied && (
-              <div style={{ textAlign: 'right', color: '#2E7D32', fontSize: 12.5, fontWeight: 700, marginBottom: 4 }}>
-                Промокод {promoApplied.code} (−{promoApplied.pct}%) буде застосовано одразу після оформлення — орієнтовно {format(finalTotal, trip?.currency)}
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: Gray, fontSize: 14 }}>
-              <span>{totalPax} {totalPax === 1 ? 'пасажир' : 'пасажири'}</span>
-            </div>
-          </div>
-        </div>
 
         {/* Промокод — з'являється тільки коли позначено чекбокс "У мене є промокод" */}
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 16 }}>
@@ -609,6 +558,11 @@ export default function Booking() {
         {error && (
           <div style={{ background: '#FDECEA', color: '#C62828', borderRadius: 12, padding: 14, marginBottom: 16, fontSize: 14 }}>{error}</div>
         )}
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, padding: '0 2px' }}>
+          <span style={{ fontSize: 14, color: Gray }}>{t('booking.total')}{isRoundTrip ? t('booking.totalRoundTrip') : ''}</span>
+          <span style={{ fontSize: 20, fontWeight: 800 }}>{format(promoApplied ? finalTotal : total, trip?.currency)}</span>
+        </div>
 
         <button onClick={handleBook} disabled={loading} style={{
           width: '100%', padding: 18, background: ORange, color: '#fff',
