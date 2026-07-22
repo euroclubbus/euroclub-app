@@ -83,6 +83,21 @@ export function formatSeat(place: any): string {
   return s
 }
 
+// Розподіл живої суми (summ) між пасажирами ПРОПОРЦІЙНО до співвідношення їхніх цін одна
+// до одної. Абсолютні значення prc/price з бекенду можуть бути застарілими (менеджер
+// поміняв загальну суму замовлення, а рядки пасажирів лишились зі старого стану) — але
+// СПІВВІДНОШЕННЯ між пасажирами (хто на повному тарифі, хто зі знижкою) лишається вірним.
+// Приклад: summ=1.9, один повний, інший зі знижкою -10% (вага 1 і 0.9) → 1 і 0.9.
+// ОДНЕ місце для цієї формули — більше ніде price/prc пасажира напряму для показу не береться.
+export function passengerDisplayPrices(summ: number, passengers: any[]): number[] {
+  const weights = passengers.map(p => Number(p?.prc ?? p?.price ?? 0))
+  const totalWeight = weights.reduce((a, b) => a + b, 0)
+  if (!(totalWeight > 0) || !passengers.length) {
+    const equal = passengers.length ? summ / passengers.length : 0
+    return passengers.map(() => equal)
+  }
+  return weights.map(w => summ * w / totalWeight)
+}
 export function isCancelled(o: any): boolean {
   const s = String(o?.status || '').toLowerCase()
   return s.includes('cancel') || s.includes('скасов')

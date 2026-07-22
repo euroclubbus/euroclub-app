@@ -4,7 +4,7 @@ import { ArrowLeft, Phone, Mail, Globe, ShieldCheck } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
 import { useDisplayPrice } from '../currency'
-import { payInfo, needsPolling, keepOurPrice, formatSeat } from '../orderStatus'
+import { payInfo, needsPolling, keepOurPrice, formatSeat, passengerDisplayPrices } from '../orderStatus'
 import { useOrderPolling } from '../useOrderPolling'
 
 const ORange = '#F5A623'
@@ -63,9 +63,14 @@ export default function TicketDetails() {
     return num ? num.padStart(9, '0') : '000000000'
   })()
   const rawPax = data?.passengers?.length ? data.passengers : data?.passangers
-  const passengers: any[] = (rawPax && rawPax.length)
+  let passengers: any[] = (rawPax && rawPax.length)
     ? rawPax.map((p: any) => ({ name: p.name, place: p.plc ?? p.place, ticket: p.tck ?? p.ticket, price: p.prc ?? p.price }))
     : [{ name: data?.mainname || '—', place: '', price: data?.summ ?? data?.price }]
+  {
+    const liveSumm = Number(data?.summ ?? data?.price ?? 0)
+    const split = passengerDisplayPrices(liveSumm, passengers)
+    passengers = passengers.map((p: any, i: number) => ({ ...p, price: split[i] }))
+  }
 
   const dep = splitDT(data?.ftime)
   const arr = splitDT(data?.ttime)
@@ -163,7 +168,7 @@ export default function TicketDetails() {
                 {p.ticket && <>№ {p.ticket}{suffix} · </>}Місце {formatSeat(p.place)}
               </div>
             </div>
-            <div style={{ fontSize: 14.5, fontWeight: 700 }}>{format(passengers.length === 1 ? (data?.summ ?? data?.price) : (p.price ?? data?.summ ?? data?.price), currency)}</div>
+            <div style={{ fontSize: 14.5, fontWeight: 700 }}>{format(p.price, currency)}</div>
           </div>
         ))}
       </div>

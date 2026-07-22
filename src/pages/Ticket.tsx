@@ -3,7 +3,7 @@ import { useRef, useState, useEffect } from 'react'
 import { ArrowLeft, Download, ChevronRight } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
-import { ticketAvailable, payInfo, needsPolling, keepOurPrice, formatSeat } from '../orderStatus'
+import { ticketAvailable, payInfo, needsPolling, keepOurPrice, formatSeat, passengerDisplayPrices } from '../orderStatus'
 import { useDisplayPrice } from '../currency'
 import { useOrderPolling } from '../useOrderPolling'
 
@@ -88,9 +88,16 @@ export default function Ticket() {
   // в локально побудованих об'єктах (Booking.tsx). Підтримуємо обидва варіанти.
   const rawPax = data?.passengers?.length ? data.passengers : data?.passangers
   const paxCount = Math.max(selectedSeats.length, Object.keys(passengerNames).length, 1)
-  const passengers = (rawPax && rawPax.length)
+  let passengers = (rawPax && rawPax.length)
     ? rawPax.map((p: any) => ({ name: p.name, place: p.plc ?? p.place, ticket: p.tck ?? p.ticket, price: p.prc ?? p.price }))
     : Array.from({ length: paxCount }).map((_, i) => ({ name: passengerNames[i] || '—', place: selectedSeats[i], ticket: undefined, price: data?.summ ?? data?.price }))
+  // Ціна кожного пасажира — завжди пропорційний розподіл живої summ (не сирі prc/price
+  // з бекенду, вони можуть бути застарілими). Єдине місце розрахунку — passengerDisplayPrices.
+  {
+    const liveSumm = Number(data?.summ ?? data?.price ?? 0)
+    const split = passengerDisplayPrices(liveSumm, passengers)
+    passengers = passengers.map((p: any, i: number) => ({ ...p, price: split[i] }))
+  }
 
   // data.ticket — це лише id ("1010059-fe4e0df"), не посилання. Справжній PDF — ticket_pdf
   // (підтверджено прогером). Якщо ticket_pdf нема — краще випасти на "Зберегти квиток"
@@ -187,7 +194,7 @@ export default function Ticket() {
                       <div style={{ fontSize: 14, fontWeight: 600 }}>{p.name || '—'}</div>
                       {p.ticket && <div style={{ fontSize: 11, color: Gray }}>Квиток № {p.ticket}{suffix} · Місце {formatSeat(p.place)}</div>}
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 700 }}>{format(passengers.length === 1 ? (data?.summ ?? data?.price) : (p.price ?? data?.summ ?? data?.price), currency)}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700 }}>{format(p.price, currency)}</div>
                   </div>
                   {!hasMultiple && (
                     <>
