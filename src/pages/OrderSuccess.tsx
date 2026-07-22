@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBookingStore, useSearchStore } from '../store'
-import { cancelOrder, restoreOrder, getOrderInfo, getCities, getRoutes } from '../api/euroclub'
+import { cancelOrder, restoreOrder, getCities, getRoutes } from '../api/euroclub'
 import { ticketAvailable, statusLabel, payInfo, needsPolling, canRestore, keepOurPrice } from '../orderStatus'
 import { useOrderPolling } from '../useOrderPolling'
 import { useDisplayPrice } from '../currency'
 import SeatMap from './SeatMap'
-import { addBonusPayment, getUserOrders } from '../api/auth'
+import { addBonusPayment, getUserOrders, findUserOrder } from '../api/auth'
 import { useT } from '../i18n'
 
 const ORange = '#F5A623'
@@ -82,8 +82,8 @@ export default function OrderSuccess() {
       if (res?.status === 'ok') {
         setBonusApplied(true)
         setBonusInput('')
-        const fresh: any = await getOrderInfo(hash).catch(() => null)
-        if (fresh?.orders?.[0]) setOrderResult(hash, fresh.orders[0])
+        const fresh: any = await findUserOrder(hash).catch(() => null)
+        if (fresh) setOrderResult(hash, keepOurPrice(data, fresh))
       } else {
         setBonusError(res?.error || 'Не вдалось списати бонуси')
       }
@@ -124,12 +124,12 @@ export default function OrderSuccess() {
     if (!hash) return
     setRefreshing(true)
     try {
-      const res: any = await getOrderInfo(hash)
-      const fresh = res.orders?.[0] || res
-      if (fresh && (fresh.hash || fresh.from_city || fresh.price)) {
-        setOrderResult(hash, fresh)
-        if (fresh.status && String(fresh.status).toLowerCase().includes('cancel')) setStatus('cancelled')
-        else if (fresh.status) setStatus('active')
+      const fresh: any = await findUserOrder(hash)
+      if (fresh) {
+        const merged = keepOurPrice(data, fresh)
+        setOrderResult(hash, merged)
+        if (merged.status && String(merged.status).toLowerCase().includes('cancel')) setStatus('cancelled')
+        else if (merged.status) setStatus('active')
         const d = new Date()
         setRefreshedAt(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`)
       }

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ShieldCheck } from 'lucide-react'
 import { useBookingStore } from '../store'
-import { getOrderInfo } from '../api/euroclub'
+import { findUserOrder } from '../api/auth'
 import { payInfo, keepOurPrice } from '../orderStatus'
 import { useOrderPolling } from '../useOrderPolling'
 import { useT } from '../i18n'
@@ -69,13 +69,13 @@ export default function Payment() {
     try {
       // Запобіжник: якщо сам запит підвисне (мережа), кнопка не має лишатись
       // "Перевірка..." назавжди — за 10с скидаємо стан незалежно від результату.
-      const res: any = await Promise.race([
-        getOrderInfo(hash),
+      const o: any = await Promise.race([
+        findUserOrder(hash),
         new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
       ])
-      const o = res.orders?.[0] || res
+      if (!o) { setChecking(false); return }
       const merged = keepOurPrice(data, o)
-      if (o && (o.hash || o.status)) setOrderResult(hash, merged)
+      setOrderResult(hash, merged)
       if (payInfo(merged).ticketReady) { goSuccess(); return }
     } catch (e) {
       console.error('[Payment] checkPaid failed', e)

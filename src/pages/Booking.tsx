@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Pencil, X, Plus } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { useAuthStore } from '../authStore'
-import { saveOrderLocally, getOrderInfo } from '../api/euroclub'
+import { saveOrderLocally } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
 import { resolveDiscountId, resolvePassengerPrice, fullFareOneWayPrice } from '../passengerPricing'
 import { keepOurPrice } from '../orderStatus'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
 import { validatePromo, redeemPromo } from '../game/gameApi'
-import { applyPromoCode, createOrderNew, NewOrderPassenger } from '../api/auth'
+import { applyPromoCode, createOrderNew, NewOrderPassenger, findUserOrder } from '../api/auth'
 import { reportTrip } from '../reporting'
 import BottomSheet from '../components/BottomSheet'
 import CurrencyToggle from '../components/CurrencyToggle'
@@ -239,19 +239,18 @@ export default function Booking() {
         // Фонові дії — не блокують перехід на екран успіху.
         // Ціну лишаємо нашою (keepOurPrice), АЛЕ тільки доки нема реальної оплати — щойно
         // бекенд повідомить справжню сплачену суму, довіряємо вже його числам (див. коментар
-        // у orderStatus.ts:keepOurPrice).
-        getOrderInfo(order.hash).then((fresh: any) => {
-          if (fresh?.orders?.[0]) {
-            setOrderResult(oid, { ...keepOurPrice(order, fresh.orders[0]), bookingDate })
-          }
+        // у orderStatus.ts:keepOurPrice). order_info вже не використовується (прогер
+        // підтвердив, що метод застарів) — шукаємо це замовлення через user-orders за oid.
+        findUserOrder(oid).then((fresh: any) => {
+          if (fresh) setOrderResult(oid, { ...keepOurPrice(order, fresh), bookingDate })
         }).catch(() => {})
 
         if (promoApplied) {
           applyPromoCode(promoApplied.code, oid).then((promoRes: any) => {
             if (promoRes?.status === 'ok') {
               redeemPromo(promoApplied.code, oid).catch(() => {})
-              getOrderInfo(order.hash).then((fresh2: any) => {
-                if (fresh2?.orders?.[0]) setOrderResult(oid, { ...keepOurPrice(order, fresh2.orders[0]), bookingDate })
+              findUserOrder(oid).then((fresh2: any) => {
+                if (fresh2) setOrderResult(oid, { ...keepOurPrice(order, fresh2), bookingDate })
               }).catch(() => {})
             }
           }).catch(() => {})

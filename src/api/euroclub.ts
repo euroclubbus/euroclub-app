@@ -22,7 +22,8 @@ export const getRoutes = (from: string, to: string, date: string, crc = 'auto') 
 export const confirmOrder = (hash: string) => call('order_confirm', { hash })
 export const cancelOrder = (hash: string) => call('order_cancel', { hash })
 export const restoreOrder = (hash: string) => call('order_restore', { hash })
-export const getOrderInfo = (hash: string) => call('order_info', { hash })
+// order_info видалено (прогер підтвердив: метод застарів, замінено на user-orders,
+// див. findUserOrder у api/auth.ts).
 
 export async function createOrder(params: Record<string,string>) {
   if (!params.uidkey) params.uidkey = currentUidKey()

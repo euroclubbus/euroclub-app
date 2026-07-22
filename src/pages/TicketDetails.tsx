@@ -62,8 +62,9 @@ export default function TicketDetails() {
     const num = m ? m[1] : String(hash || data?.oid || '')
     return num ? num.padStart(9, '0') : '000000000'
   })()
-  const passengers: any[] = (data?.passangers && data.passangers.length)
-    ? data.passangers
+  const rawPax = data?.passengers?.length ? data.passengers : data?.passangers
+  const passengers: any[] = (rawPax && rawPax.length)
+    ? rawPax.map((p: any) => ({ name: p.name, place: p.plc ?? p.place, ticket: p.tck ?? p.ticket, price: p.prc ?? p.price }))
     : [{ name: data?.mainname || '—', place: '', price: data?.summ ?? data?.price }]
 
   const dep = splitDT(data?.ftime)

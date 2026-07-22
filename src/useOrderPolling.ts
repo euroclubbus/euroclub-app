@@ -1,25 +1,26 @@
 import { useEffect, useRef } from 'react'
-import { getOrderInfo } from './api/euroclub'
+import { findUserOrder } from './api/auth'
 
-// Опитує order_info кожні 0.3с — лише коли active && додаток на передньому плані.
-// Один запит одразу при відкритті та при поверненні у передній план.
-export function useOrderPolling(hash: string, active: boolean, onUpdate: (order: any) => void) {
+// Опитує user-orders кожні 2с (замінили застарілий order_info за вказівкою прогера —
+// user-orders повертає весь список, тож не варто смикати його так само часто, як
+// раніше смикали легкий одиничний order_info) — лише коли active && додаток на передньому
+// плані. Один запит одразу при відкритті та при поверненні у передній план.
+export function useOrderPolling(oid: string, active: boolean, onUpdate: (order: any) => void) {
   const cb = useRef(onUpdate); cb.current = onUpdate
   useEffect(() => {
-    if (!hash || !active) return
+    if (!oid || !active) return
     let stopped = false
     const tick = async () => {
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
       try {
-        const res: any = await getOrderInfo(hash)
-        const o = res.orders?.[0] || res
-        if (!stopped && o && (o.hash || o.status)) cb.current(o)
+        const o = await findUserOrder(oid)
+        if (!stopped && o) cb.current(o)
       } catch {}
     }
     tick()
-    const timer = setInterval(tick, 300)
+    const timer = setInterval(tick, 2000)
     const onVis = () => { if (document.visibilityState === 'visible') tick() }
     document.addEventListener('visibilitychange', onVis)
     return () => { stopped = true; clearInterval(timer); document.removeEventListener('visibilitychange', onVis) }
-  }, [hash, active])
+  }, [oid, active])
 }

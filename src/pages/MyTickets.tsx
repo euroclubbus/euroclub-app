@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getLocalOrders, saveOrderLocally, getOrderInfo } from '../api/euroclub'
+import { getLocalOrders, saveOrderLocally } from '../api/euroclub'
 import { getUserOrders } from '../api/auth'
 import { useBookingStore } from '../store'
 import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted, isPaidCancellation, keepOurPrice } from '../orderStatus'
@@ -26,29 +26,6 @@ export default function MyTickets() {
     setLoading(true)
     const local = getLocalOrders()
 
-    // Довантажити свіжий order_info для всіх активних (ще не завершених/скасованих) замовлень.
-    // Ціна/оплата — змінні поля (менеджер може відредагувати вручну будь-коли), тож кешу
-    // чи короткому списку user-orders не довіряємо, завжди звіряємо з сервером напряму.
-    async function refreshFresh(byHash: Record<string, any>) {
-      const list = Object.values(byHash)
-      const needsFresh = list.filter((o: any) => !isCancelled(o) && !isCompleted(o) && o?.hash)
-      if (needsFresh.length > 0) {
-        const fresh = await Promise.all(
-          needsFresh.map((o: any) => getOrderInfo(o.hash).then((r: any) => r.orders?.[0] || r).catch((e) => {
-            console.error('[MyTickets] order_info refresh failed for', o.hash, e)
-            return null
-          }))
-        )
-        fresh.forEach((f: any, i: number) => {
-          if (!f) return
-          const key = needsFresh[i].hash
-          const cur = byHash[key]
-          byHash[key] = cur ? keepOurPrice(cur, f) : f
-        })
-      }
-      return Object.values(byHash)
-    }
-
     function finish(merged: any[]) {
       merged.forEach((o: any) => saveOrderLocally(o.hash, o)) // кешуємо серверні дані локально
       setOrders(merged)
@@ -56,32 +33,37 @@ export default function MyTickets() {
     }
 
     getUserOrders()
-      .then(async (res: any) => {
+      .then((res: any) => {
         // Формат підтверджено: { data: [...замовлення], cab: {...статистика кабінету} }
         const remote = Array.isArray(res?.data) ? res.data
           : Array.isArray(res) ? res
           : Array.isArray(res?.orders) ? res.orders
           : Array.isArray(res?.list) ? res.list
           : []
-        // Дедуп по hash: зливаємо поля, а не замінюємо повністю — user-orders (список)
-        // може не містити pay_uah/pay_eur (це віддає лише order_info по конкретному hash),
-        // тож локально закешовані повні дані (звідки summ/pay_* вже відомі) не мають загубитись.
-        const byHash: Record<string, any> = {}
-        for (const o of Object.values(local)) if ((o as any).hash) byHash[(o as any).hash] = { ...(o as any) }
+        // Дедуп за ідентифікатором замовлення. ВАЖЛИВО: бекенд віддає його як `oid`, не
+        // `hash` (order_info з полем hash — застарілий метод, прогер підтвердив не
+        // використовувати). Внутрішньо в застосунку ключ поля лишається `.hash` (так
+        // історично склалось у решті коду), але значення — завжди `oid`. Раніше тут
+        // перевірялось `if (!o.hash) continue`, і всі записи з user-orders (де є тільки
+        // oid) відсіювались — замовлення, відомі лише з сервера, зникали зі списку.
+        const byId: Record<string, any> = {}
+        for (const o of Object.values(local)) {
+          const id = (o as any).hash ?? (o as any).oid
+          if (id) byId[String(id)] = { ...(o as any) }
+        }
         for (const o of remote) {
-          if (!o.hash) continue
-          byHash[o.hash] = byHash[o.hash] ? keepOurPrice(byHash[o.hash], o) : o
+          const id = o.oid ?? o.hash
+          if (!id) continue
+          const key = String(id)
+          const normalized = { ...o, hash: key, oid: key }
+          byId[key] = byId[key] ? keepOurPrice(byId[key], normalized) : normalized
         }
 
-        finish(await refreshFresh(byHash))
+        finish(Object.values(byId))
       })
       .catch((e) => {
-        console.error('[MyTickets] user-orders failed, falling back to per-order refresh', e)
-        // user-orders недоступний (падає) — все одно звіряємо кожне локально відоме
-        // замовлення напряму через order_info, щоб статус/ціна не лишались застарілими.
-        const byHash: Record<string, any> = {}
-        for (const o of Object.values(local)) if ((o as any).hash) byHash[(o as any).hash] = { ...(o as any) }
-        refreshFresh(byHash).then(finish)
+        console.error('[MyTickets] user-orders failed — показуємо тільки локальний кеш', e)
+        finish(Object.values(local))
       })
   }, [])
 

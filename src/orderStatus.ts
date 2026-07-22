@@ -92,6 +92,11 @@ function parseDT(str: any): Date | null {
   return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0))
 }
 export function isCompleted(o: any): boolean {
+  // Прогер підтвердив офіційні значення status: error/unpaid/complete/active/cancel.
+  // 'complete' = "поїздка відбулася" — надійніший сигнал, ніж наша евристика по часу.
+  const s = String(o?.status || '').toLowerCase()
+  if (s === 'complete') return true
+  if (s && s !== 'active') return false // явний інший статус (unpaid/cancel/error) — не complete
   const d = parseDT(o?.ttime)
   return d ? d.getTime() < Date.now() : false
 }

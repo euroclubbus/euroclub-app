@@ -35,6 +35,15 @@ export const authRepass3 = (email: string, pass: string, code: string) => inputP
 // Історія всіх замовлень користувача (не тільки ті, що збережені локально на цьому пристрої)
 export const getUserOrders = () => inputPost({ opr: 'user-orders', uidkey: currentUidKey() })
 
+// order_info вже НЕ використовується (підтверджено прогером) — замість нього user-orders,
+// звідти шукаємо потрібне замовлення за oid. Це єдиний офіційний спосіб оновити статус/
+// оплату конкретного замовлення тепер.
+export async function findUserOrder(oid: string): Promise<any | null> {
+  const res: any = await getUserOrders()
+  const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+  return list.find((o: any) => String(o.oid ?? o.hash) === String(oid)) || null
+}
+
 // Редагування профілю. Поля можна передавати разом або окремо: header/email/pass/phone
 export const editProfile = (fields: Partial<{ header: string; email: string; pass: string; phone: string }>) =>
   inputPost({ opr: 'edit', uidkey: currentUidKey(), ...fields })

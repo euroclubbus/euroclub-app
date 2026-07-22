@@ -83,12 +83,19 @@ export default function Ticket() {
   const { format } = useDisplayPrice()
 
   // Пасажири
+  // Бекенд (за оновленим описом прогера) віддає passengers[] (без "а") з полями
+  // name/dsc/prc/tck/plc — а не passangers[]/ticket/place/price, як ми самі називаємо
+  // в локально побудованих об'єктах (Booking.tsx). Підтримуємо обидва варіанти.
+  const rawPax = data?.passengers?.length ? data.passengers : data?.passangers
   const paxCount = Math.max(selectedSeats.length, Object.keys(passengerNames).length, 1)
-  const passengers = (data?.passangers && data.passangers.length)
-    ? data.passangers.map((p: any) => ({ name: p.name, place: p.place, ticket: p.ticket, price: p.price }))
+  const passengers = (rawPax && rawPax.length)
+    ? rawPax.map((p: any) => ({ name: p.name, place: p.plc ?? p.place, ticket: p.tck ?? p.ticket, price: p.prc ?? p.price }))
     : Array.from({ length: paxCount }).map((_, i) => ({ name: passengerNames[i] || '—', place: selectedSeats[i], ticket: undefined, price: data?.summ ?? data?.price }))
 
-  const ticketPdf: string = data?.ticket || ''
+  // data.ticket — це лише id ("1010059-fe4e0df"), не посилання. Справжній PDF — ticket_pdf
+  // (підтверджено прогером). Якщо ticket_pdf нема — краще випасти на "Зберегти квиток"
+  // (друк), ніж намагатись відкрити id як URL.
+  const ticketPdf: string = data?.ticket_pdf || ''
   const notch = { position: 'absolute' as const, width: 22, height: 22, borderRadius: '50%', background: Navy, top: '50%', transform: 'translateY(-50%)' }
 
   const scrollerRef = useRef<HTMLDivElement>(null)
