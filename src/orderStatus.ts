@@ -72,9 +72,10 @@ export function keepOurPrice(current: any, fresh: any) {
     ttime2: current?.ttime2,
   }
   if (freshPaid > 0) {
-    // Оплата вже реально відбулась — тариф (наша ДОоплатна оцінка) більше не показуємо,
-    // він міг не збігтись з тим, що менеджер виставив по факту в системі бронювання.
-    return { ...fresh, hash: current?.hash, oid: current?.oid, ...displayFields }
+    // Оплата вже реально відбулась — ціну (summ/price) більше не тримаємо нашою, довіряємо
+    // фактичній сумі з бекенду (менеджер міг додати/змінити ціну). АЛЕ тариф — не чіпаємо:
+    // менеджер тариф ніколи не міняє, це стала характеристика самого квитка.
+    return { ...fresh, hash: current?.hash, oid: current?.oid, tariff: current?.tariff, ...displayFields }
   }
   return {
     ...fresh,

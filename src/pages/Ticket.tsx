@@ -193,7 +193,7 @@ export default function Ticket() {
                     <>
                       {data?.roundTrip && data?.tariff != null && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, fontSize: 12.5, color: Gray }}>
-                          <span>Тариф рейсу у додатку</span>
+                          <span>Тариф квитка</span>
                           <span>{format(data.tariff, currency)}</span>
                         </div>
                       )}
@@ -234,7 +234,7 @@ export default function Ticket() {
         <div className="no-print" style={{ margin: '8px 16px 0', background: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: '12px 16px' }}>
           {data?.roundTrip && data?.tariff != null && (
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>Тариф рейсу у додатку</span>
+              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>Тариф квитка</span>
               <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12.5 }}>{format(data.tariff, currency)}</span>
             </div>
           )}

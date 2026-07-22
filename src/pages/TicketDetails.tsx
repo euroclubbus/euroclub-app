@@ -134,7 +134,7 @@ export default function TicketDetails() {
           </div>
           <div style={{ fontSize: 17, fontWeight: 800, marginTop: 2 }}>{format(data?.summ ?? data?.price, currency)}</div>
           {data?.roundTrip && data?.tariff != null && (
-            <div style={{ fontSize: 10.5, color: Gray, marginTop: 2 }}>Тариф рейсу у додатку: {format(data.tariff, currency)}</div>
+            <div style={{ fontSize: 10.5, color: Gray, marginTop: 2 }}>Тариф квитка: {format(data.tariff, currency)}</div>
           )}
         </div>
         <div style={{ flex: 1, background: pi.remainder > 0 ? '#FFF5E6' : '#EAF7ED', borderRadius: 16, padding: '12px 14px' }}>
