@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Pencil, X, Plus, Trash2 } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
@@ -14,7 +14,6 @@ import { applyPromoCode, createOrderNew, NewOrderPassenger, findUserOrder } from
 import { reportTrip } from '../reporting'
 import BottomSheet from '../components/BottomSheet'
 import CurrencyToggle from '../components/CurrencyToggle'
-import PaymentPanel from '../components/PaymentPanel'
 import { useT } from '../i18n'
 import SeatMap from './SeatMap'
 
@@ -54,13 +53,6 @@ export default function Booking() {
   const [attempted, setAttempted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  // Єдине полотно: після успішного бронювання НЕ переходимо на новий екран — розкриваємо
-  // платіжну секцію прямо тут же, нижче, і плавно прокручуємо до неї.
-  const [justBooked, setJustBooked] = useState(false)
-  const paymentSectionRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (justBooked) paymentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [justBooked])
 
   const trip = selectedTrip as any
   const trip2 = selectedTrip2 as any
@@ -251,7 +243,7 @@ export default function Booking() {
         }
         saveOrderLocally(oid, order)
         setOrderResult(oid, order)
-        setJustBooked(true)
+        nav('/order-success')
 
         // Фонові дії — не блокують перехід на екран успіху.
         // Ціну лишаємо нашою (keepOurPrice), АЛЕ тільки доки нема реальної оплати — щойно
@@ -326,7 +318,7 @@ export default function Booking() {
         </div>
       </div>
 
-      <div style={{ background: '#F5F5F5', minHeight: 'calc(100vh - 60px)', padding: '16px 16px 40px', opacity: justBooked ? 0.55 : 1, pointerEvents: justBooked ? 'none' : 'auto', transition: 'opacity 0.2s' }}>
+      <div style={{ background: '#F5F5F5', minHeight: 'calc(100vh - 60px)', padding: '16px 16px 40px' }}>
         {/* Passengers */}
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12 }}>
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 14 }}>Пасажири</div>
@@ -618,24 +610,12 @@ export default function Booking() {
           <div style={{ background: '#FDECEA', color: '#C62828', borderRadius: 12, padding: 14, marginBottom: 16, fontSize: 14 }}>{error}</div>
         )}
 
-        {!justBooked && (
-          <button onClick={handleBook} disabled={loading} style={{
-            width: '100%', padding: 18, background: ORange, color: '#fff',
-            border: 'none', borderRadius: 14, fontWeight: 800, fontSize: 17,
-            cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1
-          }}>{loading ? t('booking.booking') : t('booking.book')}</button>
-        )}
+        <button onClick={handleBook} disabled={loading} style={{
+          width: '100%', padding: 18, background: ORange, color: '#fff',
+          border: 'none', borderRadius: 14, fontWeight: 800, fontSize: 17,
+          cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1
+        }}>{loading ? t('booking.booking') : t('booking.book')}</button>
       </div>
-
-      {/* Оплата — розкривається тут же, без переходу на новий екран, одразу після бронювання */}
-      {justBooked && (
-        <div ref={paymentSectionRef} style={{ padding: '0 20px 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#EAF7ED', borderRadius: 12, padding: '10px 14px', marginBottom: 16, color: '#2E7D32', fontWeight: 700, fontSize: 14 }}>
-            ✓ Замовлення оформлено — лишилось оплатити
-          </div>
-          <PaymentPanel />
-        </div>
-      )}
 
       {/* Seat Map — туди */}
       {showSeats && (
