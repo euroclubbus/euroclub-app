@@ -94,16 +94,16 @@ export default function MyTickets() {
     return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0)).getTime()
   }
 
-  // Ротація списку — за датою БРОНЮВАННЯ (коли замовлення зроблено) або за датою РЕЙСУ
-  // (коли сама поїздка) — перемикається кнопкою; в обох випадках найновіше/найближче вгорі.
-  // Фолбек на іншу дату, якщо основна для цього режиму відсутня (наприклад, старі замовлення
-  // без локальної bookingDate, синхронізовані з іншого пристрою через user-orders).
+  // Ротація списку — за НОМЕРОМ ЗАМОВЛЕННЯ (oid) для режиму "за датою бронювання", а не за
+  // локальною датою. Номер замовлення на бекенді присвоюється послідовно — більший номер
+  // завжди означає пізніше бронювання, і це не залежить від локальних даних пристрою, які
+  // можна ненавмисно загубити (саме це й ламало сортування раніше — bookingDate губилась
+  // при кожному оновленні, і "останнє зверху" ставало довільним).
   const [sortMode, setSortMode] = useState<'booking' | 'trip'>('booking')
   function orderSortKey(o: any): number {
-    const bd = o?.bookingDate ? new Date(o.bookingDate).getTime() : NaN
-    const td = parseOrderDate(o?.ftime)
-    if (sortMode === 'trip') return td || bd || 0
-    return !isNaN(bd) ? bd : td
+    if (sortMode === 'trip') return parseOrderDate(o?.ftime) || Number(o?.oid) || 0
+    const oidNum = Number(o?.oid ?? o?.hash)
+    return !isNaN(oidNum) ? oidNum : parseOrderDate(o?.ftime)
   }
 
   const openTicket = (o: any) => { setOrderResult(o.hash, o); nav('/ticket') }
@@ -236,11 +236,8 @@ export default function MyTickets() {
                   </div>
                 </div>
               )}
-              <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 10 }}>
                 <span style={{ color: Gray, fontSize: 12 }}>{orderNo(o)}</span>
-                {o.bookingDate && (
-                  <span style={{ color: Gray, fontSize: 11.5 }}>заброньовано {new Date(o.bookingDate).toLocaleDateString('uk-UA')}</span>
-                )}
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
                 <button onClick={() => openOrder(o)} style={{ flex: 1, padding: '11px 0', background: 'none', border: `2px solid ${ORange}`, borderRadius: 12, color: ORange, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
