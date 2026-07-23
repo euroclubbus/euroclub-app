@@ -91,6 +91,9 @@ export default function Profile() {
         <img src="/bus-hero.png" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(7px) brightness(0.7)', transform: 'scale(1.1)' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,28,58,0.45)' }} />
         <div style={{ position: 'relative', padding: 'calc(env(safe-area-inset-top) + 20px) 16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <button onClick={() => setMenuOpen(true)} aria-label="Меню" style={{ background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+            <Menu size={24} color="#fff" />
+          </button>
           <div onClick={() => fileRef.current?.click()} style={{ width: 60, height: 60, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
             {avatar ? <img src={avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <User size={28} color="#fff" />}
             <span style={{ position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, borderRadius: '50%', background: ORange, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fff' }}>✎</span>
@@ -100,9 +103,6 @@ export default function Profile() {
             <div style={{ color: '#fff', fontSize: 18, fontWeight: 800 }}>{user.header || t('profile.title')}</div>
             <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13 }}>{user.email}</div>
           </div>
-          <button onClick={() => setMenuOpen(true)} aria-label="Меню" style={{ background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
-            <Menu size={24} color="#fff" />
-          </button>
         </div>
       </div>
 

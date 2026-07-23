@@ -1,10 +1,16 @@
 import { useEffect, useRef } from 'react'
 import { findUserOrder } from './api/auth'
 
-// Опитує user-orders кожні 2с (замінили застарілий order_info за вказівкою прогера —
-// user-orders повертає весь список, тож не варто смикати його так само часто, як
-// раніше смикали легкий одиничний order_info) — лише коли active && додаток на передньому
-// плані. Один запит одразу при відкритті та при поверненні у передній план.
+// Опитує user-orders кожні 0.5с (за прямою вимогою прогера) — лише коли active &&
+// додаток на передньому плані, і лише поки відкритий конкретний екран замовлення/оплати
+// (Payment/Ticket/TicketDetails/OrderSuccess). "Мої замовлення" (список) сюди не належить —
+// там окремий одноразовий запит при вході/поверненні, без цього циклу.
+//
+// ВАЖЛИВО (пояснено прогеру): order_info (перевірка ОДНОГО замовлення) — застарілий метод,
+// підтверджено самим прогером. Єдиний доступний зараз — user-orders, який завжди повертає
+// ПОВНИЙ список замовлень користувача; фільтрація на потрібне oid відбувається вже на
+// клієнті. Це не наш вибір архітектури — так влаштований бекенд зараз. Якщо навантаження
+// критичне, потрібен легкий метод "статус одного замовлення за oid" з боку бекенду.
 export function useOrderPolling(oid: string, active: boolean, onUpdate: (order: any) => void) {
   const cb = useRef(onUpdate); cb.current = onUpdate
   useEffect(() => {
@@ -18,7 +24,7 @@ export function useOrderPolling(oid: string, active: boolean, onUpdate: (order: 
       } catch {}
     }
     tick()
-    const timer = setInterval(tick, 2000)
+    const timer = setInterval(tick, 500)
     const onVis = () => { if (document.visibilityState === 'visible') tick() }
     document.addEventListener('visibilitychange', onVis)
     return () => { stopped = true; clearInterval(timer); document.removeEventListener('visibilitychange', onVis) }

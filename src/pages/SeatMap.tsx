@@ -233,11 +233,10 @@ export default function SeatMap({ trip, totalPax, onClose, onConfirm, totalPrice
 
         {/* Футер */}
         <div style={{ borderTop: '1px solid #EEE', padding: '12px 20px 18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ marginBottom: 12 }}>
             <span style={{ fontSize: 14, color: Gray }}>
               {selected.length > 0 ? `${selected.length} ${seatWord(selected.length)}` : `${t('seatmap.chooseSeatCounter')} (0/${totalPax})`}
             </span>
-            <span style={{ fontSize: 18, fontWeight: 800, color: '#1A1A1A' }}>{priceStr} {currencySign}</span>
           </div>
           <button onClick={() => enough && onConfirm(selected)} disabled={!enough} style={{
             width: '100%', padding: 16, background: enough ? ORange : '#FFD89B', color: '#fff',

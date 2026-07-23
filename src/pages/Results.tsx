@@ -428,10 +428,10 @@ export default function Results() {
             <button onClick={() => nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
               <ArrowLeft size={24} color="#fff" />
             </button>
-            <span style={{ color: '#fff', fontSize: 20, fontWeight: 800, flex: 1 }}>Результати пошуку</span>
             <button onClick={() => setMenuOpen(true)} aria-label="Меню" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
               <Menu size={24} color="#fff" />
             </button>
+            <span style={{ color: '#fff', fontSize: 20, fontWeight: 800, flex: 1 }}>Результати пошуку</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#fff' }}>
             <span style={{ fontWeight: 700, fontSize: 16, whiteSpace: 'nowrap' }}>{from?.name}</span>
