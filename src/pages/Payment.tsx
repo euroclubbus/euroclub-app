@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, ShieldCheck, Bus } from 'lucide-react'
 import { useBookingStore } from '../store'
 import { findUserOrder } from '../api/auth'
-import { payInfo, keepOurPrice } from '../orderStatus'
+import { payInfo, keepOurPrice, passengerDisplayPrices, formatSeat } from '../orderStatus'
 import { useOrderPolling } from '../useOrderPolling'
+import { useDisplayPrice } from '../currency'
 import { useT } from '../i18n'
 
 const ORange = '#F5A623'
@@ -19,6 +20,10 @@ export default function Payment() {
   const data = orderData as any
   const payUrl = data?.link_liqpay || data?.link_stripe || (isIOS ? data?.link2 : data?.link1) || ''
   const hash = orderHash || data?.hash || ''
+  const { format } = useDisplayPrice()
+  const rawPax = data?.passengers?.length ? data.passengers : data?.passangers
+  const passengers = (rawPax || []).map((p: any) => ({ name: p.name, place: p.plc ?? p.place, price: p.prc ?? p.price }))
+  const passengerPrices = passengerDisplayPrices(Number(data?.summ ?? data?.price ?? 0) || 0, passengers)
   const [checking, setChecking] = useState(false)
   const browserRef = useRef<any>(null)
   const doneRef = useRef(false)
@@ -124,6 +129,29 @@ export default function Payment() {
       </div>
 
       <div style={{ padding: 20 }}>
+        {(data?.from_city || data?.to_city) && (
+          <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <Bus size={16} color={Navy} />
+              <span style={{ fontSize: 14, fontWeight: 700 }}>{data?.from_city} → {data?.to_city}</span>
+            </div>
+            <div style={{ fontSize: 13, color: Gray, marginBottom: data?.roundTrip ? 4 : 0 }}>{data?.ftime} → {data?.ttime}</div>
+            {data?.roundTrip && data?.ftime2 && (
+              <div style={{ fontSize: 13, color: Gray }}>🔄 {data.ftime2} → {data?.ttime2}</div>
+            )}
+            {passengers.length > 0 && (
+              <div style={{ borderTop: '1px solid #F5F5F5', marginTop: 12, paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {passengers.map((p: any, i: number) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5 }}>
+                    <span style={{ fontWeight: 600 }}>{p.name}{p.place ? ` · місце ${formatSeat(p.place)}` : ''}</span>
+                    <span style={{ color: Gray }}>{format(passengerPrices[i], data?.crc)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <div style={{ background: '#fff', borderRadius: 20, padding: 22, textAlign: 'center' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>💳</div>
           <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 8 }}>{t('payment.openedSeparately')}</div>

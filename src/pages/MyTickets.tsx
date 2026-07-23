@@ -123,13 +123,18 @@ export default function MyTickets() {
     if (isCompleted(o)) return payInfo(o).paid > 0 ? 'completed' : 'cancelled'
     return 'active'
   }
-  const [filter, setFilter] = useState<Cat | 'all'>('active')
+  // "Оплачені" — окремий, наскрізний фільтр (не категорія): оплачене замовлення може бути
+  // одночасно і активним (поїздка ще попереду), і виконаним — тому рахуємо його окремо,
+  // а не як ще один взаємовиключний стан поруч з active/completed/cancelled.
+  const isPaid = (o: any) => payInfo(o).fullyPaid
+  const [filter, setFilter] = useState<Cat | 'paid' | 'all'>('active')
   const sortedOrders = [...orders].sort((a, b) => orderSortKey(b) - orderSortKey(a))
-  const filtered = filter === 'all' ? sortedOrders : sortedOrders.filter(o => category(o) === filter)
+  const filtered = filter === 'all' ? sortedOrders : filter === 'paid' ? sortedOrders.filter(isPaid) : sortedOrders.filter(o => category(o) === filter)
   const counts = {
     active: orders.filter(o => category(o) === 'active').length,
     completed: orders.filter(o => category(o) === 'completed').length,
     cancelled: orders.filter(o => category(o) === 'cancelled').length,
+    paid: orders.filter(isPaid).length,
     all: orders.length,
   }
 
@@ -151,6 +156,7 @@ export default function MyTickets() {
           ['active', `${t('orders.active')}${counts.active ? ` (${counts.active})` : ''}`],
           ['completed', `${t('orders.completed')}${counts.completed ? ` (${counts.completed})` : ''}`],
           ['cancelled', `${t('orders.cancelled')}${counts.cancelled ? ` (${counts.cancelled})` : ''}`],
+          ['paid', `Оплачені${counts.paid ? ` (${counts.paid})` : ''}`],
           ['all', t('orders.all')],
         ] as const).map(([key, label]) => (
           <button key={key} onClick={() => setFilter(key)} style={{
