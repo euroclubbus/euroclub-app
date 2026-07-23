@@ -55,10 +55,7 @@ export function payInfo(o: any): PayInfo {
 // ідентифікатор замовлення (hash/oid — все ще підтверджено, що там не hash, а номер) і
 // назви міст/час (там лише from1/to1/date1 — id міст і дата без години).
 export function keepOurPrice(current: any, fresh: any) {
-  return {
-    ...fresh,
-    hash: current?.hash,
-    oid: current?.oid,
+  const displayFields = {
     from_city: fresh?.from_city || current?.from_city,
     to_city: fresh?.to_city || current?.to_city,
     fstation: fresh?.fstation || current?.fstation,
@@ -69,6 +66,15 @@ export function keepOurPrice(current: any, fresh: any) {
     ftime2: current?.ftime2,
     ttime2: current?.ttime2,
   }
+  // Двобічні замовлення: ціна (summ/price) ЗАВЖДИ з нашої таблиці (priceEngine), ніколи з
+  // відповіді бекенду — підтверджено, що бекенд для round-trip повертає нестабільне/
+  // невідповідне число (наприклад 10000 → 9900 → 10000 без жодної зміни з нашого боку).
+  // paid_uah/paid_eur/needpay/status і далі йдуть живими з fresh — статус оплати це не чіпає.
+  // В один бік — summ/price лишається живим з бекенду, там такої нестабільності не було.
+  if (current?.roundTrip) {
+    return { ...fresh, hash: current?.hash, oid: current?.oid, summ: current?.summ, price: current?.price, tariff: current?.tariff, ...displayFields }
+  }
+  return { ...fresh, hash: current?.hash, oid: current?.oid, ...displayFields }
 }
 
 // Формат місця в два боки — бекенд віддає "47/44" (місце туди/місце назад через слеш).
