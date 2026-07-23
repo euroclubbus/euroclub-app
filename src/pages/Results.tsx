@@ -376,7 +376,7 @@ function DateStrip({ dateISO, onChange }: { dateISO: string; onChange: (iso: str
 export default function Results() {
   const nav = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
-  const { from, to, dateFrom, dateTo, isOpenReturn, passengerCategories, setDateFrom } = useSearchStore()
+  const { from, to, dateFrom, dateTo, isOpenReturn, passengerCategories, setDateFrom, setDateTo, setOpenReturn } = useSearchStore()
   const { setTrip, setTrip2 } = useBookingStore()
 
   const isRoundTrip = !!dateTo || isOpenReturn
@@ -471,10 +471,10 @@ export default function Results() {
             )}
 
             {!outBlocked && outNeedsConfirm && (
-              <DateFallbackCard label="Поїздки туди" requestedISO={dateFrom} leg={outLeg} />
+              <DateFallbackCard label="Поїздки туди" requestedISO={dateFrom} leg={outLeg} onPickDate={iso => setDateFrom(iso)} />
             )}
             {!retBlocked && retNeedsConfirm && (
-              <DateFallbackCard label="Зворотної поїздки" requestedISO={returnDateISO!} leg={retLeg} />
+              <DateFallbackCard label="Зворотної поїздки" requestedISO={returnDateISO!} leg={retLeg} onPickDate={iso => { setOpenReturn(false); setDateTo(iso) }} />
             )}
 
             {ready && outTrip && (
