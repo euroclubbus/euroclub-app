@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBookingStore, useSearchStore } from '../store'
-import { cancelOrder, restoreOrder, getCities, getRoutes } from '../api/euroclub'
+import { getCities, getRoutes } from '../api/euroclub'
 import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat } from '../orderStatus'
 import { useOrderPolling } from '../useOrderPolling'
 import { useDisplayPrice } from '../currency'
 import SeatMap from './SeatMap'
-import { addBonusPayment, getUserOrders, findUserOrder } from '../api/auth'
+import { addBonusPayment, getUserOrders, findUserOrder, cancelOrderApi, restoreOrderApi } from '../api/auth'
 import { useT } from '../i18n'
 
 const ORange = '#F5A623'
@@ -154,8 +154,9 @@ export default function OrderSuccess() {
     if (!hash || !window.confirm(t('os.cancel') + '?')) return
     setLoading(true)
     try {
-      await cancelOrder(hash)
-      setStatus('cancelled')
+      const res = await cancelOrderApi(hash)
+      if (res.ok) setStatus('cancelled')
+      else alert(res.error || 'Помилка')
     } catch { alert('Помилка') }
     finally { setLoading(false) }
   }
@@ -164,8 +165,9 @@ export default function OrderSuccess() {
     if (!hash) return
     setLoading(true)
     try {
-      await restoreOrder(hash)
-      setStatus('active')
+      const res = await restoreOrderApi(hash)
+      if (res.ok) setStatus('active')
+      else alert(res.error || 'Помилка')
     } catch { alert('Помилка') }
     finally { setLoading(false) }
   }
@@ -202,9 +204,9 @@ export default function OrderSuccess() {
     if (!hash) return
     setLoading(true)
     try {
-      await restoreOrder(hash)
-      setStatus('active')
-      setRestorePhase('idle')
+      const res = await restoreOrderApi(hash)
+      if (res.ok) { setStatus('active'); setRestorePhase('idle') }
+      else alert(res.error || 'Помилка')
     } catch { alert('Помилка') }
     finally { setLoading(false) }
   }

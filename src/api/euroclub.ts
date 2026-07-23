@@ -20,8 +20,9 @@ export const getRoutesDays = (from: string, to: string, month?: string) =>
 export const getRoutes = (from: string, to: string, date: string, crc = 'auto') =>
   call('routes', { from, to, date, crc })
 export const confirmOrder = (hash: string) => call('order_confirm', { hash })
-export const cancelOrder = (hash: string) => call('order_cancel', { hash })
-export const restoreOrder = (hash: string) => call('order_restore', { hash })
+// cancelOrder/restoreOrder видалено — застарілий /v1/json/order_cancel|order_restore з
+// полем hash. Прогер підтвердив правильний спосіб: /input, mod=apimobile, opr=cancel|restore,
+// oid. Див. cancelOrderApi/restoreOrderApi у api/auth.ts.
 // order_info видалено (прогер підтвердив: метод застарів, замінено на user-orders,
 // див. findUserOrder у api/auth.ts).
 

@@ -35,6 +35,22 @@ export const authRepass3 = (email: string, pass: string, code: string) => inputP
 // Історія всіх замовлень користувача (не тільки ті, що збережені локально на цьому пристрої)
 export const getUserOrders = () => inputPost({ mod: 'apimobile', opr: 'user-orders', uidkey: currentUidKey() })
 
+// Скасування і відновлення замовлення — підтверджено прогером: НЕ старий /v1/json/
+// order_cancel|order_restore (застарілий, з полем hash), а /input з mod=apimobile,
+// opr=cancel|restore, і oid (номер замовлення). Відповідь: {status:'ok'} або
+// {status:'error', text}. Раніше застосунок бив у мертвий ендпоінт і сліпо показував
+// "успіх", щойно запит не падав мережево — не перевіряючи РЕАЛЬНУ відповідь бекенду.
+export async function cancelOrderApi(oid: string): Promise<{ ok: boolean; error?: string }> {
+  const res: any = await inputPost({ mod: 'apimobile', opr: 'cancel', oid, uidkey: currentUidKey() })
+  if (res?.status === 'ok') return { ok: true }
+  return { ok: false, error: res?.text || 'Не вдалося скасувати замовлення' }
+}
+export async function restoreOrderApi(oid: string): Promise<{ ok: boolean; error?: string }> {
+  const res: any = await inputPost({ mod: 'apimobile', opr: 'restore', oid, uidkey: currentUidKey() })
+  if (res?.status === 'ok') return { ok: true }
+  return { ok: false, error: res?.text || 'Не вдалося відновити замовлення' }
+}
+
 // order_info вже НЕ використовується (підтверджено прогером) — замість нього user-orders,
 // звідти шукаємо потрібне замовлення за oid. Це єдиний офіційний спосіб оновити статус/
 // оплату конкретного замовлення тепер.
