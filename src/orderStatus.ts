@@ -65,6 +65,9 @@ export function keepOurPrice(current: any, fresh: any) {
     roundTrip: current?.roundTrip,
     ftime2: current?.ftime2,
     ttime2: current?.ttime2,
+    // Дата бронювання — суто наша, локальна позначка (бекенд її не віддає) для сортування
+    // "останнє зверху". Раніше губилась при кожному мержі зі свіжими даними з сервера.
+    bookingDate: current?.bookingDate,
   }
   // Двобічні замовлення: ціна (summ/price) ЗАВЖДИ з нашої таблиці (priceEngine), ніколи з
   // відповіді бекенду — підтверджено, що бекенд для round-trip повертає нестабільне/

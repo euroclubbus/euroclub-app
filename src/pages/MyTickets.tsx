@@ -60,6 +60,11 @@ export default function MyTickets() {
           const key = String(id)
           const normalized = { ...o, hash: key, oid: key }
           byId[key] = byId[key] ? keepOurPrice(byId[key], normalized) : normalized
+          // Перший раз бачимо це замовлення (нема локального запису з датою бронювання) —
+          // фіксуємо дату зараз, назавжди. Без цього кроку сортування "останнє зверху"
+          // непослідовне: одні замовлення сортуються за датою бронювання, інші (без неї) —
+          // за датою поїздки, і порядок виглядає невірним.
+          if (!byId[key].bookingDate) byId[key].bookingDate = new Date().toISOString()
         }
 
         finish(Object.values(byId))
