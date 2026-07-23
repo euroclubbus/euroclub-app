@@ -101,9 +101,13 @@ export default function MyTickets() {
   // при кожному оновленні, і "останнє зверху" ставало довільним).
   const [sortMode, setSortMode] = useState<'booking' | 'trip'>('booking')
   function orderSortKey(o: any): number {
-    if (sortMode === 'trip') return parseOrderDate(o?.ftime) || Number(o?.oid) || 0
+    if (sortMode === 'trip') {
+      const td = parseOrderDate(o?.ftime)
+      // Невідома дата рейсу — в кінець списку (не змішувати шкалу з oid, який на порядки менший)
+      return td > 0 ? td : Number.MAX_SAFE_INTEGER
+    }
     const oidNum = Number(o?.oid ?? o?.hash)
-    return !isNaN(oidNum) ? oidNum : parseOrderDate(o?.ftime)
+    return !isNaN(oidNum) ? oidNum : 0
   }
 
   const openTicket = (o: any) => { setOrderResult(o.hash, o); nav('/ticket') }
@@ -128,7 +132,9 @@ export default function MyTickets() {
   // а не як ще один взаємовиключний стан поруч з active/completed/cancelled.
   const isPaid = (o: any) => payInfo(o).fullyPaid
   const [filter, setFilter] = useState<Cat | 'paid' | 'all'>('active')
-  const sortedOrders = [...orders].sort((a, b) => orderSortKey(b) - orderSortKey(a))
+  const sortedOrders = [...orders].sort((a, b) =>
+    sortMode === 'trip' ? orderSortKey(a) - orderSortKey(b) : orderSortKey(b) - orderSortKey(a)
+  )
   const filtered = filter === 'all' ? sortedOrders : filter === 'paid' ? sortedOrders.filter(isPaid) : sortedOrders.filter(o => category(o) === filter)
   const counts = {
     active: orders.filter(o => category(o) === 'active').length,
