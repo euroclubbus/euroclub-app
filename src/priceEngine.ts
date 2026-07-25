@@ -25,6 +25,7 @@ export interface TwoWayResult {
   price: number
   templateUsed: string
   exactMatch: boolean
+  oneWayOnly?: boolean
 }
 
 /**
@@ -46,14 +47,20 @@ export function findTwoWayPrice(
 
   let best: TwoWayResult | null = null
   let bestDiff = Infinity
+  let sawRow = false
+  let sawUsableRoundTrip = false
 
   for (const tplName of Object.keys(templates)) {
     const row = templates[tplName][key]
     if (!row) continue
     const val1 = row[field1 as keyof TemplateRow]
-    const val2 = row[field2 as keyof TemplateRow]
-    if (val1 == null || val2 == null) continue
+    if (val1 == null) continue
+    sawRow = true
 
+    const val2 = row[field2 as keyof TemplateRow]
+    if (val2 == null || val2 === 0) continue // цей шаблон не дає round-trip для цієї пари
+
+    sawUsableRoundTrip = true
     const diff = Math.abs(val1 - liveOneWayPrice)
 
     if (diff === 0) {
@@ -63,6 +70,11 @@ export function findTwoWayPrice(
       bestDiff = diff
       best = { price: val2, templateUsed: tplName, exactMatch: false }
     }
+  }
+
+  if (sawRow && !sawUsableRoundTrip) {
+    // Є дані по цій парі міст, але round-trip поле скрізь 0/порожнє — маршрут тільки в один бік
+    return { price: 0, templateUsed: '', exactMatch: false, oneWayOnly: true }
   }
 
   return best
@@ -93,14 +105,20 @@ export function findTwoWayGroupPrice(
   fromCityId: string | number,
   toCityId: string | number,
   direction: Direction
-): { tariff: number; total: number; perPassenger: number[]; anyFallback: boolean } {
+): { tariff: number; total: number; perPassenger: number[]; anyFallback: boolean; oneWayOnly: boolean } {
   const res = findTwoWayPrice(fromCityId, toCityId, direction, fullOneWayPrice)
-  const tariff = res ? res.price : fullOneWayPrice * 2 // нема рядка шаблону — оцінка х2 від one-way
+
+  if (res?.oneWayOnly) {
+    // Маршрут існує тільки в один бік — нічого не вигадуємо, round-trip недоступний
+    return { tariff: 0, total: 0, perPassenger: perPassengerOneWayPrices.map(() => 0), anyFallback: false, oneWayOnly: true }
+  }
+
+  const tariff = res ? res.price : fullOneWayPrice * 2 // нема рядка шаблону взагалі — оцінка х2 від one-way
   const anyFallback = !res
   const perPassenger = perPassengerOneWayPrices.map(p => {
     const ratio = fullOneWayPrice > 0 ? p / fullOneWayPrice : 1
     return Math.round(tariff * ratio)
   })
   const total = perPassenger.reduce((s, p) => s + p, 0)
-  return { tariff, total, perPassenger, anyFallback }
+  return { tariff, total, perPassenger, anyFallback, oneWayOnly: false }
 }

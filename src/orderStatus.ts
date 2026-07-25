@@ -69,14 +69,10 @@ export function keepOurPrice(current: any, fresh: any) {
     // "останнє зверху". Раніше губилась при кожному мержі зі свіжими даними з сервера.
     bookingDate: current?.bookingDate,
   }
-  // Двобічні замовлення: ціна (summ/price) ЗАВЖДИ з нашої таблиці (priceEngine), ніколи з
-  // відповіді бекенду — підтверджено, що бекенд для round-trip повертає нестабільне/
-  // невідповідне число (наприклад 10000 → 9900 → 10000 без жодної зміни з нашого боку).
-  // paid_uah/paid_eur/needpay/status і далі йдуть живими з fresh — статус оплати це не чіпає.
-  // В один бік — summ/price лишається живим з бекенду, там такої нестабільності не було.
-  if (current?.roundTrip) {
-    return { ...fresh, hash: current?.hash, oid: current?.oid, summ: current?.summ, price: current?.price, tariff: current?.tariff, ...displayFields }
-  }
+  // Наша таблиця (priceEngine) для round-trip діє ТІЛЬКИ до створення замовлення (neworder).
+  // З моменту, коли бек підтвердив створення (є oid) — summ/price/tariff завжди живі з fresh,
+  // так само як в один бік. Якщо бек віддає інше число — це очікувана ручна правка адміном,
+  // а не помилка; більше не "виправляємо" це назад нашим значенням.
   return { ...fresh, hash: current?.hash, oid: current?.oid, ...displayFields }
 }
 
