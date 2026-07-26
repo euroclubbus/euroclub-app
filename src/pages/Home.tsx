@@ -10,7 +10,6 @@ import { ArrowUpDown, MapPin, Navigation, Calendar, Users } from 'lucide-react'
 import { useSearchStore } from '../store'
 import { getCities, getDiscounts } from '../api/euroclub'
 import { getAllowedCities } from '../cityRules'
-import { hasOneWayPriceForDirection } from '../priceEngine'
 import BottomSheet from '../components/BottomSheet'
 
 const ORange = '#F5A623'
@@ -268,17 +267,7 @@ function CityPicker({ open, onClose, initialField }: { open: boolean; onClose: (
   const otherIsFrom = activeField === 'to'
   const ruleCities = cities.map((c: any) => ({ id: String(c.id), name: c.uk, i2: c.i2, _raw: c }))
   const allowedIds = otherCity
-    ? new Set(getAllowedCities(ruleCities, { id: otherCity.id, name: otherCity.name, i2: otherCity.i2 }, otherIsFrom)
-        .filter(c => {
-          const otherUa = otherCity.i2 === 'ua'
-          const cUa = c.i2 === 'ua'
-          if (otherUa === cUa) return true // Україна-Україна чи Європа-Європа — це вже вирішують правила cityRules
-          const uaId = otherUa ? otherCity.id : c.id
-          const euId = otherUa ? c.id : otherCity.id
-          const originIsUa = otherIsFrom ? otherUa : cUa // хто у полі "Відправлення"
-          return hasOneWayPriceForDirection(uaId, euId, originIsUa)
-        })
-        .map(c => c.id))
+    ? new Set(getAllowedCities(ruleCities, { id: otherCity.id, name: otherCity.name, i2: otherCity.i2 }, otherIsFrom).map(c => c.id))
     : null
   // Пошук по синонімах — /cities/ віддає назву кожного міста кількома мовами (uk/en/de/pl/ru),
   // звіряємось з полями напряму (звірено на реальній відповіді API — не вигадано).

@@ -35,25 +35,6 @@ export interface TwoWayResult {
  * @param direction    напрямок першого відрізка: 'ua' (з України, ціна в UAH) або 'eu' (з Європи, ціна в EUR)
  * @param liveOneWayPrice жива ціна "в один бік" з API (order_new/order_info) для цього рейсу
  */
-/**
- * Чи існує ціна "в один бік" саме в цьому напрямку для пари міст Україна↔Європа.
- * Використовується для фільтрації списку міст у пошуку — щоб не пропонувати напрямок,
- * на який реально немає тарифу в таблиці.
- * @param uaCityId  id міста в Україні
- * @param euCityId  id міста в Європі
- * @param originIsUa true — відправлення з України (перевіряємо uah1), false — з Європи (eur1)
- */
-export function hasOneWayPriceForDirection(uaCityId: string | number, euCityId: string | number, originIsUa: boolean): boolean {
-  const key = `${uaCityId}-${euCityId}`
-  const field = originIsUa ? 'uah1' : 'eur1'
-  for (const tplName of Object.keys(templates)) {
-    const row = templates[tplName][key]
-    const v = row?.[field as keyof TemplateRow]
-    if (v != null && v !== 0) return true
-  }
-  return false
-}
-
 export function findTwoWayPrice(
   fromCityId: string | number,
   toCityId: string | number,
