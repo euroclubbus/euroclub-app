@@ -100,7 +100,12 @@ export default function OrderSuccess() {
   const currencyCode = data?.crc || trip?.currency || 'uah'
   const { format } = useDisplayPrice()
   const price = data?.summ ?? data?.price ?? trip?.price ?? 0
-  const summ = data?.summ ?? price
+  // Сума до сплати — needpay_uah/needpay_eur з бекенду (жива, відповідає реальному стану
+  // замовлення, включно з ручними правками менеджера). Одразу після створення, поки бекенд
+  // ще не підтвердив needpay (перший показ екрану, до першого опитування) — наша сума,
+  // та сама, яку щойно передали при бронюванні.
+  const needpay = currencyCode === 'eur' ? data?.needpay_eur : data?.needpay_uah
+  const summ = (needpay !== undefined && needpay !== null && needpay !== '') ? Number(needpay) : price
   // Бекенд (справжня відповідь) віддає passengers[] (без "а") з полями name/dsc/prc/tck/plc —
   // а не passangers[]/place/price, як ми самі називаємо в локально побудованих об'єктах при
   // створенні (Booking.tsx). Раніше тут читалось лише data?.passangers (з друкарською
