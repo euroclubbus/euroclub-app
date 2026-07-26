@@ -363,46 +363,6 @@ export default function OrderSuccess() {
           </div>
         </div>
 
-        {/* Бонуси Cashback Club — списати на це замовлення (до 10% від вартості, перевіряє бекенд) */}
-        {status === 'active' && !payInfo(data).fullyPaid && cabBonus != null && cabBonus > 0 && (
-          <div style={{ background: '#FFF9EF', borderRadius: 14, padding: 14, marginBottom: 20 }}>
-            <button onClick={() => setWantsBonus(v => !v)} style={{
-              width: '100%', display: 'flex', gap: 10, alignItems: 'center',
-              background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0,
-              marginBottom: wantsBonus ? 10 : 0,
-            }}>
-              <div style={{
-                width: 18, height: 18, borderRadius: 5, flexShrink: 0,
-                border: `2px solid ${wantsBonus ? ORange : '#DDD'}`,
-                background: wantsBonus ? ORange : 'transparent',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                {wantsBonus && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
-              </div>
-              <span style={{ fontWeight: 700, fontSize: 14 }}>Списати бонуси</span>
-            </button>
-            {wantsBonus && (
-              <>
-                <div style={{ fontSize: 12, color: Gray, marginBottom: 10 }}>Доступно: {format(cabBonus, currencyCode)} (максимум 10% від вартості замовлення)</div>
-                {bonusApplied ? (
-                  <div style={{ color: '#2E7D32', fontWeight: 700, fontSize: 13 }}>Бонуси списано ✓</div>
-                ) : (
-                  <>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <input value={bonusInput} onChange={e => setBonusInput(e.target.value)} type="number" min={0} max={cabBonus}
-                        placeholder="Сума" style={{ flex: 1, padding: '10px 12px', border: '1.5px solid #EEE', borderRadius: 10, fontSize: 14 }} />
-                      <button onClick={applyBonus} disabled={bonusApplying || !bonusInput} style={{ padding: '0 18px', background: ORange, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: bonusApplying ? 0.7 : 1 }}>
-                        {bonusApplying ? '...' : 'Списати'}
-                      </button>
-                    </div>
-                    {bonusError && <div style={{ color: '#E53935', fontSize: 12, marginTop: 8 }}>{bonusError}</div>}
-                  </>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
         {status === 'active' ? (
           <>
             {ticketAvailable(data, hash) ? (

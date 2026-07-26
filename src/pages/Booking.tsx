@@ -506,49 +506,6 @@ export default function Booking() {
           ))}
         </div>
 
-
-        {/* Промокод — з'являється тільки коли позначено чекбокс "У мене є промокод" */}
-        <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 16 }}>
-          <button onClick={() => {
-            const next = !hasPromoCode
-            setHasPromoCode(next)
-            if (!next) { setPromoInput(''); setPromoApplied(null); setPromoError('') }
-          }} style={{
-            width: '100%', display: 'flex', gap: 12, alignItems: 'center',
-            background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0,
-            marginBottom: hasPromoCode ? 14 : 0,
-          }}>
-            <div style={{
-              width: 20, height: 20, borderRadius: 6, flexShrink: 0,
-              border: `2px solid ${hasPromoCode ? ORange : '#DDD'}`,
-              background: hasPromoCode ? ORange : 'transparent',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              {hasPromoCode && <span style={{ color: '#fff', fontSize: 12, fontWeight: 700 }}>✓</span>}
-            </div>
-            <span style={{ fontWeight: 700, fontSize: 15 }}>У мене є промокод</span>
-          </button>
-          {hasPromoCode && (
-            <>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input value={promoInput} onChange={e => { setPromoInput(e.target.value); setPromoApplied(null); setPromoError('') }}
-                  placeholder="Наприклад, EC-XXXXXX" disabled={!!promoApplied}
-                  style={{ flex: 1, padding: '12px 14px', border: '1.5px solid #EEE', borderRadius: 12, fontSize: 14, outline: 'none' }} />
-                {!promoApplied ? (
-                  <button onClick={applyPromo} disabled={promoChecking || !promoInput.trim()} style={{ padding: '0 20px', background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: promoChecking ? 0.7 : 1 }}>
-                    {promoChecking ? '...' : 'Застосувати'}
-                  </button>
-                ) : (
-                  <button onClick={() => { setPromoApplied(null); setPromoInput('') }} style={{ padding: '0 20px', background: 'none', border: '1.5px solid #EEE', borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-                    Прибрати
-                  </button>
-                )}
-              </div>
-              {promoError && <div style={{ color: '#E53935', fontSize: 12.5, marginTop: 8 }}>{promoError}</div>}
-            </>
-          )}
-        </div>
-
         {/* Згоди */}
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 16, fontSize: 13, lineHeight: 1.5 }}>
           <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', marginBottom: 14 }}>
