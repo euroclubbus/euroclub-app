@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Clock, Wifi, Zap, Bus, MessageCircle, AlertTriangle, Menu } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { getRoutes } from '../api/euroclub'
-import { findTwoWayGroupPrice } from '../priceEngine'
+import { findTwoWayGroupPrice, findTwoWayPrice } from '../priceEngine'
 import { perPassengerOneWayPrices, fullFareOneWayPrice } from '../passengerPricing'
+import RouteOneWayOnly from '../components/RouteOneWayOnly'
 import { useDisplayPrice } from '../currency'
 import CurrencyToggle from '../components/CurrencyToggle'
 import SideMenu from '../components/SideMenu'
@@ -406,6 +407,10 @@ export default function Results() {
   const twoWay = (isRoundTrip && ready && from && to)
     ? findTwoWayGroupPrice(perPassengerOneWayPrices(outTrip, passengerCategories), fullFareOneWayPrice(outTrip), from.id, to.id, direction)
     : null
+  // Існування round-trip у таблиці цін — незалежно від живої ціни, потрібен лише факт наявності
+  const routeOneWayOnly = (isRoundTrip && from && to)
+    ? findTwoWayPrice(from.id, to.id, direction, 0)?.oneWayOnly === true
+    : false
 
   const handleSelect = () => {
     if (!outTrip) return
@@ -467,7 +472,9 @@ export default function Results() {
               <BlockedLegCard label="Поїздка туди" cities={`${from?.name} → ${to?.name}`} leg={outLeg} requestedISO={dateFrom} onBack={() => nav(-1)} />
             )}
             {retBlocked && (
-              <BlockedLegCard label="Зворотна поїздка" cities={`${to?.name} → ${from?.name}`} leg={retLeg} requestedISO={returnDateISO!} onBack={() => nav(-1)} />
+              routeOneWayOnly
+                ? <RouteOneWayOnly fromName={from?.name} toName={to?.name} destCountry={to?.i2} onPickOtherCity={() => nav(-1)} />
+                : <BlockedLegCard label="Зворотна поїздка" cities={`${to?.name} → ${from?.name}`} leg={retLeg} requestedISO={returnDateISO!} onBack={() => nav(-1)} />
             )}
 
             {!outBlocked && outNeedsConfirm && (
