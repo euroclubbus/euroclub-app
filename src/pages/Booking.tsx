@@ -116,11 +116,10 @@ export default function Booking() {
     ? findTwoWayGroupPrice(perPassengerOneWay, fullFareOneWayPrice(trip), from.id, to.id, direction)
     : null
   const total = isRoundTrip ? (twoWayGroup?.total ?? subtotal) : subtotal
-  // Тариф — базова ціна ОДНОГО повного квитка в два боки, саме вона йде в бронювання
-  // (`price` в neworder), незалежно від кількості пасажирів чи їхніх знижок. Система
-  // бронювання сама рахує суму по пасажирах зі своїх кодів знижок. У прев'ю/на екрані —
-  // завжди показуємо `total` (нашу ціну), а не тариф.
-  const tariff = isRoundTrip ? (twoWayGroup?.tariff ?? subtotal) : subtotal
+  // ОДНОСТОРОННІ: price взагалі НЕ передається в запиті (undefined → поле випадає з тіла
+  // запиту, див. createOrderNew) — бек сам бере й рахує по своєму існуючому тарифу.
+  // ДВОБІЧНІ: price = наш тариф з таблиці (одна повна ціна, не сума групи).
+  const tariff = isRoundTrip ? (twoWayGroup?.tariff ?? subtotal) : undefined
 
   // Ціна конкретної категорії знижки для показу в пікерах вибору — якщо це рейс в два боки,
   // категорія має показувати ціну В ДВА БОКИ (тариф, масштабований за співвідношенням
@@ -129,7 +128,7 @@ export default function Booking() {
   // 5500 замість 9500+ для рейсу в два боки.
   const fullOneWay = fullFareOneWayPrice(trip)
   const categoryPrice = (oneWayPrice: number) =>
-    isRoundTrip && fullOneWay > 0 ? Math.round(tariff * (oneWayPrice / fullOneWay)) : oneWayPrice
+    isRoundTrip && fullOneWay > 0 ? Math.round(tariff! * (oneWayPrice / fullOneWay)) : oneWayPrice
 
   // Промокод (наприклад, приз за гру EuroClub Racer) — знижка застосовується лише в застосунку,
   // на боці eclub.com.ua не існує (поки прогер не додасть офіційне поле для промокодів).
@@ -186,7 +185,7 @@ export default function Booking() {
         email: contactEmail.trim() || '',
         phone: contactPhone.trim(),
         header: (payerName || passengerNames[0] || '').trim().toUpperCase() || 'PASSENGER',
-        price: String(tariff),
+        price: tariff != null ? String(tariff) : undefined,
         crc: currency,
         from: String(from.id),
         to: String(to.id),
@@ -257,11 +256,26 @@ export default function Booking() {
         // розрахунком, тоді як миттєвий user-orders одразу після створення віддавав інше,
         // тимчасове число). Без цієї паузи користувач бачить хибне значення, яке саме
         // виправилось би за секунду.
-        setTimeout(() => {
-          findUserOrder(oid).then((fresh: any) => {
-            if (fresh) setOrderResult(oid, { ...keepOurPrice(order, fresh), bookingDate })
-          }).catch(() => {})
-        }, 2500)
+        // Ціна для round-trip вже назавжди наша (keepOurPrice), тож тут просто підтягуємо
+        // paid_uah/needpay/status у фоні — без вигадливих затримок і перевірок стабільності.
+        // Підтверджено коментарем нижче (LiqPay сторінка показувала правильну суму, коли
+        // миттєвий user-orders — тимчасову): бек не рахує ІНШУ ціну, а просто не встигає її
+        // сформувати одразу. Тому перевіряємо СТАБІЛЬНІСТЬ — довіряємо summ тільки коли він
+        // однаковий у двох послідовних відповідях поспіль, а не за одним запитом чи таймером.
+        ;(async () => {
+          let prevSumm: string | null = null
+          for (let attempt = 0; attempt < 6; attempt++) {
+            await new Promise(r => setTimeout(r, 1500))
+            const fresh: any = await findUserOrder(oid).catch(() => null)
+            if (!fresh) continue
+            const s = String(fresh.summ ?? '')
+            if (prevSumm !== null && s === prevSumm) {
+              setOrderResult(oid, { ...keepOurPrice(order, fresh), bookingDate })
+              return
+            }
+            prevSumm = s
+          }
+        })()
 
         if (promoApplied) {
           applyPromoCode(promoApplied.code, oid).then((promoRes: any) => {

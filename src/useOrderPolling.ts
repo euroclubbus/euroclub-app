@@ -16,19 +16,28 @@ export function useOrderPolling(oid: string, active: boolean, onUpdate: (order: 
   useEffect(() => {
     if (!oid || !active) return
     let stopped = false
+    let prevSumm: string | null = null
+    let stable = false
     const tick = async () => {
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
       try {
         const o = await findUserOrder(oid)
-        if (!stopped && o) cb.current(o)
+        if (stopped || !o) return
+        if (!stable) {
+          // Summ на бекенді формується не миттєво (підтверджено: LiqPay показував правильну
+          // суму, коли миттєвий user-orders — тимчасову). Довіряємо тільки коли значення
+          // однакове у двох послідовних відповідях поспіль — до того не показуємо це оновлення.
+          const s = String(o.summ ?? '')
+          if (prevSumm !== null && s === prevSumm) stable = true
+          else { prevSumm = s; return }
+        }
+        cb.current(o)
       } catch {}
     }
-    // Перший запит — не миттєво, а з паузою: бекенду треба встигнути "сформувати" ціну
-    // (round-trip) після neworder, інакше перший тік ловить нестабільне проміжне значення.
-    let timer: ReturnType<typeof setInterval> | null = null
-    const first = setTimeout(() => { tick(); timer = setInterval(tick, 500) }, 5000)
+    tick()
+    const timer = setInterval(tick, 500)
     const onVis = () => { if (document.visibilityState === 'visible') tick() }
     document.addEventListener('visibilitychange', onVis)
-    return () => { stopped = true; clearTimeout(first); if (timer) clearInterval(timer); document.removeEventListener('visibilitychange', onVis) }
+    return () => { stopped = true; clearInterval(timer); document.removeEventListener('visibilitychange', onVis) }
   }, [oid, active])
 }
