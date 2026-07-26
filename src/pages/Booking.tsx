@@ -308,7 +308,7 @@ export default function Booking() {
               index: i + 1,
               ticketNumber: String(p.tck ?? p.ticket ?? ''),
               discountId: discountIds[i],
-              tariff: Number(p.prc ?? p.price ?? 0),
+              tariff: isRoundTrip ? tariff : Number(p.prc ?? p.price ?? 0),
             })),
           })
         }
