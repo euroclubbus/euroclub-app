@@ -216,11 +216,16 @@ export default function MyTickets() {
           const st = statusLabel(o)
           const paid = ticketAvailable(o, o.hash)
           const alertPaidCancel = isPaidCancellation(o)
+          const createdAt = o.bookingDate ? new Date(o.bookingDate) : null
+          const createdAtStr = createdAt && !isNaN(createdAt.getTime())
+            ? createdAt.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+            : null
           return (
-            <div key={i} style={{
+            <div key={i} onClick={() => openOrder(o)} style={{
               background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12,
-              boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
-              border: alertPaidCancel ? '2px solid #E53935' : 'none',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.06)', cursor: 'pointer',
+              border: alertPaidCancel ? '2px solid #E53935' : '1px solid transparent',
+              borderLeft: `5px solid ${alertPaidCancel ? '#E53935' : st.color}`,
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 }}>
                 <span style={{ fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
@@ -243,20 +248,21 @@ export default function MyTickets() {
                     Замовлення оплачене, але скасоване — зверніться в службу підтримки
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                    <a href="tel:+380674875878" style={{ color: '#E53935', fontSize: 13, fontWeight: 700, textDecoration: 'underline' }}>+380674875878</a>
-                    <a href="tel:+491522503600" style={{ color: '#E53935', fontSize: 13, fontWeight: 700, textDecoration: 'underline' }}>+491522503600</a>
+                    <a href="tel:+380674875878" onClick={e => e.stopPropagation()} style={{ color: '#E53935', fontSize: 13, fontWeight: 700, textDecoration: 'underline' }}>+380674875878</a>
+                    <a href="tel:+491522503600" onClick={e => e.stopPropagation()} style={{ color: '#E53935', fontSize: 13, fontWeight: 700, textDecoration: 'underline' }}>+491522503600</a>
                   </div>
                 </div>
               )}
-              <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 10 }}>
+              <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
                 <span style={{ color: Gray, fontSize: 12 }}>{orderNo(o)}</span>
+                {createdAtStr && <span style={{ color: Gray, fontSize: 11.5 }}>створено {createdAtStr}</span>}
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-                <button onClick={() => openOrder(o)} style={{ flex: 1, padding: '11px 0', background: 'none', border: `2px solid ${ORange}`, borderRadius: 12, color: ORange, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                <button onClick={e => { e.stopPropagation(); openOrder(o) }} style={{ flex: 1, padding: '11px 0', background: 'none', border: `2px solid ${ORange}`, borderRadius: 12, color: ORange, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
                   {t('orders.order')}
                 </button>
                 {paid && (
-                  <button onClick={() => openTicket(o)} style={{ flex: 1, padding: '11px 0', background: ORange, border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                  <button onClick={e => { e.stopPropagation(); openTicket(o) }} style={{ flex: 1, padding: '11px 0', background: ORange, border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
                     {t('orders.ticket')}
                   </button>
                 )}
