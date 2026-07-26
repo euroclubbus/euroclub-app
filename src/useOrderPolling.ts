@@ -16,22 +16,11 @@ export function useOrderPolling(oid: string, active: boolean, onUpdate: (order: 
   useEffect(() => {
     if (!oid || !active) return
     let stopped = false
-    let prevSumm: string | null = null
-    let stable = false
     const tick = async () => {
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
       try {
         const o = await findUserOrder(oid)
-        if (stopped || !o) return
-        if (!stable) {
-          // Summ на бекенді формується не миттєво (підтверджено: LiqPay показував правильну
-          // суму, коли миттєвий user-orders — тимчасову). Довіряємо тільки коли значення
-          // однакове у двох послідовних відповідях поспіль — до того не показуємо це оновлення.
-          const s = String(o.summ ?? '')
-          if (prevSumm !== null && s === prevSumm) stable = true
-          else { prevSumm = s; return }
-        }
-        cb.current(o)
+        if (!stopped && o) cb.current(o)
       } catch {}
     }
     tick()
