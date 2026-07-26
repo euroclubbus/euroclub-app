@@ -12,6 +12,7 @@ import { getSavedPassengers } from '../savedPassengers'
 import { validatePromo, redeemPromo } from '../game/gameApi'
 import { applyPromoCode, createOrderNew, NewOrderPassenger, findUserOrder } from '../api/auth'
 import { reportTrip } from '../reporting'
+import { writeOrderRegistry } from '../orderRegistry'
 import BottomSheet from '../components/BottomSheet'
 import CurrencyToggle from '../components/CurrencyToggle'
 import { useT } from '../i18n'
@@ -291,6 +292,24 @@ export default function Booking() {
             discountIds,
             roundTrip: isRoundTrip,
             bookingDate,
+          })
+          // Реєстр замовлень для панелі керування — окремий, редагований документ (знижка/
+          // тариф пасажира можна буде правити в адмінці, поки прогер не додасть офіційний
+          // API-метод для передачі правок назад на бекенд).
+          writeOrderRegistry({
+            orderNo: oid,
+            fromCity: order.from_city || from?.name || '',
+            toCity: order.to_city || to?.name || '',
+            tripDate: String(order.ftime || '').split(' ')[0],
+            tripDate2: isRoundTrip ? String(order.ftime2 || '').split(' ')[0] : undefined,
+            roundTrip: isRoundTrip,
+            createdAt: bookingDate,
+            passengers: order.passangers.map((p: any, i: number) => ({
+              index: i + 1,
+              ticketNumber: String(p.tck ?? p.ticket ?? ''),
+              discountId: discountIds[i],
+              tariff: Number(p.prc ?? p.price ?? 0),
+            })),
           })
         }
       } else {

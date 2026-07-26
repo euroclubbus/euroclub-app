@@ -10,6 +10,7 @@ async function inputPost(fields: Record<string, string>) {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
+    cache: 'no-store',
   })
   const raw = await res.text()
   console.log('[EuroClub AUTH] ← RAW', fields.opr, 'status:', res.status, 'body:', raw)
@@ -33,7 +34,10 @@ export const authRepass2 = (email: string, code: string) => inputPost({ opr: 're
 export const authRepass3 = (email: string, pass: string, code: string) => inputPost({ opr: 'repass_3', email, pass, code, mod: 'apimobile' })
 
 // Історія всіх замовлень користувача (не тільки ті, що збережені локально на цьому пристрої)
-export const getUserOrders = () => inputPost({ mod: 'apimobile', opr: 'user-orders', uidkey: currentUidKey() })
+// _ts — унікальне число в кожному запиті, щоб пробити можливий сервер-сайд кеш на боці
+// eclub.com.ua (якщо там кешуються POST-відповіді з однаковим тілом). Бекенд це поле не
+// використовує, просто ігнорує — воно тут тільки для унікальності запиту.
+export const getUserOrders = () => inputPost({ mod: 'apimobile', opr: 'user-orders', uidkey: currentUidKey(), _ts: String(Date.now()) })
 
 // Скасування і відновлення замовлення — підтверджено прогером: НЕ старий /v1/json/
 // order_cancel|order_restore (застарілий, з полем hash), а /input з mod=apimobile,

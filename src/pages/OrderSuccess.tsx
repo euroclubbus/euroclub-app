@@ -51,10 +51,17 @@ export default function OrderSuccess() {
 
   const trip = selectedTrip as any
   const trip2 = selectedTrip2 as any
-  const isRoundTrip = !!trip2
+  const data = orderData as any
+  const isRoundTrip = !!(data?.roundTrip || trip2)
   const dep2 = trip2?.departure?.[0]
   const arr2 = trip2?.arrival?.[0]
-  const data = orderData as any
+  // Дані зворотного рейсу для показу — надійні (data.ftime2/ttime2, захищені в keepOurPrice),
+  // а не з trip2 (тимчасовий стан пошуку — губиться при перезаході/оновленні). Міста
+  // зворотного рейсу — дзеркальні до основного (звідки прибули туди — звідти й назад).
+  const ftime2Display = data?.ftime2 || dep2?.time
+  const ttime2Display = data?.ttime2 || arr2?.time
+  const fromCity2 = data?.to_city || dep2?.city_ua || dep2?.city
+  const toCity2 = data?.from_city || arr2?.city_ua || arr2?.city
   // Prefer order data from order_new response (real, confirmed), fall back to selected trip for display before booking completes
   const dep = trip?.departure?.[0]
   const arr = trip?.arrival?.[0]
@@ -303,25 +310,23 @@ export default function OrderSuccess() {
           </div>
         </div>
 
-        {isRoundTrip && trip2 && (
+        {isRoundTrip && (
           <>
             <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>{t('booking.return')}</div>
             <div style={{ border: '1.5px solid #EEE', borderRadius: 16, padding: 16, marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, marginBottom: 10 }}>
-                <span>{splitDateTime(dep2?.time).date} → {splitDateTime(arr2?.time).date}</span>
-                <span>⏱ {calcDuration(dep2?.time, arr2?.time)}</span>
+                <span>{splitDateTime(ftime2Display).date} → {splitDateTime(ttime2Display).date}</span>
+                <span>⏱ {calcDuration(ftime2Display, ttime2Display)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: 22 }}>{splitDateTime(dep2?.time).time}</div>
-                  <div style={{ fontSize: 13 }}>{dep2?.city_ua || dep2?.city}</div>
-                  <div style={{ fontSize: 11, color: Gray }}>{dep2?.name}</div>
+                  <div style={{ fontWeight: 800, fontSize: 22 }}>{splitDateTime(ftime2Display).time}</div>
+                  <div style={{ fontSize: 13 }}>{fromCity2}</div>
                 </div>
                 <span style={{ fontSize: 16 }}>🚌</span>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 800, fontSize: 22 }}>{splitDateTime(arr2?.time).time}</div>
-                  <div style={{ fontSize: 13 }}>{arr2?.city_ua || arr2?.city}</div>
-                  <div style={{ fontSize: 11, color: Gray }}>{arr2?.name}</div>
+                  <div style={{ fontWeight: 800, fontSize: 22 }}>{splitDateTime(ttime2Display).time}</div>
+                  <div style={{ fontSize: 13 }}>{toCity2}</div>
                 </div>
               </div>
             </div>
