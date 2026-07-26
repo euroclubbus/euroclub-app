@@ -7,8 +7,10 @@ import { firebaseConfig, isFirebaseConfigured } from './firebaseConfig'
 export interface OrderRegistryPassenger {
   index: number // 1, 2, 3...
   ticketNumber: string
-  discountId: string
-  tariff: number
+  discountName: string
+  discountPercent: number
+  tariff: number // повна ціна квитка (до знижки)
+  price: number // ціна з урахуванням знижки — те, що реально бачить і платить пасажир
 }
 
 export interface OrderRegistryData {

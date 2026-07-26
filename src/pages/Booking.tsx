@@ -304,12 +304,22 @@ export default function Booking() {
             tripDate2: isRoundTrip ? String(order.ftime2 || '').split(' ')[0] : undefined,
             roundTrip: isRoundTrip,
             createdAt: bookingDate,
-            passengers: order.passangers.map((p: any, i: number) => ({
-              index: i + 1,
-              ticketNumber: String(p.tck ?? p.ticket ?? ''),
-              discountId: discountIds[i],
-              tariff: isRoundTrip ? tariff : Number(p.prc ?? p.price ?? 0),
-            })),
+            passengers: order.passangers.map((p: any, i: number) => {
+              const discountOpt = orderedDiscounts.find(d => String(d.id) === discountIds[i])
+              const discountName = discountOpt ? catName(discountOpt) : 'Повний тариф'
+              const discountPercent = discountOpt ? Number(discountOpt.discount) || 0 : 0
+              const ownPrice = isRoundTrip
+                ? (twoWayGroup?.perPassenger?.[i] ?? Number(p.prc ?? p.price ?? 0))
+                : Number(p.prc ?? p.price ?? 0)
+              return {
+                index: i + 1,
+                ticketNumber: String(p.tck ?? p.ticket ?? ''),
+                discountName,
+                discountPercent,
+                tariff: isRoundTrip ? tariff : ownPrice,
+                price: ownPrice,
+              }
+            }),
           })
         }
       } else {
