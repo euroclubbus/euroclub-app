@@ -107,6 +107,20 @@ export function passengerDisplayPrices(summ: number, passengers: any[]): number[
   }
   return weights.map(w => summ * w / totalWeight)
 }
+
+// Правильна сума до сплати — рахуємо самі, замість того щоб довіряти needpay_uah/needpay_eur
+// з бекенду (підтверджено: там помилка, ці поля видають неправильні числа). Наша сума =
+// сума prc всіх пасажирів (це поле підтверджено живе й правильне). Валюта самого замовлення
+// (crc) — "рідна" сторона (пряма сума), інша сторона рахується через курс EUR/UAH.
+export function ourNeedpay(order: any, eurToUah: number): { uah: number; eur: number } {
+  const passengers = order?.passengers?.length ? order.passengers : order?.passangers
+  const sum = (passengers || []).reduce((s: number, p: any) => s + (Number(p?.prc ?? p?.price) || 0), 0)
+  const crc = String(order?.crc || 'uah').toLowerCase()
+  if (crc === 'eur') {
+    return { eur: sum, uah: Math.round(sum * eurToUah) }
+  }
+  return { uah: sum, eur: Math.round((sum / eurToUah) * 100) / 100 }
+}
 // Прогер підтвердив офіційні числові коди status: 0=скасовано, 1=не сплачено,
 // 2=оплачено (поїздка ще не відбулася, або відбулася лише частково — напр. round-trip
 // назад ще попереду), 3=оплачено, поїздка повністю відбулася.
