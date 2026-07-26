@@ -23,10 +23,12 @@ export function useOrderPolling(oid: string, active: boolean, onUpdate: (order: 
         if (!stopped && o) cb.current(o)
       } catch {}
     }
-    tick()
-    const timer = setInterval(tick, 500)
+    // Перший запит — не миттєво, а з паузою: бекенду треба встигнути "сформувати" ціну
+    // (round-trip) після neworder, інакше перший тік ловить нестабільне проміжне значення.
+    let timer: ReturnType<typeof setInterval> | null = null
+    const first = setTimeout(() => { tick(); timer = setInterval(tick, 500) }, 5000)
     const onVis = () => { if (document.visibilityState === 'visible') tick() }
     document.addEventListener('visibilitychange', onVis)
-    return () => { stopped = true; clearInterval(timer); document.removeEventListener('visibilitychange', onVis) }
+    return () => { stopped = true; clearTimeout(first); if (timer) clearInterval(timer); document.removeEventListener('visibilitychange', onVis) }
   }, [oid, active])
 }

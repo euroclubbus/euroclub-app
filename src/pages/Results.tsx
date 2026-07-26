@@ -6,6 +6,7 @@ import { getRoutes } from '../api/euroclub'
 import { findTwoWayGroupPrice, findTwoWayPrice } from '../priceEngine'
 import { perPassengerOneWayPrices, fullFareOneWayPrice } from '../passengerPricing'
 import RouteOneWayOnly from '../components/RouteOneWayOnly'
+import { ORIGIN_ONLY_UA } from '../cityRules'
 import { useDisplayPrice } from '../currency'
 import CurrencyToggle from '../components/CurrencyToggle'
 import SideMenu from '../components/SideMenu'
@@ -407,9 +408,12 @@ export default function Results() {
   const twoWay = (isRoundTrip && ready && from && to)
     ? findTwoWayGroupPrice(perPassengerOneWayPrices(outTrip, passengerCategories), fullFareOneWayPrice(outTrip), from.id, to.id, direction)
     : null
-  // Існування round-trip у таблиці цін — незалежно від живої ціни, потрібен лише факт наявності
+  // Існування round-trip: спочатку надійний список ORIGIN_ONLY_UA (місто ніколи не буває
+  // прибуттям — таблиця цін тут не потрібна), потім таблиця цін як доповнення для решти
+  // (вона покриває не всі пари, тому сама по собі недостатня — була причина бага 26.07).
   const routeOneWayOnly = (isRoundTrip && from && to)
-    ? findTwoWayPrice(from.id, to.id, direction, 0)?.oneWayOnly === true
+    ? (direction === 'ua' ? ORIGIN_ONLY_UA.includes(from.name) : ORIGIN_ONLY_UA.includes(to.name))
+      || findTwoWayPrice(from.id, to.id, direction, 0)?.oneWayOnly === true
     : false
 
   const handleSelect = () => {
