@@ -87,7 +87,7 @@ export const applyPromoCode = (code: string, oid: string) =>
 export interface NewOrderPassenger { name: string; discount: string; place1?: string; place2?: string }
 
 export async function createOrderNew(
-  fields: { email: string; phone: string; header: string; price?: string; crc: 'uah' | 'eur'; from: string; to: string; route1: string; route2?: string },
+  fields: { email: string; phone: string; header: string; price: string; crc: 'uah' | 'eur'; from: string; to: string; route1: string; route2?: string },
   passengers: NewOrderPassenger[]
 ) {
   const body = new URLSearchParams()

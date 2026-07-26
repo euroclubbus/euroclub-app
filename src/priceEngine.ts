@@ -25,7 +25,6 @@ export interface TwoWayResult {
   price: number
   templateUsed: string
   exactMatch: boolean
-  oneWayOnly?: boolean
 }
 
 /**
@@ -35,25 +34,6 @@ export interface TwoWayResult {
  * @param direction    напрямок першого відрізка: 'ua' (з України, ціна в UAH) або 'eu' (з Європи, ціна в EUR)
  * @param liveOneWayPrice жива ціна "в один бік" з API (order_new/order_info) для цього рейсу
  */
-/**
- * Чи існує ціна "в один бік" саме в цьому напрямку для пари міст Україна↔Європа.
- * Використовується для фільтрації списку міст у пошуку — щоб не пропонувати напрямок,
- * на який реально немає тарифу в таблиці.
- * @param uaCityId  id міста в Україні
- * @param euCityId  id міста в Європі
- * @param originIsUa true — відправлення з України (перевіряємо uah1), false — з Європи (eur1)
- */
-export function hasOneWayPriceForDirection(uaCityId: string | number, euCityId: string | number, originIsUa: boolean): boolean {
-  const key = `${uaCityId}-${euCityId}`
-  const field = originIsUa ? 'uah1' : 'eur1'
-  for (const tplName of Object.keys(templates)) {
-    const row = templates[tplName][key]
-    const v = row?.[field as keyof TemplateRow]
-    if (v != null && v !== 0) return true
-  }
-  return false
-}
-
 export function findTwoWayPrice(
   fromCityId: string | number,
   toCityId: string | number,
@@ -66,20 +46,14 @@ export function findTwoWayPrice(
 
   let best: TwoWayResult | null = null
   let bestDiff = Infinity
-  let sawRow = false
-  let sawUsableRoundTrip = false
 
   for (const tplName of Object.keys(templates)) {
     const row = templates[tplName][key]
     if (!row) continue
     const val1 = row[field1 as keyof TemplateRow]
-    if (val1 == null) continue
-    sawRow = true
-
     const val2 = row[field2 as keyof TemplateRow]
-    if (val2 == null || val2 === 0) continue // цей шаблон не дає round-trip для цієї пари
+    if (val1 == null || val2 == null) continue
 
-    sawUsableRoundTrip = true
     const diff = Math.abs(val1 - liveOneWayPrice)
 
     if (diff === 0) {
@@ -89,11 +63,6 @@ export function findTwoWayPrice(
       bestDiff = diff
       best = { price: val2, templateUsed: tplName, exactMatch: false }
     }
-  }
-
-  if (sawRow && !sawUsableRoundTrip) {
-    // Є дані по цій парі міст, але round-trip поле скрізь 0/порожнє — маршрут тільки в один бік
-    return { price: 0, templateUsed: '', exactMatch: false, oneWayOnly: true }
   }
 
   return best
@@ -124,20 +93,14 @@ export function findTwoWayGroupPrice(
   fromCityId: string | number,
   toCityId: string | number,
   direction: Direction
-): { tariff: number; total: number; perPassenger: number[]; anyFallback: boolean; oneWayOnly: boolean } {
+): { tariff: number; total: number; perPassenger: number[]; anyFallback: boolean } {
   const res = findTwoWayPrice(fromCityId, toCityId, direction, fullOneWayPrice)
-
-  if (res?.oneWayOnly) {
-    // Маршрут існує тільки в один бік — нічого не вигадуємо, round-trip недоступний
-    return { tariff: 0, total: 0, perPassenger: perPassengerOneWayPrices.map(() => 0), anyFallback: false, oneWayOnly: true }
-  }
-
-  const tariff = res ? res.price : fullOneWayPrice * 2 // нема рядка шаблону взагалі — оцінка х2 від one-way
+  const tariff = res ? res.price : fullOneWayPrice * 2 // нема рядка шаблону — оцінка х2 від one-way
   const anyFallback = !res
   const perPassenger = perPassengerOneWayPrices.map(p => {
     const ratio = fullOneWayPrice > 0 ? p / fullOneWayPrice : 1
     return Math.round(tariff * ratio)
   })
   const total = perPassenger.reduce((s, p) => s + p, 0)
-  return { tariff, total, perPassenger, anyFallback, oneWayOnly: false }
+  return { tariff, total, perPassenger, anyFallback }
 }

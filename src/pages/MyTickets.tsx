@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Menu } from 'lucide-react'
-import { getLocalOrders, saveOrderLocally, getCities } from '../api/euroclub'
+import { getLocalOrders, saveOrderLocally } from '../api/euroclub'
 import { getUserOrders } from '../api/auth'
 import { useBookingStore } from '../store'
 import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted, isPaidCancellation, keepOurPrice } from '../orderStatus'
@@ -33,21 +33,6 @@ export default function MyTickets() {
       merged.forEach((o: any) => saveOrderLocally(o.hash, o)) // кешуємо серверні дані локально
       setOrders(merged)
       setLoading(false)
-    }
-
-    // Довідник міст — потрібен, бо частина замовлень з user-orders (без локального кешу з
-    // моменту бронювання) не дає from_city/to_city рядками, а лише from1/to1 (id міст) і
-    // date1 (дата без часу). Тягнемо один раз за виклик, тільки якщо реально знадобиться.
-    let citiesById: Record<string, string> | null = null
-    function fillRouteFallback(o: any) {
-      if ((o.from_city && o.to_city) || (!o.from1 && !o.to1)) return o
-      if (!citiesById) return o // довідник ще не готовий — заповнимо після його приходу
-      return {
-        ...o,
-        from_city: o.from_city || citiesById[String(o.from1)] || o.from_city,
-        to_city: o.to_city || citiesById[String(o.to1)] || o.to_city,
-        ftime: o.ftime || o.date1 || o.ftime,
-      }
     }
 
     getUserOrders()
@@ -82,16 +67,7 @@ export default function MyTickets() {
           if (!byId[key].bookingDate) byId[key].bookingDate = new Date().toISOString()
         }
 
-        const needsCities = Object.values(byId).some((o: any) => (!o.from_city || !o.to_city) && (o.from1 || o.to1))
-        if (!needsCities) { finish(Object.values(byId)); return }
-
-        getCities().then((data: any) => {
-          const raw = data?.cities || data || {}
-          const arr = Array.isArray(raw) ? raw : Object.values(raw)
-          citiesById = {}
-          for (const c of arr as any[]) if (c?.id != null && c?.uk) citiesById![String(c.id)] = c.uk
-          finish(Object.values(byId).map(fillRouteFallback))
-        }).catch(() => finish(Object.values(byId))) // довідник не завантажився — показуємо як є, без фолбеку
+        finish(Object.values(byId))
       })
       .catch((e) => {
         console.error('[MyTickets] user-orders failed — показуємо тільки локальний кеш', e)

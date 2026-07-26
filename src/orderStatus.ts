@@ -69,11 +69,14 @@ export function keepOurPrice(current: any, fresh: any) {
     // "останнє зверху". Раніше губилась при кожному мержі зі свіжими даними з сервера.
     bookingDate: current?.bookingDate,
   }
-  // Сценарій (як написано, без відхилень): під час бронювання ціна з нашої таблиці
-  // (priceEngine), передаємо її на бек при створенні — там вона фіксується. З цього моменту
-  // користуємось тим, що бек нам віддає (summ/price/tariff — завжди fresh, для ОБОХ типів
-  // замовлень, без винятку для round-trip). Якщо бек колись поверне інше число — це ручна
-  // правка в адмінці, це нормально, не "виправляємо" назад.
+  // Двобічні замовлення: ціна (summ/price) ЗАВЖДИ з нашої таблиці (priceEngine), ніколи з
+  // відповіді бекенду — підтверджено, що бекенд для round-trip повертає нестабільне/
+  // невідповідне число (наприклад 10000 → 9900 → 10000 без жодної зміни з нашого боку).
+  // paid_uah/paid_eur/needpay/status і далі йдуть живими з fresh — статус оплати це не чіпає.
+  // В один бік — summ/price лишається живим з бекенду, там такої нестабільності не було.
+  if (current?.roundTrip) {
+    return { ...fresh, hash: current?.hash, oid: current?.oid, summ: current?.summ, price: current?.price, tariff: current?.tariff, ...displayFields }
+  }
   return { ...fresh, hash: current?.hash, oid: current?.oid, ...displayFields }
 }
 
