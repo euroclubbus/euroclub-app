@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBookingStore, useSearchStore } from '../store'
 import { getCities, getRoutes } from '../api/euroclub'
-import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, ourNeedpay } from '../orderStatus'
-import { useExchangeRate } from '../exchangeRate'
+import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat } from '../orderStatus'
+import { useOrderRegistry } from '../orderRegistryRead'
 import { useOrderPolling } from '../useOrderPolling'
 import { useDisplayPrice } from '../currency'
 import SeatMap from './SeatMap'
@@ -36,7 +36,6 @@ function calcDuration(depStr?: string, arrStr?: string): string {
 export default function OrderSuccess() {
   const nav = useNavigate()
   const t = useT()
-  const eurToUah = useExchangeRate()
   const { orderHash, orderData, selectedTrip, selectedTrip2, selectedSeats, setOrderResult } = useBookingStore()
   const { setFrom, setTo } = useSearchStore()
   const [status, setStatus] = useState<'active'|'cancelled'>('active')
@@ -109,20 +108,26 @@ export default function OrderSuccess() {
   const currencyCode = data?.crc || trip?.currency || 'uah'
   const { format } = useDisplayPrice()
   const price = data?.summ ?? data?.price ?? trip?.price ?? 0
-  // Правильна сума до сплати — рахуємо самі з prc пасажирів (жива, підтверджено правильна),
-  // а не з needpay_uah/needpay_eur бекенду (підтверджено — там помилка, невірні числа).
-  // Фолбек на нашу передбронювальну ціну тільки якщо пасажирів/prc ще немає в даних
-  // (одразу після створення, до першого підтвердження бекендом).
-  const hasPrcData = ((data?.passengers?.length || data?.passangers?.length) || 0) > 0
-  const computedNeedpay = ourNeedpay(data, eurToUah)
-  const summ = hasPrcData ? (currencyCode === 'eur' ? computedNeedpay.eur : computedNeedpay.uah) : price
+  // Сума до сплати — з реєстру замовлень панелі керування (order_registry), живо. Це те,
+  // що адмін може відредагувати вручну (тариф/знижка кожного пасажира), і саме це має
+  // побачити користувач при оновленні сторінки — узгоджено з Кепом, бо дані з самого
+  // бекенду (summ/prc/needpay_*) підтверджено ненадійні й не оновлюються після правок.
+  // Фолбек на нашу передбронювальну ціну, поки запис у реєстрі ще не підтягнувся (мить
+  // одразу після створення) або якщо його взагалі нема.
+  const registry = useOrderRegistry(hash || data?.oid)
+  const registryTotal = registry?.passengers?.length
+    ? registry.passengers.reduce((s, p) => s + (Number(p.price) || 0), 0)
+    : null
+  const summ = registryTotal != null ? registryTotal : price
   // Бекенд (справжня відповідь) віддає passengers[] (без "а") з полями name/dsc/prc/tck/plc —
   // а не passangers[]/place/price, як ми самі називаємо в локально побудованих об'єктах при
   // створенні (Booking.tsx). Раніше тут читалось лише data?.passangers (з друкарською
   // помилкою) — тому після фонового оновлення реальними даними пасажири зникали з екрану.
   const rawPax = data?.passengers?.length ? data.passengers : data?.passangers
   let passengers: any[] = (rawPax || []).map((p: any) => ({ name: p.name, place: p.plc ?? p.place, price: p.prc ?? p.price }))
-  {
+  if (registry?.passengers?.length) {
+    passengers = passengers.map((p, i) => ({ ...p, price: registry.passengers.find(rp => rp.index === i + 1)?.price ?? p.price }))
+  } else {
     const split = passengerDisplayPrices(Number(summ) || 0, passengers)
     passengers = passengers.map((p, i) => ({ ...p, price: split[i] }))
   }
