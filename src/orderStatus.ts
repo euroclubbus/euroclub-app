@@ -103,9 +103,14 @@ export function passengerDisplayPrices(summ: number, passengers: any[]): number[
   }
   return weights.map(w => summ * w / totalWeight)
 }
+// Прогер підтвердив офіційні числові коди status: 0=скасовано, 1=не сплачено,
+// 2=оплачено (поїздка ще не відбулася, або відбулася лише частково — напр. round-trip
+// назад ще попереду), 3=оплачено, поїздка повністю відбулася.
+// РАНІШЕ тут була перевірка рядків ('cancel'/'скасов') — з реальних даних бекенд віддає
+// status числом, і ця перевірка НІКОЛИ не спрацьовувала (скасовані замовлення показувались
+// як "очікує оплати"). Виправлено.
 export function isCancelled(o: any): boolean {
-  const s = String(o?.status || '').toLowerCase()
-  return s.includes('cancel') || s.includes('скасов')
+  return Number(o?.status) === 0
 }
 
 // Оплачене замовлення, яке потім скасували — критичний випадок (гроші вже списані, а
@@ -124,11 +129,8 @@ function parseDT(str: any): Date | null {
   return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0))
 }
 export function isCompleted(o: any): boolean {
-  // Прогер підтвердив офіційні значення status: error/unpaid/complete/active/cancel.
-  // 'complete' = "поїздка відбулася" — надійніший сигнал, ніж наша евристика по часу.
-  const s = String(o?.status || '').toLowerCase()
-  if (s === 'complete') return true
-  if (s && s !== 'active') return false // явний інший статус (unpaid/cancel/error) — не complete
+  if (o?.status != null && o.status !== '') return Number(o.status) === 3
+  // status відсутній (напр. локальний ще не підтверджений об'єкт) — фолбек по часу відправлення
   const d = parseDT(o?.ttime)
   return d ? d.getTime() < Date.now() : false
 }
