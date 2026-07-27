@@ -46,3 +46,27 @@ export async function writeOrderRegistry(data: OrderRegistryData) {
     console.error('[OrderRegistry] write failed', e)
   }
 }
+
+// Реальний статус/оплата з бекенду (status, paid_uah, paid_eur) — пишемо в реєстр окремим,
+// легким апдейтом (не переписуючи весь документ) щоразу, коли застосунок і так отримує
+// свіжі дані під час опитування. Панель показує це як "реальний статус з бекенду",
+// незалежно від нашого власного (ручного) перемикача "Оплачено" в самій панелі.
+export async function syncOrderRegistryStatus(orderNo: string, status: number | string | undefined, paidUah: number, paidEur: number) {
+  if (!isFirebaseConfigured() || !orderNo) return
+  try {
+    const [{ initializeApp, getApps }, { getFirestore, doc, setDoc }] = await Promise.all([
+      import('firebase/app'),
+      import('firebase/firestore'),
+    ])
+    const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig)
+    const db = getFirestore(app)
+    await setDoc(doc(db, 'order_registry', orderNo), {
+      backendStatus: status ?? null,
+      backendPaidUah: paidUah || 0,
+      backendPaidEur: paidEur || 0,
+      backendSyncedAt: new Date().toISOString(),
+    }, { merge: true })
+  } catch (e) {
+    console.error('[OrderRegistry] status sync failed', e)
+  }
+}

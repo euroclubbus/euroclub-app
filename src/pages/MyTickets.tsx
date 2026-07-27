@@ -5,6 +5,7 @@ import { getLocalOrders, saveOrderLocally } from '../api/euroclub'
 import { getUserOrders } from '../api/auth'
 import { useBookingStore } from '../store'
 import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted, isPaidCancellation, keepOurPrice } from '../orderStatus'
+import { syncOrderRegistryStatus } from '../orderRegistry'
 import SideMenu from '../components/SideMenu'
 import { useT } from '../i18n'
 
@@ -60,6 +61,7 @@ export default function MyTickets() {
           const key = String(id)
           const normalized = { ...o, hash: key, oid: key }
           byId[key] = byId[key] ? keepOurPrice(byId[key], normalized) : normalized
+          syncOrderRegistryStatus(key, o.status, Number(o.paid_uah) || 0, Number(o.paid_eur) || 0)
           // Перший раз бачимо це замовлення (нема локального запису з датою бронювання) —
           // фіксуємо дату зараз, назавжди. Без цього кроку сортування "останнє зверху"
           // непослідовне: одні замовлення сортуються за датою бронювання, інші (без неї) —
