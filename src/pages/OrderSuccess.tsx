@@ -127,7 +127,7 @@ export default function OrderSuccess() {
   // беремо суму з реєстру для round-trip, а не сиру з бекенду. Інакше квиток міг лишатись
   // "не оплачений", навіть коли реальна оплата вже покривала справжню (відредаговану) суму.
   const dataForPayment = withRegistrySumm(data, registry?.passengers)
-  const registryTotal = registry?.passengers?.length
+  const registryTotal = (isRoundTrip && registry?.passengers?.length)
     ? registry.passengers.reduce((s, p) => s + (Number(p.price) || 0), 0)
     : null
   const summ = registryTotal != null ? registryTotal : price
@@ -137,7 +137,7 @@ export default function OrderSuccess() {
   // помилкою) — тому після фонового оновлення реальними даними пасажири зникали з екрану.
   const rawPax = data?.passengers?.length ? data.passengers : data?.passangers
   let passengers: any[] = (rawPax || []).map((p: any) => ({ name: p.name, place: p.plc ?? p.place, price: p.prc ?? p.price }))
-  if (registry?.passengers?.length) {
+  if (isRoundTrip && registry?.passengers?.length) {
     passengers = passengers.map((p, i) => ({ ...p, price: registry.passengers.find(rp => rp.index === i + 1)?.price ?? p.price }))
   } else {
     const split = passengerDisplayPrices(Number(summ) || 0, passengers)
@@ -347,7 +347,7 @@ export default function OrderSuccess() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px dashed #EEE', alignItems: 'center' }}>
             <span style={{ fontSize: 13, color: Gray }}>{hasTransfer ? 'Пересадка' : 'Прямий'}</span>
-            {!isRoundTrip && <span style={{ fontWeight: 800, fontSize: 17 }}>{format(price, currencyCode)}</span>}
+            {!isRoundTrip && <span style={{ fontWeight: 800, fontSize: 17 }}>{format(summ, currencyCode)}</span>}
           </div>
         </div>
         {passengers.length > 0 && (
