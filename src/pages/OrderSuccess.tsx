@@ -13,6 +13,14 @@ import { useT } from '../i18n'
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
 
+// Місце для конкретного відрізка — бекенд дає "34/35" (туди/назад через слеш) для round-trip.
+function legSeat(place: any, leg: 1 | 2): string {
+  const s = String(place ?? '').trim()
+  if (!s) return '—'
+  if (s.includes('/')) return s.split('/')[leg - 1] || '—'
+  return leg === 1 ? s : '—'
+}
+
 function splitDateTime(str?: string): { date: string; time: string } {
   if (!str) return { date: '', time: '--:--' }
   const [date, time] = str.split(' ')
@@ -295,9 +303,24 @@ export default function OrderSuccess() {
           )
         })()}
 
+        {/* Пасажири: ім'я (тип) — ціна, стовпчиком, першими на екрані */}
+        {passengers.length > 0 && (
+          <div style={{ marginBottom: 18 }}>
+            {passengers.map((p: any, i: number) => {
+              const typeName = registry?.passengers?.find(rp => rp.index === i + 1)?.discountName || ''
+              return (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                  <span style={{ fontSize: 14.5, fontWeight: 600 }}>{p.name}{typeName && <span style={{ fontWeight: 400, color: Gray }}> ({typeName})</span>}</span>
+                  <span style={{ fontSize: 15, fontWeight: 700 }}>{format(p.price, currencyCode)}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
         {/* Trip card */}
         {isRoundTrip && <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>{t('booking.outbound')}</div>}
-        <div style={{ border: '1.5px solid #EEE', borderRadius: 16, padding: 16, marginBottom: isRoundTrip ? 12 : 16 }}>
+        <div style={{ border: '1.5px solid #EEE', borderRadius: 16, padding: 16, marginBottom: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, marginBottom: 10 }}>
             <span>{depDT.date} → {arrDT.date}</span>
             {duration && <span>⏱ {duration}</span>}
@@ -323,11 +346,21 @@ export default function OrderSuccess() {
             {!isRoundTrip && <span style={{ fontWeight: 800, fontSize: 17 }}>{format(price, currencyCode)}</span>}
           </div>
         </div>
+        {passengers.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            {passengers.map((p: any, i: number) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5, marginBottom: 3 }}>
+                <span>{p.name}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span>💺</span>{legSeat(p.place, 1)}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {isRoundTrip && (
           <>
             <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>{t('booking.return')}</div>
-            <div style={{ border: '1.5px solid #EEE', borderRadius: 16, padding: 16, marginBottom: 16 }}>
+            <div style={{ border: '1.5px solid #EEE', borderRadius: 16, padding: 16, marginBottom: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, marginBottom: 10 }}>
                 <span>{splitDateTime(ftime2Display).date} → {splitDateTime(ttime2Display).date}</span>
                 <span>⏱ {calcDuration(ftime2Display, ttime2Display)}</span>
@@ -344,23 +377,17 @@ export default function OrderSuccess() {
                 </div>
               </div>
             </div>
-          </>
-        )}
-        {passengers.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', fontSize: 12, color: Gray, marginBottom: 8 }}>
-              <span>Пасажир</span><span style={{ textAlign: 'center' }}>Місце</span><span style={{ textAlign: 'right' }}>Ціна</span>
-            </div>
-            {passengers.map((p: any, i: number) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', marginBottom: 4, fontSize: 14 }}>
-                <div style={{ fontWeight: 600 }}>{p.name}</div>
-                <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                  <span>💺</span><span>{formatSeat(p.place)}</span>
-                </div>
-                <div style={{ textAlign: 'right', fontWeight: 600 }}>{format(p.price, currencyCode)}</div>
+            {passengers.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                {passengers.map((p: any, i: number) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5, marginBottom: 3 }}>
+                    <span>{p.name}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span>💺</span>{legSeat(p.place, 2)}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
 
         {/* Total */}
