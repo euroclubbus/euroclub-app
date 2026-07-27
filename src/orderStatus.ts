@@ -34,17 +34,6 @@ function needPayAmount(o: any): number | null {
 
 export interface PayInfo { summ: number; paid: number; ratio: number; remainder: number; ticketReady: boolean; fullyPaid: boolean; sign: string }
 
-// Реєстр (панель керування) — тепер джерело правди для суми round-trip замовлень. Раніше
-// це застосовувалось тільки для показу ціни на екрані, але не для перевірки "чи оплачено
-// достатньо для видачі квитка" (payInfo/ticketAvailable) — через це квиток міг лишатись
-// "не оплачений", навіть якщо реальна оплата вже покривала СПРАВЖНЮ (відредаговану) суму.
-// Викликати ПЕРЕД payInfo()/ticketAvailable() скрізь, де є доступ до даних реєстру.
-export function withRegistrySumm(order: any, registryPassengers?: { price: number }[] | null): any {
-  if (!order?.roundTrip || !registryPassengers?.length) return order
-  const registryTotal = registryPassengers.reduce((s, p) => s + (Number(p.price) || 0), 0)
-  return { ...order, summ: registryTotal, price: registryTotal }
-}
-
 export function payInfo(o: any): PayInfo {
   const summ = num(o?.summ ?? o?.price)
   const paid = paidAmount(o)
@@ -80,14 +69,11 @@ export function keepOurPrice(current: any, fresh: any) {
     // "останнє зверху". Раніше губилась при кожному мержі зі свіжими даними з сервера.
     bookingDate: current?.bookingDate,
   }
-  // Двобічні замовлення: ціна (summ/price) ЗАВЖДИ з нашої таблиці (priceEngine), ніколи з
-  // відповіді бекенду — підтверджено, що бекенд для round-trip повертає нестабільне/
-  // невідповідне число (наприклад 10000 → 9900 → 10000 без жодної зміни з нашого боку).
-  // paid_uah/paid_eur/needpay/status і далі йдуть живими з fresh — статус оплати це не чіпає.
-  // В один бік — summ/price лишається живим з бекенду, там такої нестабільності не було.
-  if (current?.roundTrip) {
-    return { ...fresh, hash: current?.hash, oid: current?.oid, summ: current?.summ, price: current?.price, tariff: current?.tariff, ...displayFields }
-  }
+  // Двобічні замовлення: summ/price/tariff більше НЕ заморожуються тут назавжди — це
+  // тепер керується на рівні екрана (OrderSuccess.tsx/Payment.tsx), де є доступ до часу й
+  // кількості оновлень: спочатку показуємо нашу передану суму, і лише після ПЕРШОГО реального
+  // оновлення І щонайменше 5с з моменту показу — переходимо на живі дані бекенду. Одностороннім
+  // завжди довіряємо бекенду одразу, без жодних умов.
   return { ...fresh, hash: current?.hash, oid: current?.oid, ...displayFields }
 }
 
@@ -117,20 +103,6 @@ export function passengerDisplayPrices(summ: number, passengers: any[]): number[
     return passengers.map(() => equal)
   }
   return weights.map(w => summ * w / totalWeight)
-}
-
-// Правильна сума до сплати — рахуємо самі, замість того щоб довіряти needpay_uah/needpay_eur
-// з бекенду (підтверджено: там помилка, ці поля видають неправильні числа). Наша сума =
-// сума prc всіх пасажирів (це поле підтверджено живе й правильне). Валюта самого замовлення
-// (crc) — "рідна" сторона (пряма сума), інша сторона рахується через курс EUR/UAH.
-export function ourNeedpay(order: any, eurToUah: number): { uah: number; eur: number } {
-  const passengers = order?.passengers?.length ? order.passengers : order?.passangers
-  const sum = (passengers || []).reduce((s: number, p: any) => s + (Number(p?.prc ?? p?.price) || 0), 0)
-  const crc = String(order?.crc || 'uah').toLowerCase()
-  if (crc === 'eur') {
-    return { eur: sum, uah: Math.round(sum * eurToUah) }
-  }
-  return { uah: sum, eur: Math.round((sum / eurToUah) * 100) / 100 }
 }
 // Прогер підтвердив офіційні числові коди status: 0=скасовано, 1=не сплачено,
 // 2=оплачено (поїздка ще не відбулася, або відбулася лише частково — напр. round-trip

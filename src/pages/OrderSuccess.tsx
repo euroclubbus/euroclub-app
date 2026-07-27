@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBookingStore, useSearchStore } from '../store'
 import { getCities, getRoutes } from '../api/euroclub'
-import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, withRegistrySumm } from '../orderStatus'
+import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat } from '../orderStatus'
 import { useOrderRegistry } from '../orderRegistryRead'
 import { useOrderPolling } from '../useOrderPolling'
 import { useDisplayPrice } from '../currency'
@@ -116,35 +116,36 @@ export default function OrderSuccess() {
   const currencyCode = data?.crc || trip?.currency || 'uah'
   const { format } = useDisplayPrice()
   const price = data?.summ ?? data?.price ?? trip?.price ?? 0
-  // Сума до сплати — з реєстру замовлень панелі керування (order_registry), живо. Це те,
-  // що адмін може відредагувати вручну (тариф/знижка кожного пасажира), і саме це має
-  // побачити користувач при оновленні сторінки — узгоджено з Кепом, бо дані з самого
-  // бекенду (summ/prc/needpay_*) підтверджено ненадійні й не оновлюються після правок.
-  // Фолбек на нашу передбронювальну ціну, поки запис у реєстрі ще не підтягнувся (мить
-  // одразу після створення) або якщо його взагалі нема.
+  // Реєстр тут лишається ЛИШЕ для опису типу квитка (напр. "Діти 1-10 років") в списку
+  // пасажирів — не для ціни й не для перевірки оплати, щоб не конфліктувати зі схемою нижче.
   const registry = useOrderRegistry(hash || data?.oid)
-  // Для перевірки "чи оплачено достатньо" (payInfo/ticketAvailable/needsPolling) — теж
-  // беремо суму з реєстру для round-trip, а не сиру з бекенду. Інакше квиток міг лишатись
-  // "не оплачений", навіть коли реальна оплата вже покривала справжню (відредаговану) суму.
-  const dataForPayment = withRegistrySumm(data, registry?.passengers)
-  const registryTotal = (isRoundTrip && registry?.passengers?.length)
-    ? registry.passengers.reduce((s, p) => s + (Number(p.price) || 0), 0)
-    : null
-  const summ = registryTotal != null ? registryTotal : price
+
+  // Узгоджена схема для round-trip (one-way завжди довіряє бекенду одразу, без умов):
+  // 1) Перший показ цього екрана — наша повна сума, яку ми самі порахували при бронюванні
+  //    (те, що вже лежить у data.summ одразу після створення — Booking.tsx кладе туди
+  //    finalTotal). Фіксуємо це ОДНОРАЗОВО, стабільно — щоб наступні опитування, які вже
+  //    можуть змінити data.summ, не "зсунули" цю початкову цифру заднім числом.
+  // 2) Довіряти needpay_uah/needpay_eur з бекенду починаємо тільки коли ОБИДВІ умови
+  //    виконались: минуло щонайменше 5с з моменту показу, І відбулось хоча б одне реальне
+  //    опитування (не рахуючи початкового миттєвого).
+  const [ourInitialTotal] = useState(() => price)
+  const [mountedAt] = useState(() => Date.now())
+  const [pollCount, setPollCount] = useState(0)
+  const needpayValue = currencyCode === 'eur' ? data?.needpay_eur : data?.needpay_uah
+  const trustBackend = !isRoundTrip || (pollCount >= 1 && Date.now() - mountedAt >= 5000)
+  const summ = isRoundTrip
+    ? (trustBackend && needpayValue != null ? Number(needpayValue) : ourInitialTotal)
+    : price
   // Бекенд (справжня відповідь) віддає passengers[] (без "а") з полями name/dsc/prc/tck/plc —
   // а не passangers[]/place/price, як ми самі називаємо в локально побудованих об'єктах при
   // створенні (Booking.tsx). Раніше тут читалось лише data?.passangers (з друкарською
   // помилкою) — тому після фонового оновлення реальними даними пасажири зникали з екрану.
   const rawPax = data?.passengers?.length ? data.passengers : data?.passangers
   let passengers: any[] = (rawPax || []).map((p: any) => ({ name: p.name, place: p.plc ?? p.place, price: p.prc ?? p.price }))
-  if (isRoundTrip && registry?.passengers?.length) {
-    passengers = passengers.map((p, i) => ({ ...p, price: registry.passengers.find(rp => rp.index === i + 1)?.price ?? p.price }))
-  } else {
-    const split = passengerDisplayPrices(Number(summ) || 0, passengers)
-    passengers = passengers.map((p, i) => ({ ...p, price: split[i] }))
-  }
+  const split = passengerDisplayPrices(Number(summ) || 0, passengers)
+  passengers = passengers.map((p, i) => ({ ...p, price: split[i] }))
 
-  const [priceReady, setPriceReady] = useState(() => !needsPolling(dataForPayment))
+  const [priceReady, setPriceReady] = useState(() => !needsPolling({ ...data, summ }))
   useEffect(() => {
     if (priceReady) return
     // Запобіжник: order_info може зависнути/не спрацювати (ще не перевірено з новим oid) —
@@ -153,7 +154,11 @@ export default function OrderSuccess() {
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  useOrderPolling(hash, needsPolling(dataForPayment), (o) => { setOrderResult(hash, keepOurPrice(data, o)); setPriceReady(true) })
+  useOrderPolling(hash, needsPolling({ ...data, summ }), (o) => {
+    setOrderResult(hash, keepOurPrice(data, o))
+    setPriceReady(true)
+    setPollCount(c => c + 1)
+  })
 
   useEffect(() => {
     if (data?.status) {
@@ -292,7 +297,7 @@ export default function OrderSuccess() {
           const st = statusLabel(data)
           // payInfo рахуємо з нашої (реєстрової для round-trip, живої для one-way) суми —
           // не з сирого data.summ, інакше доплата на двобічних порахується неправильно.
-          const pi = payInfo(dataForPayment)
+          const pi = payInfo({ ...data, summ })
           const latestSurcharge = registry?.surcharges?.length ? registry.surcharges[registry.surcharges.length - 1] : null
           return (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 14 }}>
@@ -405,7 +410,7 @@ export default function OrderSuccess() {
 
         {status === 'active' ? (
           <>
-            {ticketAvailable(dataForPayment, hash) ? (
+            {ticketAvailable({ ...data, summ }, hash) ? (
               <button onClick={() => nav('/ticket')} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: 12 }}>
                 {t('os.showTicket')}
               </button>
@@ -418,7 +423,7 @@ export default function OrderSuccess() {
               {loading ? '...' : t('os.cancel')}
             </button>
           </>
-        ) : payInfo(dataForPayment).paid > 0 ? (
+        ) : payInfo({ ...data, summ }).paid > 0 ? (
           // Скасовано, але була часткова/повна оплата — простий флоу без перевірки місць
           <button onClick={handleRestore} disabled={loading} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
             {loading ? '...' : t('os.restore')}
