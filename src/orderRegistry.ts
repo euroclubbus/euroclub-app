@@ -33,7 +33,15 @@ export async function writeOrderRegistry(data: OrderRegistryData) {
     ])
     const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig)
     const db = getFirestore(app)
-    await setDoc(doc(db, 'order_registry', data.orderNo), { ...data, editHistory: [] })
+    // Firestore відмовляється писати undefined-поля (наприклад tripDate2 для one-way,
+    // де воно свідомо undefined) — раніше через це весь запис мовчки падав (лише
+    // console.error, замовлення в реєстрі просто ніколи не з'являлось). Прибираємо такі
+    // поля перед записом, а не намагаємось писати undefined.
+    const clean: any = {}
+    for (const [k, v] of Object.entries({ ...data, editHistory: [] })) {
+      if (v !== undefined) clean[k] = v
+    }
+    await setDoc(doc(db, 'order_registry', data.orderNo), clean)
   } catch (e) {
     console.error('[OrderRegistry] write failed', e)
   }
