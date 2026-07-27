@@ -545,6 +545,21 @@ export default function Booking() {
           <div style={{ background: '#FDECEA', color: '#C62828', borderRadius: 12, padding: 14, marginBottom: 16, fontSize: 14 }}>{error}</div>
         )}
 
+        <div style={{ marginBottom: 14 }}>
+          {Array.from({ length: totalPax }, (_, i) => {
+            const catId = resolveDiscountId(passengerCategories[i], discountOptions, passengerDiscounts[i])
+            const cat = orderedDiscounts.find(d => String(d.id) === catId)
+            const typeName = cat ? catName(cat) : ''
+            const ownPrice = isRoundTrip ? (twoWayGroup?.perPassenger?.[i] ?? getPassengerPrice(i)) : getPassengerPrice(i)
+            return (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4, padding: '0 2px' }}>
+                <span style={{ fontSize: 13.5, fontWeight: 600 }}>{(passengerNames[i] || `Пасажир ${i + 1}`)}{typeName && <span style={{ fontWeight: 400, color: Gray }}> ({typeName})</span>}</span>
+                <span style={{ fontSize: 14, fontWeight: 700 }}>{format(ownPrice, trip?.currency)}</span>
+              </div>
+            )
+          })}
+        </div>
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, padding: '0 2px' }}>
           <span style={{ fontSize: 14, color: Gray }}>{t('booking.total')}{isRoundTrip ? t('booking.totalRoundTrip') : ''}</span>
           <span style={{ fontSize: 20, fontWeight: 800 }}>{format(promoApplied ? finalTotal : total, trip?.currency)}</span>
