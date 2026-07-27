@@ -23,6 +23,10 @@ export function useOrderPolling(oid: string, active: boolean, onUpdate: (order: 
       try {
         const o = await findUserOrder(oid)
         if (!stopped && o) {
+          // ТЕСТ (тимчасовий, для перевірки): друкуємо сирі summ/needpay з КОЖНОГО тіку —
+          // це те, що ми РЕАЛЬНО отримуємо з мережі, незалежно від того, що потім вирішуємо
+          // показати на екрані.
+          console.log('[POLL RAW]', oid, 'summ=', o.summ, 'needpay_uah=', o.needpay_uah, 'needpay_eur=', o.needpay_eur)
           cb.current(o)
           // Реальний статус/оплата з бекенду — в реєстр панелі керування, але тільки коли
           // значення дійсно змінилось, щоб не смітити зайвими записами щопів'ятсот мс.
