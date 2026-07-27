@@ -9,9 +9,15 @@ export interface RegistryPassenger {
   tariff: number
   price: number
 }
+export interface RegistrySurcharge {
+  amount: number
+  reason: string
+  at: string
+}
 export interface RegistryOrder {
   orderNo: string
   passengers: RegistryPassenger[]
+  surcharges?: RegistrySurcharge[]
 }
 
 // Реєстр замовлень (панель керування) — тепер основне джерело ціни для показу в застосунку.

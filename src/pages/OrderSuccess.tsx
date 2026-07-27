@@ -277,11 +277,20 @@ export default function OrderSuccess() {
         </button>
 
         {(() => {
-          const st = statusLabel(data); const pi = payInfo(data)
+          const st = statusLabel(data)
+          // payInfo рахуємо з нашої (реєстрової для round-trip, живої для one-way) суми —
+          // не з сирого data.summ, інакше доплата на двобічних порахується неправильно.
+          const pi = payInfo({ ...data, summ })
+          const latestSurcharge = registry?.surcharges?.length ? registry.surcharges[registry.surcharges.length - 1] : null
           return (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 14 }}>
               <span style={{ fontSize: 13, fontWeight: 700, padding: '5px 14px', borderRadius: 20, background: st.bg, color: st.color }}>{st.text}</span>
-              {pi.ticketReady && pi.remainder > 0 && <span style={{ fontSize: 13, color: '#E07B00', fontWeight: 600 }}>Доплата: {format(pi.remainder, currencyCode)}</span>}
+              {pi.ticketReady && pi.remainder > 0 && (
+                <span style={{ fontSize: 13, color: '#E07B00', fontWeight: 600, textAlign: 'center' }}>
+                  Доплата: {format(pi.remainder, currencyCode)}
+                  {latestSurcharge && <span style={{ display: 'block', fontSize: 12, fontWeight: 400, color: Gray }}>Причина: {latestSurcharge.reason}</span>}
+                </span>
+              )}
             </div>
           )
         })()}
