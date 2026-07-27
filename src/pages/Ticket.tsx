@@ -3,9 +3,10 @@ import { useRef, useState, useEffect } from 'react'
 import { ArrowLeft, Download, ChevronRight } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
-import { ticketAvailable, payInfo, needsPolling, keepOurPrice, formatSeat, passengerDisplayPrices } from '../orderStatus'
+import { ticketAvailable, payInfo, needsPolling, keepOurPrice, formatSeat, passengerDisplayPrices, withRegistrySumm } from '../orderStatus'
 import { useDisplayPrice } from '../currency'
 import { useOrderPolling } from '../useOrderPolling'
+import { useOrderRegistry } from '../orderRegistryRead'
 
 const ORange = '#F5A623'
 const Navy = '#0B2E5E'
@@ -30,6 +31,8 @@ export default function Ticket() {
   const trip = selectedTrip as any
   const data = orderData as any
   const hash = orderHash || data?.hash || ''
+  const registry = useOrderRegistry(hash || data?.oid)
+  const dataForPayment = withRegistrySumm(data, registry?.passengers)
   // Ціну на замовлення менеджер може змінити вручну — поки не оплачено повністю,
   // звіряємо з сервером кожні 0.3с, щоб цифри на екрані завжди були актуальні.
   const [priceReady, setPriceReady] = useState(() => !needsPolling(data))
@@ -51,7 +54,7 @@ export default function Ticket() {
   }
 
   // Квиток доступний лише після оплати
-  if (data && !ticketAvailable(data, hash)) {
+  if (data && !ticketAvailable(dataForPayment, hash)) {
     return (
       <div style={{ minHeight: '100vh', background: Navy, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
         <div style={{ fontSize: 44, marginBottom: 16 }}>🔒</div>
@@ -202,7 +205,7 @@ export default function Ticket() {
                         <span style={{ fontSize: 15, fontWeight: 700 }}>{'Усього'}</span>
                         <span style={{ fontSize: 18, fontWeight: 800 }}>{format(data?.summ ?? data?.price ?? trip?.price, currency)}</span>
                       </div>
-                      {(() => { const pi = payInfo(data); return pi.remainder > 0 ? (
+                      {(() => { const pi = payInfo(dataForPayment); return pi.remainder > 0 ? (
                         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8 }}>
                           <span style={{ fontSize: 14, fontWeight: 700, color: '#E07B00' }}>Доплата</span>
                           <span style={{ fontSize: 16, fontWeight: 800, color: '#E07B00' }}>{format(pi.remainder, currency)}</span>
@@ -237,7 +240,7 @@ export default function Ticket() {
             <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 600 }}>{'Усього'}</span>
             <span style={{ color: '#fff', fontSize: 15, fontWeight: 800 }}>{format(data?.summ ?? data?.price ?? trip?.price, currency)}</span>
           </div>
-          {(() => { const pi = payInfo(data); return pi.remainder > 0 && (
+          {(() => { const pi = payInfo(dataForPayment); return pi.remainder > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
               <span style={{ color: '#FFB870', fontSize: 12, fontWeight: 600 }}>Доплата</span>
               <span style={{ color: '#FFB870', fontSize: 13, fontWeight: 700 }}>{format(pi.remainder, currency)}</span>

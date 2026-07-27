@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBookingStore, useSearchStore } from '../store'
 import { getCities, getRoutes } from '../api/euroclub'
-import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat } from '../orderStatus'
+import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, withRegistrySumm } from '../orderStatus'
 import { useOrderRegistry } from '../orderRegistryRead'
 import { useOrderPolling } from '../useOrderPolling'
 import { useDisplayPrice } from '../currency'
@@ -123,6 +123,10 @@ export default function OrderSuccess() {
   // Фолбек на нашу передбронювальну ціну, поки запис у реєстрі ще не підтягнувся (мить
   // одразу після створення) або якщо його взагалі нема.
   const registry = useOrderRegistry(hash || data?.oid)
+  // Для перевірки "чи оплачено достатньо" (payInfo/ticketAvailable/needsPolling) — теж
+  // беремо суму з реєстру для round-trip, а не сиру з бекенду. Інакше квиток міг лишатись
+  // "не оплачений", навіть коли реальна оплата вже покривала справжню (відредаговану) суму.
+  const dataForPayment = withRegistrySumm(data, registry?.passengers)
   const registryTotal = registry?.passengers?.length
     ? registry.passengers.reduce((s, p) => s + (Number(p.price) || 0), 0)
     : null
@@ -140,7 +144,7 @@ export default function OrderSuccess() {
     passengers = passengers.map((p, i) => ({ ...p, price: split[i] }))
   }
 
-  const [priceReady, setPriceReady] = useState(() => !needsPolling(data))
+  const [priceReady, setPriceReady] = useState(() => !needsPolling(dataForPayment))
   useEffect(() => {
     if (priceReady) return
     // Запобіжник: order_info може зависнути/не спрацювати (ще не перевірено з новим oid) —
@@ -149,7 +153,7 @@ export default function OrderSuccess() {
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  useOrderPolling(hash, needsPolling(data), (o) => { setOrderResult(hash, keepOurPrice(data, o)); setPriceReady(true) })
+  useOrderPolling(hash, needsPolling(dataForPayment), (o) => { setOrderResult(hash, keepOurPrice(data, o)); setPriceReady(true) })
 
   useEffect(() => {
     if (data?.status) {
@@ -288,7 +292,7 @@ export default function OrderSuccess() {
           const st = statusLabel(data)
           // payInfo рахуємо з нашої (реєстрової для round-trip, живої для one-way) суми —
           // не з сирого data.summ, інакше доплата на двобічних порахується неправильно.
-          const pi = payInfo({ ...data, summ })
+          const pi = payInfo(dataForPayment)
           const latestSurcharge = registry?.surcharges?.length ? registry.surcharges[registry.surcharges.length - 1] : null
           return (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 14 }}>
@@ -401,7 +405,7 @@ export default function OrderSuccess() {
 
         {status === 'active' ? (
           <>
-            {ticketAvailable(data, hash) ? (
+            {ticketAvailable(dataForPayment, hash) ? (
               <button onClick={() => nav('/ticket')} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: 12 }}>
                 {t('os.showTicket')}
               </button>
@@ -414,7 +418,7 @@ export default function OrderSuccess() {
               {loading ? '...' : t('os.cancel')}
             </button>
           </>
-        ) : payInfo(data).paid > 0 ? (
+        ) : payInfo(dataForPayment).paid > 0 ? (
           // Скасовано, але була часткова/повна оплата — простий флоу без перевірки місць
           <button onClick={handleRestore} disabled={loading} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
             {loading ? '...' : t('os.restore')}

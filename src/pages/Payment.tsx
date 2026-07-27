@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ShieldCheck, Bus } from 'lucide-react'
 import { useBookingStore } from '../store'
 import { findUserOrder } from '../api/auth'
-import { payInfo, keepOurPrice, passengerDisplayPrices, formatSeat } from '../orderStatus'
+import { payInfo, keepOurPrice, passengerDisplayPrices, formatSeat, withRegistrySumm } from '../orderStatus'
 import { useOrderPolling } from '../useOrderPolling'
+import { useOrderRegistry } from '../orderRegistryRead'
 import { useDisplayPrice } from '../currency'
 import { useT } from '../i18n'
 
@@ -20,6 +21,7 @@ export default function Payment() {
   const data = orderData as any
   const payUrl = data?.link_liqpay || data?.link_stripe || (isIOS ? data?.link2 : data?.link1) || ''
   const hash = orderHash || data?.hash || ''
+  const registry = useOrderRegistry(hash || data?.oid)
   const { format } = useDisplayPrice()
   const rawPax = data?.passengers?.length ? data.passengers : data?.passangers
   const passengers = (rawPax || []).map((p: any) => ({ name: p.name, place: p.plc ?? p.place, price: p.prc ?? p.price }))
@@ -65,7 +67,7 @@ export default function Payment() {
   useOrderPolling(hash, !doneRef.current, (o) => {
     const merged = keepOurPrice(data, o)
     setOrderResult(hash, merged)
-    if (payInfo(merged).ticketReady) goSuccess()
+    if (payInfo(withRegistrySumm(merged, registry?.passengers)).ticketReady) goSuccess()
   })
 
   const checkPaid = async () => {
@@ -81,7 +83,7 @@ export default function Payment() {
       if (!o) { setChecking(false); return }
       const merged = keepOurPrice(data, o)
       setOrderResult(hash, merged)
-      if (payInfo(merged).ticketReady) { goSuccess(); return }
+      if (payInfo(withRegistrySumm(merged, registry?.passengers)).ticketReady) { goSuccess(); return }
     } catch (e) {
       console.error('[Payment] checkPaid failed', e)
     }

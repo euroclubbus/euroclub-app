@@ -4,8 +4,9 @@ import { Menu } from 'lucide-react'
 import { getLocalOrders, saveOrderLocally } from '../api/euroclub'
 import { getUserOrders } from '../api/auth'
 import { useBookingStore } from '../store'
-import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted, isPaidCancellation, keepOurPrice } from '../orderStatus'
+import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted, isPaidCancellation, keepOurPrice, withRegistrySumm } from '../orderStatus'
 import { syncOrderRegistryStatus } from '../orderRegistry'
+import { useOrderRegistryMap } from '../orderRegistryRead'
 import SideMenu from '../components/SideMenu'
 import { useT } from '../i18n'
 
@@ -18,6 +19,7 @@ export default function MyTickets() {
   const { setOrderResult } = useBookingStore()
   const t = useT()
   const [menuOpen, setMenuOpen] = useState(false)
+  const registryMap = useOrderRegistryMap()
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -132,7 +134,10 @@ export default function MyTickets() {
   // "Оплачені" — окремий, наскрізний фільтр (не категорія): оплачене замовлення може бути
   // одночасно і активним (поїздка ще попереду), і виконаним — тому рахуємо його окремо,
   // а не як ще один взаємовиключний стан поруч з active/completed/cancelled.
-  const isPaid = (o: any) => payInfo(o).fullyPaid
+  // Для перевірки оплати — суму беремо з реєстру (панель керування), якщо є, а не сиру
+  // з бекенду, яка для round-trip підтверджено ненадійна.
+  const withReg = (o: any) => withRegistrySumm(o, registryMap[String(o.oid ?? o.hash)]?.passengers)
+  const isPaid = (o: any) => payInfo(withReg(o)).fullyPaid
   const [filter, setFilter] = useState<Cat | 'paid' | 'all'>('active')
   const sortedOrders = [...orders].sort((a, b) =>
     sortMode === 'trip' ? orderSortKey(a) - orderSortKey(b) : orderSortKey(b) - orderSortKey(a)
@@ -216,8 +221,8 @@ export default function MyTickets() {
         )}
         {filtered.map((o, i) => {
           const st = statusLabel(o)
-          const paid = ticketAvailable(o, o.hash)
-          const alertPaidCancel = isPaidCancellation(o)
+          const paid = ticketAvailable(withReg(o), o.hash)
+          const alertPaidCancel = isPaidCancellation(withReg(o))
           const createdAt = o.bookingDate ? new Date(o.bookingDate) : null
           const createdAtStr = createdAt && !isNaN(createdAt.getTime())
             ? createdAt.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })

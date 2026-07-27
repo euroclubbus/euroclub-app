@@ -34,6 +34,17 @@ function needPayAmount(o: any): number | null {
 
 export interface PayInfo { summ: number; paid: number; ratio: number; remainder: number; ticketReady: boolean; fullyPaid: boolean; sign: string }
 
+// Реєстр (панель керування) — тепер джерело правди для суми round-trip замовлень. Раніше
+// це застосовувалось тільки для показу ціни на екрані, але не для перевірки "чи оплачено
+// достатньо для видачі квитка" (payInfo/ticketAvailable) — через це квиток міг лишатись
+// "не оплачений", навіть якщо реальна оплата вже покривала СПРАВЖНЮ (відредаговану) суму.
+// Викликати ПЕРЕД payInfo()/ticketAvailable() скрізь, де є доступ до даних реєстру.
+export function withRegistrySumm(order: any, registryPassengers?: { price: number }[] | null): any {
+  if (!order?.roundTrip || !registryPassengers?.length) return order
+  const registryTotal = registryPassengers.reduce((s, p) => s + (Number(p.price) || 0), 0)
+  return { ...order, summ: registryTotal, price: registryTotal }
+}
+
 export function payInfo(o: any): PayInfo {
   const summ = num(o?.summ ?? o?.price)
   const paid = paidAmount(o)

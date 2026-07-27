@@ -46,3 +46,29 @@ export function useOrderRegistry(orderNo: string | undefined): RegistryOrder | n
 
   return data
 }
+
+// Для списків (Мої замовлення) — весь реєстр одразу, мапа за orderNo. Живо (onSnapshot),
+// щоб правки в панелі одразу відображались і в списку, не тільки на екрані одного замовлення.
+export function useOrderRegistryMap(): Record<string, RegistryOrder> {
+  const [map, setMap] = useState<Record<string, RegistryOrder>>({})
+
+  useEffect(() => {
+    let unsub: (() => void) | undefined
+    let cancelled = false
+    ;(async () => {
+      const app = await getFirebaseApp()
+      if (!app || cancelled) return
+      const { getFirestore, collection, onSnapshot } = await import('firebase/firestore')
+      const db = getFirestore(app)
+      unsub = onSnapshot(collection(db, 'order_registry'), snap => {
+        if (cancelled) return
+        const next: Record<string, RegistryOrder> = {}
+        snap.forEach(d => { next[d.id] = d.data() as RegistryOrder })
+        setMap(next)
+      }, () => {})
+    })()
+    return () => { cancelled = true; unsub?.() }
+  }, [])
+
+  return map
+}

@@ -4,8 +4,9 @@ import { ArrowLeft, Phone, Mail, Globe, ShieldCheck } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
 import { useDisplayPrice } from '../currency'
-import { payInfo, needsPolling, keepOurPrice, formatSeat, passengerDisplayPrices } from '../orderStatus'
+import { payInfo, needsPolling, keepOurPrice, formatSeat, passengerDisplayPrices, withRegistrySumm } from '../orderStatus'
 import { useOrderPolling } from '../useOrderPolling'
+import { useOrderRegistry } from '../orderRegistryRead'
 
 const ORange = '#F5A623'
 const Navy = '#0B2E5E'
@@ -36,14 +37,16 @@ export default function TicketDetails() {
   const { orderHash, orderData, setOrderResult } = useBookingStore()
   const data = (orderData || {}) as any
   const hash = orderHash || data?.hash || ''
-  const [priceReady, setPriceReady] = useState(() => !needsPolling(data))
+  const registry = useOrderRegistry(hash || data?.oid)
+  const dataForPayment = withRegistrySumm(data, registry?.passengers)
+  const [priceReady, setPriceReady] = useState(() => !needsPolling(dataForPayment))
   useEffect(() => {
     if (priceReady) return
     const timer = setTimeout(() => setPriceReady(true), 4000)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  useOrderPolling(hash, needsPolling(data), (o) => { setOrderResult(hash, keepOurPrice(data, o)); setPriceReady(true) })
+  useOrderPolling(hash, needsPolling(dataForPayment), (o) => { setOrderResult(hash, keepOurPrice(data, o)); setPriceReady(true) })
   if (!priceReady) {
     return (
       <div style={{ minHeight: '100vh', background: '#F2F4F7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -75,7 +78,7 @@ export default function TicketDetails() {
   const dep = splitDT(data?.ftime)
   const arr = splitDT(data?.ttime)
   const mainTicketNo = passengers[0]?.ticket ? `${passengers[0].ticket}${suffix}` : orderNo
-  const pi = payInfo(data)
+  const pi = payInfo(dataForPayment)
 
   return (
     <div style={{ minHeight: '100vh', background: '#F2F4F7', padding: '0 0 48px' }}>
