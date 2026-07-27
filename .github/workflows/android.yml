@@ -1,8 +1,6 @@
 name: Build Android APK
-
 on:
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -24,12 +22,23 @@ jobs:
       - name: Build APK (retry up to 3x, flaky jar download)
         run: |
           cd android && chmod +x gradlew
+          success=false
           for i in 1 2 3; do
-            ./gradlew assembleDebug --no-daemon --no-parallel --max-workers=1 --refresh-dependencies && break
+            if ./gradlew assembleDebug --no-daemon --no-parallel --max-workers=1 --refresh-dependencies; then
+              success=true
+              break
+            fi
             echo "Attempt $i failed, retrying..."
             rm -rf ~/.gradle/caches
             sleep 5
           done
+          if [ "$success" != "true" ]; then
+            echo "All build attempts failed"
+            exit 1
+          fi
+      - name: Debug - list APK outputs
+        run: find android/app/build/outputs -type f
+        if: always()
       - uses: actions/upload-artifact@v4
         with:
           name: EuroClub-debug-apk
