@@ -433,7 +433,7 @@ export default function OrderSuccess() {
       {showSeatMap && matchedTrip && (
         <SeatMap
           trip={matchedTrip}
-          totalPax={Math.max((data?.passangers?.length as number) || 1, 1)}
+          totalPax={Math.max(((data?.passengers?.length || data?.passangers?.length) as number) || 1, 1)}
           onClose={() => setShowSeatMap(false)}
           onConfirm={(seats: number[]) => { setChosenSeats(seats); setShowSeatMap(false) }}
         />
