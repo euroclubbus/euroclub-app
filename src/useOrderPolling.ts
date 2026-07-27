@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react'
 import { findUserOrder } from './api/auth'
 import { syncOrderRegistryStatus } from './orderRegistry'
 
-// Опитує user-orders кожні 0.5с (за прямою вимогою прогера) — лише коли active &&
+// Опитує user-orders кожні 3с (тимчасово для тесту — раніше було 0.5с за прямою вимогою
+// прогера) — лише коли active &&
 // додаток на передньому плані, і лише поки відкритий конкретний екран замовлення/оплати
 // (Payment/Ticket/TicketDetails/OrderSuccess). "Мої замовлення" (список) сюди не належить —
 // там окремий одноразовий запит при вході/поверненні, без цього циклу.
@@ -39,7 +40,7 @@ export function useOrderPolling(oid: string, active: boolean, onUpdate: (order: 
       } catch {}
     }
     tick()
-    const timer = setInterval(tick, 500)
+    const timer = setInterval(tick, 3000)
     const onVis = () => { if (document.visibilityState === 'visible') tick() }
     document.addEventListener('visibilitychange', onVis)
     return () => { stopped = true; clearInterval(timer); document.removeEventListener('visibilitychange', onVis) }
