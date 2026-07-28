@@ -15,7 +15,6 @@ jobs:
           java-version: '17'
       - run: npm install --legacy-peer-deps
       - run: npm run build
-      - run: npx cap add android
       - run: npx cap sync android
       - run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
       - run: rm -rf ~/.gradle/caches ~/.gradle/wrapper
