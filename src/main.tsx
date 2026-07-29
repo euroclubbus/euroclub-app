@@ -24,6 +24,7 @@ import Fleet from './pages/Fleet'
 import RoutesPage from './pages/Routes'
 import StaticPage from './pages/StaticPage'
 import Feedback from './pages/Feedback'
+import AdminTransferCities from './pages/AdminTransferCities'
 import CookieBanner from './components/CookieBanner'
 import { useAuthStore } from './authStore'
 import { useState, useEffect } from 'react'
@@ -56,6 +57,7 @@ function AppRoutes() {
           <Route path="/routes" element={<RoutesPage />} />
           <Route path="/page/:slug" element={<StaticPage />} />
           <Route path="/feedback" element={<Feedback />} />
+          <Route path="/admin/transfer-cities" element={<AdminTransferCities />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="*" element={<Home />} />
