@@ -27,7 +27,7 @@ import Feedback from './pages/Feedback'
 import CookieBanner from './components/CookieBanner'
 import { useAuthStore } from './authStore'
 import { useState, useEffect } from 'react'
-import { registerPushToken } from './push'
+// import { registerPushToken } from './push' // DISABLED for debugging
 import { useLocation } from 'react-router-dom'
 
 function AppRoutes() {
@@ -75,7 +75,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     // Якщо дозвіл на сповіщення вже надавали раніше — тихо перереєструємо токен
     // (без нового запиту дозволу), щоб не втрачати токен між сесіями/оновленнями застосунку.
     try {
-      if (localStorage.getItem('eclub_notif_asked') === '1') registerPushToken().catch(() => {})
+      // if (localStorage.getItem('eclub_notif_asked') === '1') registerPushToken().catch(() => {}) // DISABLED
     } catch {}
   }, [user])
   if (REQUIRE_LOGIN && !user) return <Auth />
