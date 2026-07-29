@@ -66,7 +66,7 @@ function AppRoutes() {
   )
 }
 
-const REQUIRE_LOGIN = true  // обов'язковий вхід; постав false, щоб дозволити користуватись без акаунта
+const REQUIRE_LOGIN = false  // DISABLED for debugging
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const user = useAuthStore(s => s.user)
