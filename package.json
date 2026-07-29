@@ -10,7 +10,7 @@
   "dependencies": {
     "@capacitor/browser": "^6.0.6",
     "@capacitor/core": "^6.2.1",
-    "@capacitor/push-notifications": "^8.1.2",
+    "@capacitor/push-notifications": "^6.0.5",
     "cordova-plugin-inappbrowser": "^5.0.0",
     "firebase": "^12.16.0",
     "lucide-react": "^0.468.0",
