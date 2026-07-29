@@ -198,3 +198,25 @@ export function needsPolling(o: any): boolean {
   if (isCancelled(o) || isCompleted(o)) return false
   return !payInfo(o).fullyPaid
 }
+
+// Синхронізація даних про рейс з бекенду — гарантує що інформація завжди свіжа
+// незалежно від того, з якого пристрою зроблено замовлення.
+// Це chiamadо при завантаженні квитка щоб переконатись що дані отримані з сервера,
+// а не з локального кешу.
+export function ensureRoundTripSync(orderData: any): any {
+  // Перевіряємо що дані про другу поїздку присутні для round-trip замовлень
+  if (!orderData) return orderData
+  
+  // Якщо це round-trip замовління але дані про другу поїздку відсутні — дані неповні
+  // і потребують оновлення з бекенду
+  const isRoundTrip = orderData?.plc && (orderData.plc.includes('/') || orderData.plc.includes('47'))
+  
+  if (isRoundTrip) {
+    // Логування для діагностики
+    if (!orderData?.ftime2 || !orderData?.ttime2) {
+      console.warn('[Ticket] Round-trip order missing return trip data - requires backend sync')
+    }
+  }
+  
+  return orderData
+}

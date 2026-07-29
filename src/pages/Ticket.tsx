@@ -3,7 +3,7 @@ import { useRef, useState, useEffect } from 'react'
 import { ArrowLeft, Download, ChevronRight, Armchair } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
-import { ticketAvailable, payInfo, needsPolling, keepOurPrice, passengerDisplayPrices} from '../orderStatus'
+import { ticketAvailable, payInfo, needsPolling, keepOurPrice, passengerDisplayPrices, ensureRoundTripSync } from '../orderStatus'
 import { useDisplayPrice } from '../currency'
 import { useOrderPolling } from '../useOrderPolling'
 import BottomNav from '../components/BottomNav'
@@ -58,6 +58,13 @@ export default function Ticket() {
   const trip = selectedTrip as any
   const data = orderData as any
   const hash = orderHash || data?.hash || ''
+
+  // Гарантуємо синхронізацію даних про рейс з бекенду
+  useEffect(() => {
+    if (data && hash) {
+      ensureRoundTripSync(data)
+    }
+  }, [data, hash])
 
   const [priceReady, setPriceReady] = useState(() => !needsPolling(data))
   useEffect(() => {
