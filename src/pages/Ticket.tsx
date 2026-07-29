@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom'
 import { useRef, useState, useEffect } from 'react'
-import { ArrowLeft, Download, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Download, ChevronRight, Armchair } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
-import { ticketAvailable, payInfo, needsPolling, keepOurPrice, formatSeat, passengerDisplayPrices} from '../orderStatus'
+import { ticketAvailable, payInfo, needsPolling, keepOurPrice, passengerDisplayPrices} from '../orderStatus'
 import { useDisplayPrice } from '../currency'
 import { useOrderPolling } from '../useOrderPolling'
+import BottomNav from '../components/BottomNav'
 
 const ORange = '#F5A623'
 const Navy = '#0B2E5E'
@@ -13,15 +14,42 @@ const Gray = '#8A8A8A'
 
 function platformSuffix() {
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
-  return /iphone|ipad|ipod/i.test(ua) ? 'API' : 'PAG' // iOS → API, Android/веб → PAG
+  return /iphone|ipad|ipod/i.test(ua) ? 'API' : 'PAG'
 }
 
-// Українська плюралізація: 1 квиток, 2-4 квитки, 5+ (і 11-14) квитків
-function ticketWord(n: number): string {
-  const mod10 = n % 10, mod100 = n % 100
-  if (mod10 === 1 && mod100 !== 11) return 'квиток'
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'квитки'
-  return 'квитків'
+function TripBlock({ data, trip, index, isRoundTrip }: { data: any, trip: any, index: number, isRoundTrip: boolean }) {
+  const fromCity = data?.from_city || trip?.departure?.[0]?.city_ua || trip?.departure?.[0]?.city || ''
+  const toCity = data?.to_city || trip?.arrival?.[0]?.city_ua || trip?.arrival?.[0]?.city || ''
+  const fTime = data?.ftime || trip?.departure?.[0]?.time || ''
+  const tTime = data?.ttime || trip?.arrival?.[0]?.time || ''
+  const tripDate = data?.date || data?.date1 || data?.date2 || ''
+  const isTransfer = data?.transferCity
+  const tripType = isTransfer ? `З пересадкою в ${data.transferCity} (A)` : 'Прямий рейс'
+
+  return (
+    <div style={{ marginBottom: 24, paddingBottom: 24, borderBottom: index === 0 && isRoundTrip ? '1px solid #E0E0E0' : 'none' }}>
+      <div style={{ fontSize: 12, color: Gray, marginBottom: 4 }}>Поїздка {index + 1}{index === 1 ? ' (Зворотня)' : ''}</div>
+      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>{fromCity} → {toCity}</div>
+      <div style={{ fontSize: 12, color: Gray, marginBottom: 12 }}>{tripDate}</div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: Gray, marginBottom: 6 }}>Інформація про поїздку {index + 1}</div>
+        <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+          {tripType} · {fTime ? `Виїзд: ${fTime}` : ''} · {tTime ? `Приїзд: ${tTime}` : ''}
+        </div>
+      </div>
+
+      <div>
+        <div style={{ fontSize: 12, color: Gray, marginBottom: 8 }}>Місця пасажирів</div>
+        {data?.passengers?.map((p: any, pi: number) => (
+          <div key={pi} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, marginBottom: pi < (data.passengers.length - 1) ? 6 : 0 }}>
+            <Armchair size={16} color={Gray} />
+            <span>{p.name} — Місце {p.plc || p.place || '—'}</span>
+          </div>
+        )) || <div style={{ fontSize: 13, color: Gray }}>Не визначені</div>}
+      </div>
+    </div>
+  )
 }
 
 export default function Ticket() {
@@ -30,15 +58,14 @@ export default function Ticket() {
   const trip = selectedTrip as any
   const data = orderData as any
   const hash = orderHash || data?.hash || ''
-  // Ціну на замовлення менеджер може змінити вручну — поки не оплачено повністю,
-  // звіряємо з сервером кожні 0.3с, щоб цифри на екрані завжди були актуальні.
+
   const [priceReady, setPriceReady] = useState(() => !needsPolling(data))
   useEffect(() => {
     if (priceReady) return
     const timer = setTimeout(() => setPriceReady(true), 4000)
     return () => clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
   useOrderPolling(hash, needsPolling(data), (o) => { setOrderResult(hash, keepOurPrice(data, o)); setPriceReady(true) })
 
   if (!priceReady) {
@@ -50,7 +77,6 @@ export default function Ticket() {
     )
   }
 
-  // Квиток доступний лише після оплати
   if (data && !ticketAvailable(data, hash)) {
     return (
       <div style={{ minHeight: '100vh', background: Navy, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
@@ -63,47 +89,30 @@ export default function Ticket() {
   }
 
   const suffix = platformSuffix()
-
-  // Номер замовлення = повний системний id, доповнений нулями зліва до 9 цифр
   const orderNo = (() => {
     const src = String(data?.ticket || data?.link1 || data?.link2 || '')
-    const m = src.match(/\/orders?\/(\d+)/)
+    const m = src.match(/\/orders?\/(\\d+)/)
     const num = m ? m[1] : String(hash || data?.oid || '')
     return num ? num.padStart(9, '0') : '000000000'
   })()
 
-  // Рейс
-  const fromCity = data?.from_city || trip?.departure?.[0]?.city_ua || trip?.departure?.[0]?.city || ''
-  const toCity = data?.to_city || trip?.arrival?.[0]?.city_ua || trip?.arrival?.[0]?.city || ''
-  const fStation = data?.fstation || trip?.departure?.[0]?.name || ''
-  const tStation = data?.tstation || trip?.arrival?.[0]?.name || ''
-  const fTime = data?.ftime || trip?.departure?.[0]?.time || ''
-  const tTime = data?.ttime || trip?.arrival?.[0]?.time || ''
   const currency = (data?.crc || trip?.currency || 'uah').toLowerCase() === 'eur' ? 'EUR' : 'UAH'
   const { format } = useDisplayPrice()
 
-  // Пасажири
-  // Бекенд (за оновленим описом прогера) віддає passengers[] (без "а") з полями
-  // name/dsc/prc/tck/plc — а не passangers[]/ticket/place/price, як ми самі називаємо
-  // в локально побудованих об'єктах (Booking.tsx). Підтримуємо обидва варіанти.
   const rawPax = data?.passengers?.length ? data.passengers : data?.passangers
   const paxCount = Math.max(selectedSeats.length, Object.keys(passengerNames).length, 1)
   let passengers = (rawPax && rawPax.length)
-    ? rawPax.map((p: any) => ({ name: p.name, place: p.plc ?? p.place, ticket: p.tck ?? p.ticket, price: p.prc ?? p.price }))
-    : Array.from({ length: paxCount }).map((_, i) => ({ name: passengerNames[i] || '—', place: selectedSeats[i], ticket: undefined, price: data?.summ ?? data?.price }))
-  // Ціна кожного пасажира — завжди пропорційний розподіл живої summ (не сирі prc/price
-  // з бекенду, вони можуть бути застарілими). Єдине місце розрахунку — passengerDisplayPrices.
+    ? rawPax.map((p: any) => ({ name: p.name, place: p.plc ?? p.place, ticket: p.tck ?? p.ticket, price: p.prc ?? p.price, type: p.dsc }))
+    : Array.from({ length: paxCount }).map((_, i) => ({ name: passengerNames[i] || '—', place: selectedSeats[i], ticket: undefined, price: data?.summ ?? data?.price, type: '—' }))
+  
   {
     const liveSumm = Number(data?.summ ?? data?.price ?? 0)
     const split = passengerDisplayPrices(liveSumm, passengers)
     passengers = passengers.map((p: any, i: number) => ({ ...p, price: split[i] }))
   }
 
-  // data.ticket — це лише id ("1010059-fe4e0df"), не посилання. Справжній PDF — ticket_pdf
-  // (підтверджено прогером). Якщо ticket_pdf нема — краще випасти на "Зберегти квиток"
-  // (друк), ніж намагатись відкрити id як URL.
   const ticketPdf: string = data?.ticket_pdf || ''
-  const notch = { position: 'absolute' as const, width: 22, height: 22, borderRadius: '50%', background: Navy, top: '50%', transform: 'translateY(-50%)' }
+  const isRoundTrip = data?.plc && (data.plc.includes('/') || data.plc.includes('47'))
 
   const scrollerRef = useRef<HTMLDivElement>(null)
   const [activeIdx, setActiveIdx] = useState(0)
@@ -117,7 +126,7 @@ export default function Ticket() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: Navy, padding: '0 0 40px' }}>
+    <div style={{ minHeight: '100vh', background: Navy, paddingBottom: 80, position: 'relative' }}>
       <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 'calc(env(safe-area-inset-top) + 18px) 16px 12px' }}>
         <button onClick={() => nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
           <ArrowLeft size={24} color="#fff" />
@@ -131,22 +140,15 @@ export default function Ticket() {
         </div>
       )}
 
-      <div
-        ref={scrollerRef}
-        onScroll={handleScroll}
-        className="no-scrollbar"
-        style={{
-          display: 'flex', overflowX: hasMultiple ? 'auto' : 'visible', scrollSnapType: hasMultiple ? 'x mandatory' : 'none',
-          WebkitOverflowScrolling: 'touch',
-        }}
-      >
+      <div ref={scrollerRef} onScroll={handleScroll} className="no-scrollbar" style={{ display: 'flex', overflowX: hasMultiple ? 'auto' : 'visible', scrollSnapType: hasMultiple ? 'x mandatory' : 'none', WebkitOverflowScrolling: 'touch' }}>
         {passengers.map((p: any, i: number) => {
           const qrValue = p.ticket ? `https://eclub.com.ua/ua/user/ticket/${p.ticket}/` : (hash || orderNo)
           const ticketNo = p.ticket ? `${p.ticket}${suffix}` : orderNo
           return (
             <div key={i} style={{ width: '100%', flexShrink: 0, scrollSnapAlign: 'center', padding: '0 16px' }}>
               <div id={`eticket-${i}`} style={{ background: '#fff', margin: '8px 0', borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.25)' }}>
-                {/* Шапка: Ticket № / Order # + QR */}
+                
+                {/* Шапка */}
                 <div style={{ padding: '18px 20px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, borderBottom: '1px solid #F0F0F0' }}>
                   <div>
                     <div style={{ fontSize: 22, fontWeight: 900, color: '#1A1A1A' }}>Ticket {ticketNo}</div>
@@ -158,62 +160,35 @@ export default function Ticket() {
                   </div>
                 </div>
 
-                {/* Примітка водію */}
+                {/* Примітка */}
                 <div style={{ padding: '12px 20px', background: '#FFF9EF', fontSize: 12, color: '#7A5A16', lineHeight: 1.5 }}>
                   Будь ласка, пред'явіть цей квиток водію під час посадки. Квиток поверненню не підлягає.
                 </div>
 
-                {/* Перфорація */}
-                <div style={{ position: 'relative', height: 24, margin: '4px 0' }}>
-                  <div style={{ ...notch, left: -11 }} />
-                  <div style={{ ...notch, right: -11 }} />
-                  <div style={{ position: 'absolute', top: '50%', left: 16, right: 16, borderTop: '2px dashed #E0E0E0' }} />
-                </div>
-
-                {/* Рейс */}
-                <div style={{ padding: '4px 20px 8px' }}>
-                  <div style={{ fontSize: 13, color: Gray, marginBottom: 10 }}>Дата відправлення: <strong style={{ color: '#1A1A1A' }}>{(fTime || '').split(' ')[0]}</strong></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 22, fontWeight: 800 }}>{(fTime || '').split(' ')[1] || ''}</div>
-                      <div style={{ fontSize: 14, fontWeight: 700 }}>{fromCity}</div>
-                      <div style={{ fontSize: 11, color: Gray, lineHeight: 1.3 }}>{fStation}</div>
-                    </div>
-                    <div style={{ flex: 1, textAlign: 'right' }}>
-                      <div style={{ fontSize: 22, fontWeight: 800 }}>{(tTime || '').split(' ')[1] || ''}</div>
-                      <div style={{ fontSize: 14, fontWeight: 700 }}>{toCity}</div>
-                      <div style={{ fontSize: 11, color: Gray, lineHeight: 1.3 }}>{tStation}</div>
-                    </div>
+                {/* Контент квитка */}
+                <div style={{ padding: '20px' }}>
+                  <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #E0E0E0' }}>
+                    <div style={{ fontSize: 12, color: Gray, marginBottom: 4 }}>Дата відправлення</div>
+                    <div style={{ fontSize: 15, fontWeight: 600 }}>{data?.date || '—'}</div>
                   </div>
-                </div>
 
-                {/* Пасажир цього квитка + тариф */}
-                <div style={{ padding: '10px 20px 18px', borderTop: '1px solid #F2F2F2', marginTop: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 600 }}>{p.name || '—'}</div>
-                      {p.ticket && <div style={{ fontSize: 11, color: Gray }}>Квиток № {p.ticket}{suffix} · Місце {formatSeat(p.place)}</div>}
-                    </div>
-                    <div style={{ fontSize: 15, fontWeight: 700 }}>{format(p.price, currency)}</div>
-                  </div>
-                  {!hasMultiple && (
+                  {/* Round-trip: два блока рейсу */}
+                  {isRoundTrip ? (
                     <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12, marginTop: 4, borderTop: '1px solid #EEE' }}>
-                        <span style={{ fontSize: 15, fontWeight: 700 }}>{'Усього'}</span>
-                        <span style={{ fontSize: 18, fontWeight: 800 }}>{format(data?.summ ?? data?.price ?? trip?.price, currency)}</span>
-                      </div>
-                      {(() => { const pi = payInfo(data); return pi.remainder > 0 ? (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8 }}>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: '#E07B00' }}>Доплата</span>
-                          <span style={{ fontSize: 16, fontWeight: 800, color: '#E07B00' }}>{format(pi.remainder, currency)}</span>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 6 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#2E7D32' }}>Оплачено повністю</span>
-                        </div>
-                      ) })()}
+                      <TripBlock data={data} trip={trip} index={0} isRoundTrip={true} />
+                      <TripBlock data={data} trip={trip} index={1} isRoundTrip={true} />
                     </>
+                  ) : (
+                    <TripBlock data={data} trip={trip} index={0} isRoundTrip={false} />
                   )}
+
+                  {/* Пасажир */}
+                  <div style={{ paddingTop: 16, borderTop: '1px solid #E0E0E0' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Пасажир {i + 1}</div>
+                    <div style={{ fontSize: 14, marginBottom: 2 }}>{p.name}</div>
+                    <div style={{ fontSize: 12, color: Gray, marginBottom: 8 }}>{p.type || '—'}</div>
+                    <div style={{ fontSize: 13 }}>Ціна: {format(p.price || 0)} {currency}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -221,48 +196,26 @@ export default function Ticket() {
         })}
       </div>
 
-      {/* Індикатор слайдів */}
-      {hasMultiple && (
-        <div className="no-print" style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 4, marginBottom: 4 }}>
-          {passengers.map((_: any, i: number) => (
-            <div key={i} style={{ width: activeIdx === i ? 18 : 6, height: 6, borderRadius: 3, background: activeIdx === i ? ORange : 'rgba(255,255,255,0.35)', transition: 'all 0.2s' }} />
-          ))}
-        </div>
-      )}
-
-      {/* Тариф замовлення (коли квитків декілька) */}
-      {hasMultiple && (
-        <div className="no-print" style={{ margin: '8px 16px 0', background: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: '12px 16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 600 }}>{'Усього'}</span>
-            <span style={{ color: '#fff', fontSize: 15, fontWeight: 800 }}>{format(data?.summ ?? data?.price ?? trip?.price, currency)}</span>
-          </div>
-          {(() => { const pi = payInfo(data); return pi.remainder > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-              <span style={{ color: '#FFB870', fontSize: 12, fontWeight: 600 }}>Доплата</span>
-              <span style={{ color: '#FFB870', fontSize: 13, fontWeight: 700 }}>{format(pi.remainder, currency)}</span>
-            </div>
-          ) })()}
-        </div>
-      )}
-
-      <div className="no-print" style={{ padding: '12px 16px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <button onClick={() => ticketPdf ? window.open(ticketPdf, '_blank') : window.print()} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <Download size={18} /> {ticketPdf ? 'Завантажити PDF' : 'Зберегти квиток'}
-        </button>
-        <button onClick={() => nav('/ticket-details')} style={{ width: '100%', padding: 16, background: '#fff', color: Navy, border: '1.5px solid #E0E0E0', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
+      {/* Сума і кнопки */}
+      <div className="no-print" style={{ position: 'fixed', bottom: 80, left: 0, right: 0, padding: '16px', background: Navy }}>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>Всього</div>
+        <div style={{ fontSize: 24, fontWeight: 800, color: '#fff', marginBottom: 12 }}>{format(data?.summ ?? data?.price ?? 0)} {currency}</div>
+        
+        {ticketPdf && (
+          <button onClick={() => window.open(ticketPdf)} style={{ width: '100%', padding: '12px', background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <Download size={18} /> Завантажити PDF
+          </button>
+        )}
+        
+        <button onClick={() => { const html = document.getElementById(`eticket-${activeIdx}`); if (html) window.print() }} style={{ width: '100%', padding: '12px', background: '#fff', color: Navy, border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
           Відкрити електронний квиток
         </button>
       </div>
 
-      <style>{`
-        @media print {
-          body { background: #fff !important; }
-          .no-print { display: none !important; }
-        }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
+      {/* Нижнє меню */}
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100 }}>
+        <BottomNav />
+      </div>
     </div>
   )
 }
