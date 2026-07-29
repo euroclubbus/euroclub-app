@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useT } from '../i18n'
-// import { registerPushToken } from '../push' // DISABLED
+import { registerPushToken } from '../push'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -14,7 +14,7 @@ export default function NotifPrompt() {
   const done = () => { try { localStorage.setItem('eclub_notif_asked', '1') } catch {}; setHidden(true) }
   const allow = async () => {
     try { if (typeof Notification !== 'undefined' && Notification.requestPermission) await Notification.requestPermission() } catch {}
-    // registerPushToken().catch(() => {}) // DISABLED
+    registerPushToken().catch(() => {})
     done()
   }
   return (
