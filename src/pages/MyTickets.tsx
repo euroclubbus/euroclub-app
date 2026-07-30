@@ -15,7 +15,7 @@ const Gray = '#9E9E9E'
 const Navy = '#0A4684'
 
 export default function MyTickets() {
-  console.log('[MyTickets] Component MOUNTED')
+  alert('[MyTickets] Component MOUNTED - this proves code is running')
   const nav = useNavigate()
   const { setOrderResult } = useBookingStore()
   const t = useT()
