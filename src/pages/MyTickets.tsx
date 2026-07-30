@@ -37,6 +37,15 @@ export default function MyTickets() {
     const local = getLocalOrders()
 
     function finish(merged: any[]) {
+      // Записуємо в localStorage всі oid з merged замовлень
+      const allOids = merged.map((o: any) => o.oid ?? o.hash).filter(Boolean)
+      if (allOids.length > 0) {
+        try {
+          localStorage.setItem('euroclub_synced_oids', JSON.stringify(allOids))
+        } catch (e) {
+          console.error('[MyTickets] localStorage write failed:', e)
+        }
+      }
       merged.forEach((o: any) => saveOrderLocally(o.hash, o))
       setOrders(merged)
       setLoading(false)
@@ -49,19 +58,6 @@ export default function MyTickets() {
           : Array.isArray(res?.orders) ? res.orders
           : Array.isArray(res?.list) ? res.list
           : []
-        
-        // Синхронізуємо список всіх oidів з бекенду в localStorage
-        if (remote && remote.length > 0) {
-          const remoteOids = remote.map((o: any) => o.oid ?? o.hash).filter(Boolean)
-          try {
-            // Пишемо напрямо в localStorage, щоб виключити помилки в addSyncedOids
-            const existing = JSON.parse(localStorage.getItem('euroclub_synced_oids') || '[]')
-            const updated = [...new Set([...existing, ...remoteOids])]
-            localStorage.setItem('euroclub_synced_oids', JSON.stringify(updated))
-          } catch (e) {
-            console.error('[MyTickets] Failed to sync oids:', e)
-          }
-        }
         // Дедуп за ідентифікатором замовлення. ВАЖЛИВО: бекенд віддає його як `oid`, не
         // `hash` (order_info з полем hash — застарілий метод, прогер підтвердив не
         // використовувати). Внутрішньо в застосунку ключ поля лишається `.hash` (так
