@@ -7,9 +7,14 @@ const SYNCED_OIDS_KEY = 'euroclub_synced_oids'
  */
 export function getSyncedOids(): string[] {
   try {
-    const data = localStorage.getItem(SYNCED_OIDS_KEY)
-    return data ? JSON.parse(data) : []
-  } catch {
+    console.log('[OrderSync] getSyncedOids called')
+    const raw = localStorage.getItem(SYNCED_OIDS_KEY)
+    console.log('[OrderSync] Raw localStorage value:', raw)
+    const data = raw ? JSON.parse(raw) : []
+    console.log('[OrderSync] Parsed data:', data)
+    return data
+  } catch (e) {
+    console.error('[OrderSync] Error in getSyncedOids:', e)
     return []
   }
 }
