@@ -6,6 +6,7 @@ import { useBookingStore } from '../store'
 import { ticketAvailable, payInfo, needsPolling, keepOurPrice, passengerDisplayPrices, ensureRoundTripSync } from '../orderStatus'
 import { useDisplayPrice } from '../currency'
 import { useOrderPolling } from '../useOrderPolling'
+import { findUserOrder } from '../api/auth'
 
 const ORange = '#F5A623'
 const Navy = '#0B2E5E'
@@ -18,10 +19,38 @@ function platformSuffix() {
 
 export default function Ticket() {
   const nav = useNavigate()
-  const { orderHash, orderData, selectedTrip, selectedSeats, passengerNames, setOrderResult } = useBookingStore()
+  const { orderHash, orderData: localOrderData, selectedTrip, selectedSeats, passengerNames, setOrderResult } = useBookingStore()
   const trip = selectedTrip as any
-  const data = orderData as any
-  const hash = orderHash || data?.hash || ''
+  const hash = orderHash || localOrderData?.hash || ''
+  
+  // Дані з бекенду (пріоритет над store для свіжості)
+  const [backendData, setBackendData] = useState<any>(null)
+  const [loadingBackend, setLoadingBackend] = useState(true)
+  
+  // Завантажуємо ПОВНІ дані з бекенду при вході на квиток
+  useEffect(() => {
+    if (!hash) {
+      setLoadingBackend(false)
+      return
+    }
+    const fetchData = async () => {
+      try {
+        const freshData = await findUserOrder(hash)
+        if (freshData) {
+          setBackendData(freshData)
+          setOrderResult(hash, freshData)
+        }
+      } catch (e) {
+        console.warn('[Ticket] Failed to fetch from backend, using local data')
+      } finally {
+        setLoadingBackend(false)
+      }
+    }
+    fetchData()
+  }, [hash, setOrderResult])
+
+  // Використовуємо дані з бекенду, якщо є, інакше - з store
+  const data = backendData || localOrderData || {}
 
   // Гарантуємо синхронізацію даних про рейс з бекенду
   useEffect(() => {
@@ -37,8 +66,17 @@ export default function Ticket() {
     return () => clearTimeout(timer)
   }, [])
 
-  useOrderPolling(hash, needsPolling(data), (o) => { setOrderResult(hash, keepOurPrice(data, o)); setPriceReady(true) })
+  // Чекаємо завантаження даних з бекенду
+  if (loadingBackend) {
+    return (
+      <div style={{ minHeight: '100vh', background: Navy, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 36, height: 36, border: '3px solid rgba(255,255,255,0.2)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      </div>
+    )
+  }
 
+  // Чекаємо готовності ціни
   if (!priceReady) {
     return (
       <div style={{ minHeight: '100vh', background: Navy, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -47,6 +85,13 @@ export default function Ticket() {
       </div>
     )
   }
+
+  // Polling ціни з бекенду
+  useOrderPolling(hash, needsPolling(data), (o) => { 
+    setBackendData(prev => prev ? keepOurPrice(prev, o) : o)
+    setOrderResult(hash, keepOurPrice(data, o))
+    setPriceReady(true) 
+  })
 
   if (data && !ticketAvailable(data, hash)) {
     return (
