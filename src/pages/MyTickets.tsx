@@ -15,8 +15,12 @@ const Gray = '#9E9E9E'
 const Navy = '#0A4684'
 
 export default function MyTickets() {
-  throw new Error('[MyTickets] FORCE ERROR - This proves component is loading')
   const nav = useNavigate()
+  const { setOrderResult } = useBookingStore()
+  const t = useT()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [orders, setOrders] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const { setOrderResult } = useBookingStore()
   const t = useT()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -29,36 +33,32 @@ export default function MyTickets() {
   // замовлення, які вже скасовані на бекенді, але лишились локально як "очікує оплати",
   // підтягують актуальний статус.
   const loadOrders = useCallback(() => {
-    console.log('[MyTickets] loadOrders called')
-    if (typeof window !== 'undefined') {
-      (window as any).__myTicketsDebug = { called: true, timestamp: Date.now() }
-    }
     setLoading(true)
     const local = getLocalOrders()
-    console.log('[MyTickets] Local orders:', Object.keys(local).length, 'items')
 
     function finish(merged: any[]) {
-      console.log('[MyTickets] finish() called with', merged.length, 'orders')
-      merged.forEach((o: any) => saveOrderLocally(o.hash, o)) // кешуємо серверні дані локально
+      merged.forEach((o: any) => saveOrderLocally(o.hash, o))
       setOrders(merged)
       setLoading(false)
     }
 
     getUserOrders()
       .then((res: any) => {
-        console.log('[MyTickets] getUserOrders succeeded, res:', res)
-        // Формат підтверджено: { data: [...замовлення], cab: {...статистика кабінету} }
         const remote = Array.isArray(res?.data) ? res.data
           : Array.isArray(res) ? res
           : Array.isArray(res?.orders) ? res.orders
           : Array.isArray(res?.list) ? res.list
           : []
-        console.log('[MyTickets] Remote array has', remote.length, 'items')
         
         // Синхронізуємо список всіх oidів з бекенду в localStorage
-        const remoteOids = remote.map((o: any) => o.oid ?? o.hash).filter(Boolean)
-        console.log('[MyTickets] Remote oids from backend:', remoteOids)
-        addSyncedOids(remoteOids)
+        if (remote && remote.length > 0) {
+          const remoteOids = remote.map((o: any) => o.oid ?? o.hash).filter(Boolean)
+          try {
+            addSyncedOids(remoteOids)
+          } catch (e) {
+            console.error('[MyTickets] Failed to sync oids:', e)
+          }
+        }
         // Дедуп за ідентифікатором замовлення. ВАЖЛИВО: бекенд віддає його як `oid`, не
         // `hash` (order_info з полем hash — застарілий метод, прогер підтвердив не
         // використовувати). Внутрішньо в застосунку ключ поля лишається `.hash` (так
@@ -87,21 +87,16 @@ export default function MyTickets() {
         finish(Object.values(byId))
       })
       .catch((e) => {
-        console.error('[MyTickets] getUserOrders FAILED:', e)
-        console.log('[MyTickets] Falling back to local cache only')
+        console.error('[MyTickets] user-orders failed:', e)
         finish(Object.values(local))
       })
   }, [])
 
   useEffect(() => {
-    console.log('[MyTickets] useEffect triggered, calling loadOrders')
     loadOrders()
 
     // Застосунок повернувся на передній план, поки вкладка вже була відкрита — теж оновити.
-    const onVisible = () => { 
-      console.log('[MyTickets] onVisible triggered, calling loadOrders')
-      if (document.visibilityState === 'visible') loadOrders() 
-    }
+    const onVisible = () => { if (document.visibilityState === 'visible') loadOrders() }
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', loadOrders)
     return () => {

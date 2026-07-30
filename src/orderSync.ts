@@ -7,14 +7,9 @@ const SYNCED_OIDS_KEY = 'euroclub_synced_oids'
  */
 export function getSyncedOids(): string[] {
   try {
-    console.log('[OrderSync] getSyncedOids called')
-    const raw = localStorage.getItem(SYNCED_OIDS_KEY)
-    console.log('[OrderSync] Raw localStorage value:', raw)
-    const data = raw ? JSON.parse(raw) : []
-    console.log('[OrderSync] Parsed data:', data)
-    return data
-  } catch (e) {
-    console.error('[OrderSync] Error in getSyncedOids:', e)
+    const data = localStorage.getItem(SYNCED_OIDS_KEY)
+    return data ? JSON.parse(data) : []
+  } catch {
     return []
   }
 }
@@ -38,10 +33,8 @@ export function addSyncedOid(oid: string): void {
  * Додати кілька oid одразу
  */
 export function addSyncedOids(oidList: (string | number)[]): void {
-  console.log('[OrderSync] Adding oids:', oidList)
   try {
     const oids = getSyncedOids()
-    console.log('[OrderSync] Current synced:', oids)
     let changed = false
     for (const oid of oidList) {
       const oidStr = String(oid)
@@ -52,9 +45,6 @@ export function addSyncedOids(oidList: (string | number)[]): void {
     }
     if (changed) {
       localStorage.setItem(SYNCED_OIDS_KEY, JSON.stringify(oids))
-      console.log('[OrderSync] Saved to localStorage:', oids)
-    } else {
-      console.log('[OrderSync] No changes, all oids already synced')
     }
   } catch (e) {
     console.error('[OrderSync] Failed to add oids:', e)
