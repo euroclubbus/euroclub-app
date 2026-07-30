@@ -15,10 +15,7 @@ const Gray = '#9E9E9E'
 const Navy = '#0A4684'
 
 export default function MyTickets() {
-  if (typeof window !== 'undefined' && !localStorage.getItem('_mytickets_alert_shown')) {
-    alert('MyTickets component mounted!')
-    localStorage.setItem('_mytickets_alert_shown', '1')
-  }
+  alert('MYTICKETS!')
   
   const nav = useNavigate()
   const { setOrderResult } = useBookingStore()
