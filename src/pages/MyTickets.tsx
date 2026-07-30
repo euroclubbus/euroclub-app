@@ -48,6 +48,7 @@ export default function MyTickets() {
         
         // Синхронізуємо список всіх oidів з бекенду в localStorage
         const remoteOids = remote.map((o: any) => o.oid ?? o.hash).filter(Boolean)
+        console.log('[MyTickets] Remote oids from backend:', remoteOids)
         addSyncedOids(remoteOids)
         // Дедуп за ідентифікатором замовлення. ВАЖЛИВО: бекенд віддає його як `oid`, не
         // `hash` (order_info з полем hash — застарілий метод, прогер підтвердив не

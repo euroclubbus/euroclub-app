@@ -38,10 +38,13 @@ export default function Ticket() {
       try {
         const freshData = await findUserOrder(hash)
         if (freshData) {
+          console.log('[Ticket] Fresh data loaded from backend:', freshData)
           setBackendData(freshData)
           setOrderResult(hash, freshData)
           // Синхронізуємо цей oid (позначаємо, що бачили його)
-          addSyncedOid(freshData.oid ?? hash)
+          const oid = freshData.oid ?? hash
+          console.log('[Ticket] Syncing oid:', oid)
+          addSyncedOid(oid)
         }
       } catch (e) {
         console.warn('[Ticket] Failed to fetch from backend, using local data')
