@@ -15,7 +15,7 @@ const Gray = '#9E9E9E'
 const Navy = '#0A4684'
 
 export default function MyTickets() {
-  alert('[MyTickets] Component MOUNTED - this proves code is running')
+  throw new Error('[MyTickets] FORCE ERROR - This proves component is loading')
   const nav = useNavigate()
   const { setOrderResult } = useBookingStore()
   const t = useT()
