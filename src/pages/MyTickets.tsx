@@ -15,6 +15,7 @@ const Gray = '#9E9E9E'
 const Navy = '#0A4684'
 
 export default function MyTickets() {
+  console.log('[MyTickets] Component MOUNTED')
   const nav = useNavigate()
   const { setOrderResult } = useBookingStore()
   const t = useT()
@@ -90,10 +91,14 @@ export default function MyTickets() {
   }, [])
 
   useEffect(() => {
+    console.log('[MyTickets] useEffect triggered, calling loadOrders')
     loadOrders()
 
     // Застосунок повернувся на передній план, поки вкладка вже була відкрита — теж оновити.
-    const onVisible = () => { if (document.visibilityState === 'visible') loadOrders() }
+    const onVisible = () => { 
+      console.log('[MyTickets] onVisible triggered, calling loadOrders')
+      if (document.visibilityState === 'visible') loadOrders() 
+    }
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', loadOrders)
     return () => {
