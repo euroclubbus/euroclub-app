@@ -6,6 +6,7 @@ import { getUserOrders } from '../api/auth'
 import { useBookingStore } from '../store'
 import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted, isPaidCancellation, keepOurPrice} from '../orderStatus'
 import { syncOrderRegistryStatus } from '../orderRegistry'
+import { getSyncedOids, addSyncedOids } from '../orderSync'
 import SideMenu from '../components/SideMenu'
 import { useT } from '../i18n'
 
@@ -44,6 +45,10 @@ export default function MyTickets() {
           : Array.isArray(res?.orders) ? res.orders
           : Array.isArray(res?.list) ? res.list
           : []
+        
+        // Синхронізуємо список всіх oidів з бекенду в localStorage
+        const remoteOids = remote.map((o: any) => o.oid ?? o.hash).filter(Boolean)
+        addSyncedOids(remoteOids)
         // Дедуп за ідентифікатором замовлення. ВАЖЛИВО: бекенд віддає його як `oid`, не
         // `hash` (order_info з полем hash — застарілий метод, прогер підтвердив не
         // використовувати). Внутрішньо в застосунку ключ поля лишається `.hash` (так
