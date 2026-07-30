@@ -80,9 +80,16 @@ export default function MyTickets() {
   useEffect(() => {
     loadOrders()
 
-    // Довантажуємо мапу міст (id -> назва) і після готовності перезаписуємо
-    // список — щоб from_city/to_city проставились для замовлень, де їх ще нема.
-    ensureCitiesLoaded().then(() => loadOrders())
+    // Довантажуємо мапу міст (id -> назва) один раз на сесію — БЕЗ повторного
+    // мережевого запиту getUserOrders(): просто перемальовуємо вже наявний
+    // список локально, коли назви міст стануть відомі.
+    ensureCitiesLoaded().then(() => {
+      setOrders(prev => prev.map(o => ({
+        ...o,
+        from_city: o.from_city || getCityNameSync(o.from1),
+        to_city: o.to_city || getCityNameSync(o.to1),
+      })))
+    })
 
     // Записуємо всі локальні oids одразу в localStorage
     try {
@@ -95,13 +102,22 @@ export default function MyTickets() {
       // ignored
     }
 
-    // Застосунок повернувся на передній план, поки вкладка вже була відкрита — теж оновити.
-    const onVisible = () => { if (document.visibilityState === 'visible') loadOrders() }
+    // Застосунок повернувся на передній план — теж оновити, АЛЕ не частіше ніж
+    // раз на 60 секунд: без цього кожне перемикання вкладок/додатків (навіть
+    // відкриття DevTools чи скріншот) стріляло новим запитом до бекенду.
+    let lastFetch = Date.now()
+    const throttledReload = () => {
+      const now = Date.now()
+      if (now - lastFetch < 60000) return
+      lastFetch = now
+      loadOrders()
+    }
+    const onVisible = () => { if (document.visibilityState === 'visible') throttledReload() }
     document.addEventListener('visibilitychange', onVisible)
-    window.addEventListener('focus', loadOrders)
+    window.addEventListener('focus', throttledReload)
     return () => {
       document.removeEventListener('visibilitychange', onVisible)
-      window.removeEventListener('focus', loadOrders)
+      window.removeEventListener('focus', throttledReload)
     }
   }, [loadOrders])
 
