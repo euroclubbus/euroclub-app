@@ -37,14 +37,19 @@ export default function MyTickets() {
     const local = getLocalOrders()
 
     function finish(merged: any[]) {
+      console.log('[MyTickets finish] Called with', merged.length, 'orders')
       // Записуємо в localStorage всі oid з merged замовлень
       const allOids = merged.map((o: any) => o.oid ?? o.hash).filter(Boolean)
+      console.log('[MyTickets finish] Extracted oids:', allOids)
       if (allOids.length > 0) {
         try {
           localStorage.setItem('euroclub_synced_oids', JSON.stringify(allOids))
+          console.log('[MyTickets finish] Successfully wrote to localStorage')
         } catch (e) {
           console.error('[MyTickets] localStorage write failed:', e)
         }
+      } else {
+        console.log('[MyTickets finish] No oids to write')
       }
       merged.forEach((o: any) => saveOrderLocally(o.hash, o))
       setOrders(merged)
