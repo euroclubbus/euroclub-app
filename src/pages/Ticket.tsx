@@ -1,12 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import { useRef, useState, useEffect } from 'react'
-import { ArrowLeft, Download, ChevronRight, Armchair } from 'lucide-react'
+import { ArrowLeft, Download, ChevronRight } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
 import { ticketAvailable, payInfo, needsPolling, keepOurPrice, passengerDisplayPrices, ensureRoundTripSync } from '../orderStatus'
 import { useDisplayPrice } from '../currency'
 import { useOrderPolling } from '../useOrderPolling'
-import BottomNav from '../components/BottomNav'
 
 const ORange = '#F5A623'
 const Navy = '#0B2E5E'
@@ -15,41 +14,6 @@ const Gray = '#8A8A8A'
 function platformSuffix() {
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
   return /iphone|ipad|ipod/i.test(ua) ? 'API' : 'PAG'
-}
-
-function TripBlock({ data, trip, index, isRoundTrip }: { data: any, trip: any, index: number, isRoundTrip: boolean }) {
-  const fromCity = data?.from_city || trip?.departure?.[0]?.city_ua || trip?.departure?.[0]?.city || ''
-  const toCity = data?.to_city || trip?.arrival?.[0]?.city_ua || trip?.arrival?.[0]?.city || ''
-  const fTime = data?.ftime || trip?.departure?.[0]?.time || ''
-  const tTime = data?.ttime || trip?.arrival?.[0]?.time || ''
-  const tripDate = data?.date || data?.date1 || data?.date2 || ''
-  const isTransfer = data?.transferCity
-  const tripType = isTransfer ? `З пересадкою в ${data.transferCity} (A)` : 'Прямий рейс'
-
-  return (
-    <div style={{ marginBottom: 24, paddingBottom: 24, borderBottom: index === 0 && isRoundTrip ? '1px solid #E0E0E0' : 'none' }}>
-      <div style={{ fontSize: 12, color: Gray, marginBottom: 4 }}>Поїздка {index + 1}{index === 1 ? ' (Зворотня)' : ''}</div>
-      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>{fromCity} → {toCity}</div>
-      <div style={{ fontSize: 12, color: Gray, marginBottom: 12 }}>{tripDate}</div>
-
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 12, color: Gray, marginBottom: 6 }}>Інформація про поїздку {index + 1}</div>
-        <div style={{ fontSize: 13, lineHeight: 1.6 }}>
-          {tripType} · {fTime ? `Виїзд: ${fTime}` : ''} · {tTime ? `Приїзд: ${tTime}` : ''}
-        </div>
-      </div>
-
-      <div>
-        <div style={{ fontSize: 12, color: Gray, marginBottom: 8 }}>Місця пасажирів</div>
-        {data?.passengers?.map((p: any, pi: number) => (
-          <div key={pi} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, marginBottom: pi < (data.passengers.length - 1) ? 6 : 0 }}>
-            <Armchair size={16} color={Gray} />
-            <span>{p.name} — Місце {p.plc || p.place || '—'}</span>
-          </div>
-        )) || <div style={{ fontSize: 13, color: Gray }}>Не визначені</div>}
-      </div>
-    </div>
-  )
 }
 
 export default function Ticket() {
@@ -103,6 +67,11 @@ export default function Ticket() {
     return num ? num.padStart(9, '0') : '000000000'
   })()
 
+  const fromCity = data?.from_city || trip?.departure?.[0]?.city_ua || trip?.departure?.[0]?.city || ''
+  const toCity = data?.to_city || trip?.arrival?.[0]?.city_ua || trip?.arrival?.[0]?.city || ''
+  const fTime = data?.ftime || trip?.departure?.[0]?.time || ''
+  const tTime = data?.ttime || trip?.arrival?.[0]?.time || ''
+  const tripDate = data?.date || ''
   const currency = (data?.crc || trip?.currency || 'uah').toLowerCase() === 'eur' ? 'EUR' : 'UAH'
   const { format } = useDisplayPrice()
 
@@ -133,7 +102,7 @@ export default function Ticket() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: Navy, paddingBottom: 80, position: 'relative' }}>
+    <div style={{ minHeight: '100vh', background: Navy, paddingBottom: 24 }}>
       <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 'calc(env(safe-area-inset-top) + 18px) 16px 12px' }}>
         <button onClick={() => nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
           <ArrowLeft size={24} color="#fff" />
@@ -174,23 +143,65 @@ export default function Ticket() {
 
                 {/* Контент квитка */}
                 <div style={{ padding: '20px' }}>
-                  <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #E0E0E0' }}>
-                    <div style={{ fontSize: 12, color: Gray, marginBottom: 4 }}>Дата відправлення</div>
-                    <div style={{ fontSize: 15, fontWeight: 600 }}>{data?.date || '—'}</div>
+                  
+                  {/* ПОЇЗДКА 1 */}
+                  <div style={{ marginBottom: 24, paddingBottom: 24, borderBottom: isRoundTrip ? '1px solid #E0E0E0' : 'none' }}>
+                    <div style={{ fontSize: 12, color: Gray, marginBottom: 8 }}>Поїздка 1</div>
+                    
+                    {/* Маршрут */}
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{fromCity} → {toCity}</div>
+                      <div style={{ fontSize: 12, color: Gray }}>{tripDate}</div>
+                    </div>
+
+                    {/* Інформація про рейс */}
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, color: Gray, marginBottom: 4 }}>Інформація про поїздку</div>
+                      <div style={{ fontSize: 13 }}>
+                        Прямий рейс · Виїзд: {fTime} · Приїзд: {tTime}
+                      </div>
+                    </div>
+
+                    {/* Місця пасажирів */}
+                    <div>
+                      <div style={{ fontSize: 12, color: Gray, marginBottom: 6 }}>Місця пасажирів</div>
+                      {passengers.map((pp: any, pi: number) => (
+                        <div key={pi} style={{ fontSize: 12, marginBottom: pi < passengers.length - 1 ? 4 : 0 }}>
+                          🚪 {pp.name} — Місце {pp.place || '—'}
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
-                  {/* Round-trip: два блока рейсу */}
-                  {isRoundTrip ? (
-                    <>
-                      <TripBlock data={data} trip={trip} index={0} isRoundTrip={true} />
-                      <TripBlock data={data} trip={trip} index={1} isRoundTrip={true} />
-                    </>
-                  ) : (
-                    <TripBlock data={data} trip={trip} index={0} isRoundTrip={false} />
+                  {/* ПОЇЗДКА 2 (Якщо round-trip) */}
+                  {isRoundTrip && (
+                    <div>
+                      <div style={{ fontSize: 12, color: Gray, marginBottom: 8 }}>Поїздка 2 (Зворотня)</div>
+                      
+                      {/* Маршрут */}
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{toCity} → {fromCity}</div>
+                        <div style={{ fontSize: 12, color: Gray }}>Відкрита дата</div>
+                      </div>
+
+                      {/* Інформація про рейс */}
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 12, color: Gray, marginBottom: 4 }}>Інформація про поїздку</div>
+                        <div style={{ fontSize: 13 }}>
+                          З пересадкою в Ліпську (A) · Виїзд: {data?.ftime2 || '—'} · Приїзд: {data?.ttime2 || '—'}
+                        </div>
+                      </div>
+
+                      {/* Місця пасажирів */}
+                      <div>
+                        <div style={{ fontSize: 12, color: Gray, marginBottom: 6 }}>Місця пасажирів</div>
+                        <div style={{ fontSize: 12, color: Gray }}>Не визначені</div>
+                      </div>
+                    </div>
                   )}
 
-                  {/* Пасажир */}
-                  <div style={{ paddingTop: 16, borderTop: '1px solid #E0E0E0' }}>
+                  {/* Пасажир информация */}
+                  <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid #E0E0E0' }}>
                     <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Пасажир {i + 1}</div>
                     <div style={{ fontSize: 14, marginBottom: 2 }}>{p.name}</div>
                     <div style={{ fontSize: 12, color: Gray, marginBottom: 8 }}>{p.type || '—'}</div>
@@ -204,9 +215,9 @@ export default function Ticket() {
       </div>
 
       {/* Сума і кнопки */}
-      <div className="no-print" style={{ position: 'fixed', bottom: 80, left: 0, right: 0, padding: '16px', background: Navy }}>
+      <div className="no-print" style={{ padding: '24px 16px 16px', background: Navy }}>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>Всього</div>
-        <div style={{ fontSize: 24, fontWeight: 800, color: '#fff', marginBottom: 12 }}>{format(data?.summ ?? data?.price ?? 0)} {currency}</div>
+        <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: 16 }}>{format(data?.summ ?? data?.price ?? 0)} {currency}</div>
         
         {ticketPdf && (
           <button onClick={() => window.open(ticketPdf)} style={{ width: '100%', padding: '12px', background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
@@ -219,9 +230,20 @@ export default function Ticket() {
         </button>
       </div>
 
-      {/* Нижнє меню */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100 }}>
-        <BottomNav />
+      {/* Нижнє меню - фіксоване */}
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '1px solid #E0E0E0', display: 'flex', justifyContent: 'center', gap: 24, padding: '12px 0', paddingBottom: 'env(safe-area-inset-bottom)', zIndex: 100 }}>
+        <button onClick={() => nav('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: Gray, fontSize: 12 }}>
+          <div style={{ fontSize: 20, marginBottom: 4 }}>🔍</div>Пошук
+        </button>
+        <button onClick={() => nav('/tickets')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: ORange, fontSize: 12, fontWeight: 600 }}>
+          <div style={{ fontSize: 20, marginBottom: 4 }}>🎫</div>Квитки
+        </button>
+        <button onClick={() => nav('/profile')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: Gray, fontSize: 12 }}>
+          <div style={{ fontSize: 20, marginBottom: 4 }}>👤</div>Профіль
+        </button>
+        <button onClick={() => nav('/notifications')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: Gray, fontSize: 12 }}>
+          <div style={{ fontSize: 20, marginBottom: 4 }}>🔔</div>Сповіщення
+        </button>
       </div>
     </div>
   )
