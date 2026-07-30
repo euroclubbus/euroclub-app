@@ -7,6 +7,7 @@ import { ticketAvailable, payInfo, needsPolling, keepOurPrice, passengerDisplayP
 import { useDisplayPrice } from '../currency'
 import { useOrderPolling } from '../useOrderPolling'
 import { findUserOrder } from '../api/auth'
+import { addSyncedOid } from '../orderSync'
 
 const ORange = '#F5A623'
 const Navy = '#0B2E5E'
@@ -39,6 +40,8 @@ export default function Ticket() {
         if (freshData) {
           setBackendData(freshData)
           setOrderResult(hash, freshData)
+          // Синхронізуємо цей oid (позначаємо, що бачили його)
+          addSyncedOid(freshData.oid ?? hash)
         }
       } catch (e) {
         console.warn('[Ticket] Failed to fetch from backend, using local data')
