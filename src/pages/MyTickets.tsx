@@ -28,10 +28,13 @@ export default function MyTickets() {
   // замовлення, які вже скасовані на бекенді, але лишились локально як "очікує оплати",
   // підтягують актуальний статус.
   const loadOrders = useCallback(() => {
+    console.log('[MyTickets] loadOrders called')
     setLoading(true)
     const local = getLocalOrders()
+    console.log('[MyTickets] Local orders:', Object.keys(local).length, 'items')
 
     function finish(merged: any[]) {
+      console.log('[MyTickets] finish() called with', merged.length, 'orders')
       merged.forEach((o: any) => saveOrderLocally(o.hash, o)) // кешуємо серверні дані локально
       setOrders(merged)
       setLoading(false)
@@ -39,12 +42,14 @@ export default function MyTickets() {
 
     getUserOrders()
       .then((res: any) => {
+        console.log('[MyTickets] getUserOrders succeeded, res:', res)
         // Формат підтверджено: { data: [...замовлення], cab: {...статистика кабінету} }
         const remote = Array.isArray(res?.data) ? res.data
           : Array.isArray(res) ? res
           : Array.isArray(res?.orders) ? res.orders
           : Array.isArray(res?.list) ? res.list
           : []
+        console.log('[MyTickets] Remote array has', remote.length, 'items')
         
         // Синхронізуємо список всіх oidів з бекенду в localStorage
         const remoteOids = remote.map((o: any) => o.oid ?? o.hash).filter(Boolean)
@@ -78,7 +83,8 @@ export default function MyTickets() {
         finish(Object.values(byId))
       })
       .catch((e) => {
-        console.error('[MyTickets] user-orders failed — показуємо тільки локальний кеш', e)
+        console.error('[MyTickets] getUserOrders FAILED:', e)
+        console.log('[MyTickets] Falling back to local cache only')
         finish(Object.values(local))
       })
   }, [])
