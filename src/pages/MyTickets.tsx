@@ -14,6 +14,18 @@ const ORange = '#F5A623'
 const Gray = '#9E9E9E'
 const Navy = '#0A4684'
 
+// Модульний (не компонентний) кеш "останнє відоме значення" статусу/оплати —
+// живе на всю сесію вкладки. Без нього кожен loadOrders() писав у Firestore
+// для ВСІХ ~125 замовлень користувача одночасно, незалежно від того, чи там
+// щось змінилось — саме це і було "юрбою запитів" на бекенд/Firebase.
+const lastKnownStatus = new Map<string, string>()
+function syncOrderRegistryStatusIfChanged(orderNo: string, status: any, paidUah: number, paidEur: number) {
+  const key = `${status}|${paidUah}|${paidEur}`
+  if (lastKnownStatus.get(orderNo) === key) return
+  lastKnownStatus.set(orderNo, key)
+  syncOrderRegistryStatus(orderNo, status, paidUah, paidEur)
+}
+
 export default function MyTickets() {
   const nav = useNavigate()
   const { setOrderResult } = useBookingStore()
@@ -63,7 +75,7 @@ export default function MyTickets() {
             to_city: o.to_city || getCityNameSync(o.to1),
           }
           byId[key] = byId[key] ? keepOurPrice(byId[key], normalized) : normalized
-          syncOrderRegistryStatus(key, o.status, Number(o.paid_uah) || 0, Number(o.paid_eur) || 0)
+          syncOrderRegistryStatusIfChanged(key, o.status, Number(o.paid_uah) || 0, Number(o.paid_eur) || 0)
           // Перший раз бачимо це замовлення (нема локального запису з датою бронювання) —
           // фіксуємо дату зараз, назавжди. Без цього кроку сортування "останнє зверху"
           // непослідовне: одні замовлення сортуються за датою бронювання, інші (без неї) —
