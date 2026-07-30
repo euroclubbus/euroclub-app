@@ -222,20 +222,21 @@ export default function OrderSuccess() {
     finally { setLoading(false) }
   }
 
-  // Перевірка вільних місць на тому самому рейсі перед відновленням неоплаченого замовлення
+  // Перевірка вільних місць на тому самому рейсі перед відновленням неоплаченого замовлення.
+  // Раніше шукало місто за НАЗВОЮ (data.from_city/to_city) і дату з data.ftime — обидва
+  // поля пропадають після перезавантаження сторінки чи на іншому пристрої (не приходять
+  // з user-orders), через що перевірка завжди помилково падала в "unavailable". Тепер
+  // беремо готові числові from1/to1/date1 — вони є в замовленні завжди.
   const checkSeatsAndRestore = async () => {
     setRestorePhase('checking')
     try {
-      const citiesRes: any = await getCities()
-      const raw = citiesRes.cities || citiesRes || {}
-      const list = Array.isArray(raw) ? raw : Object.values(raw)
-      const fromCity: any = list.find((c: any) => c.uk === data?.from_city)
-      const toCity: any = list.find((c: any) => c.uk === data?.to_city)
-      const dep = String(data?.ftime || '').split(' ')[0] // dd.mm.yyyy
+      const fromId = data?.from1
+      const toId = data?.to1
+      const dep = String(data?.date1 || data?.ftime || '').split(' ')[0] // dd.mm.yyyy
       const [dd, mm, yyyy] = dep.split('.')
-      if (!fromCity || !toCity || !dd) { setRestorePhase('unavailable'); return }
+      if (!fromId || !toId || !dd) { setRestorePhase('unavailable'); return }
 
-      const res: any = await getRoutes(String(fromCity.id), String(toCity.id), `${dd}-${mm}-${yyyy}`)
+      const res: any = await getRoutes(String(fromId), String(toId), `${dd}-${mm}-${yyyy}`)
       const routes = res.routes || []
       const match = routes.find((t: any) => t?.departure?.[0]?.time === data?.ftime) || routes[0]
 
