@@ -30,6 +30,9 @@ export default function MyTickets() {
   // підтягують актуальний статус.
   const loadOrders = useCallback(() => {
     console.log('[MyTickets] loadOrders called')
+    if (typeof window !== 'undefined') {
+      (window as any).__myTicketsDebug = { called: true, timestamp: Date.now() }
+    }
     setLoading(true)
     const local = getLocalOrders()
     console.log('[MyTickets] Local orders:', Object.keys(local).length, 'items')
