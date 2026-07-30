@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBookingStore, useSearchStore } from '../store'
 import { getCities, getRoutes } from '../api/euroclub'
-import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat } from '../orderStatus'
+import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, isCancelled } from '../orderStatus'
 import { useOrderRegistry } from '../orderRegistryRead'
 import { useOrderPolling } from '../useOrderPolling'
 import { useDisplayPrice } from '../currency'
@@ -46,7 +46,11 @@ export default function OrderSuccess() {
   const t = useT()
   const { orderHash, orderData, selectedTrip, selectedTrip2, selectedSeats, setOrderResult } = useBookingStore()
   const { setFrom, setTo } = useSearchStore()
-  const [status, setStatus] = useState<'active'|'cancelled'>('active')
+  // Раніше тут завжди стояло 'active' незалежно від реального стану замовлення —
+  // якщо замовлення вже було скасоване (в цій чи попередній сесії, на іншому
+  // пристрої, чи бекендом), при відкритті екрану знову показувалась кнопка
+  // оплати. Тепер беремо реальний статус одразу з даних замовлення.
+  const [status, setStatus] = useState<'active'|'cancelled'>(() => isCancelled(orderData) ? 'cancelled' : 'active')
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [refreshedAt, setRefreshedAt] = useState('')
@@ -92,6 +96,13 @@ export default function OrderSuccess() {
   useEffect(() => {
     getUserOrders().then((res: any) => setCabBonus(Number(res?.cab?.['b='] ?? 0))).catch(() => {})
   }, [])
+
+  // Синхронізуємо локальний status з реальним статусом бекенду щоразу, коли
+  // приходять нові дані (опитування, ручне оновлення, бонуси тощо) — інакше
+  // скасоване на бекенді замовлення й далі показувалось би як 'active'.
+  useEffect(() => {
+    setStatus(isCancelled(data) ? 'cancelled' : 'active')
+  }, [data?.status])
   const applyBonus = async () => {
     const amount = Number(bonusInput)
     if (!amount || amount <= 0 || !hash) return
