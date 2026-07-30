@@ -1,0 +1,70 @@
+// Управління списком синхронізованих замовлень в localStorage
+
+const SYNCED_OIDS_KEY = 'euroclub_synced_oids'
+
+/**
+ * Отримати список уже синхронізованих oid
+ */
+export function getSyncedOids(): string[] {
+  try {
+    const data = localStorage.getItem(SYNCED_OIDS_KEY)
+    return data ? JSON.parse(data) : []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Додати oid в список синхронізованих
+ */
+export function addSyncedOid(oid: string): void {
+  try {
+    const oids = getSyncedOids()
+    if (!oids.includes(String(oid))) {
+      oids.push(String(oid))
+      localStorage.setItem(SYNCED_OIDS_KEY, JSON.stringify(oids))
+    }
+  } catch (e) {
+    console.error('[OrderSync] Failed to add oid:', e)
+  }
+}
+
+/**
+ * Додати кілька oid одразу
+ */
+export function addSyncedOids(oidList: (string | number)[]): void {
+  try {
+    const oids = getSyncedOids()
+    let changed = false
+    for (const oid of oidList) {
+      const oidStr = String(oid)
+      if (!oids.includes(oidStr)) {
+        oids.push(oidStr)
+        changed = true
+      }
+    }
+    if (changed) {
+      localStorage.setItem(SYNCED_OIDS_KEY, JSON.stringify(oids))
+    }
+  } catch (e) {
+    console.error('[OrderSync] Failed to add oids:', e)
+  }
+}
+
+/**
+ * Чи це замовлення вже синхронізоване?
+ */
+export function isOidSynced(oid: string | number): boolean {
+  return getSyncedOids().includes(String(oid))
+}
+
+/**
+ * Очистити список синхронізованих (для логауту)
+ */
+export function clearSyncedOids(): void {
+  try {
+    localStorage.removeItem(SYNCED_OIDS_KEY)
+  } catch (e) {
+    console.error('[OrderSync] Failed to clear oids:', e)
+  }
+}
