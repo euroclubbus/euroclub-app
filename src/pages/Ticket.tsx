@@ -7,7 +7,6 @@ import { ticketAvailable, payInfo, needsPolling, keepOurPrice, passengerDisplayP
 import { useDisplayPrice } from '../currency'
 import { useOrderPolling } from '../useOrderPolling'
 import { findUserOrder } from '../api/auth'
-import { addSyncedOid } from '../orderSync'
 
 const ORange = '#F5A623'
 const Navy = '#0B2E5E'
@@ -22,7 +21,7 @@ export default function Ticket() {
   const nav = useNavigate()
   const { orderHash, orderData: localOrderData, selectedTrip, selectedSeats, passengerNames, setOrderResult } = useBookingStore()
   const trip = selectedTrip as any
-  const hash = orderHash || localOrderData?.hash || ''
+  const hash = orderHash || String(localOrderData?.hash || '')
   
   // Дані з бекенду (пріоритет над store для свіжості)
   const [backendData, setBackendData] = useState<any>(null)
@@ -40,8 +39,6 @@ export default function Ticket() {
         if (freshData) {
           setBackendData(freshData)
           setOrderResult(hash, freshData)
-          // Синхронізуємо цей oid (позначаємо, що бачили його)
-          addSyncedOid(freshData.oid ?? hash)
         }
       } catch (e) {
         console.warn('[Ticket] Failed to fetch from backend, using local data')
@@ -91,7 +88,7 @@ export default function Ticket() {
 
   // Polling ціни з бекенду
   useOrderPolling(hash, needsPolling(data), (o) => { 
-    setBackendData(prev => prev ? keepOurPrice(prev, o) : o)
+    setBackendData((prev: any) => prev ? keepOurPrice(prev, o) : o)
     setOrderResult(hash, keepOurPrice(data, o))
     setPriceReady(true) 
   })

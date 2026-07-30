@@ -6,7 +6,6 @@ import { getUserOrders } from '../api/auth'
 import { useBookingStore } from '../store'
 import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted, isPaidCancellation, keepOurPrice} from '../orderStatus'
 import { syncOrderRegistryStatus } from '../orderRegistry'
-import { getSyncedOids, addSyncedOids } from '../orderSync'
 import SideMenu from '../components/SideMenu'
 import { useT } from '../i18n'
 
@@ -28,14 +27,6 @@ export default function MyTickets() {
     const local = getLocalOrders()
 
     function finish(merged: any[]) {
-      const allOids = merged.map((o: any) => o.oid ?? o.hash).filter(Boolean)
-      if (allOids.length > 0) {
-        try {
-          localStorage.setItem('euroclub_synced_oids', JSON.stringify(allOids))
-        } catch (e) {
-          console.error('[MyTickets] localStorage write failed:', e)
-        }
-      }
       merged.forEach((o: any) => saveOrderLocally(o.hash, o))
       setOrders(merged)
       setLoading(false)
