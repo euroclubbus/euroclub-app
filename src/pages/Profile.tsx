@@ -4,6 +4,7 @@ import { User, LogOut, Ticket, Mail, Phone, Pencil, Check, X, Plus, Trash2, User
 import { useAuthStore } from '../authStore'
 import { editProfile, getUserOrders } from '../api/auth'
 import { getSavedPassengers, addSavedPassenger, removeSavedPassenger, setSavedPassengerBirthday, SavedPassenger } from '../savedPassengers'
+import { clearSyncedOids } from '../orderSync'
 import Auth from './Auth'
 import { useT } from '../i18n'
 import { useDisplayPrice } from '../currency'
@@ -242,7 +243,7 @@ export default function Profile() {
           <Ticket size={20} color={ORange} /> {t('profile.myOrders')}
         </button>
 
-        <button onClick={logout} style={{ width: '100%', marginTop: 14, padding: 16, background: 'none', border: '1.5px solid #EEE', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: 'pointer', color: '#E53935', fontWeight: 700, fontSize: 15 }}>
+        <button onClick={() => { clearSyncedOids(); logout() }} style={{ width: '100%', marginTop: 14, padding: 16, background: 'none', border: '1.5px solid #EEE', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: 'pointer', color: '#E53935', fontWeight: 700, fontSize: 15 }}>
           <LogOut size={18} /> {t('profile.logout')}
         </button>
       </div>
