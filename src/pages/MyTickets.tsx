@@ -33,8 +33,10 @@ export default function MyTickets() {
   // замовлення, які вже скасовані на бекенді, але лишились локально як "очікує оплати",
   // підтягують актуальний статус.
   const loadOrders = useCallback(() => {
+    console.log('[MyTickets loadOrders] Starting')
     setLoading(true)
     const local = getLocalOrders()
+    console.log('[MyTickets loadOrders] Local orders count:', Object.keys(local).length)
 
     function finish(merged: any[]) {
       console.log('[MyTickets finish] Called with', merged.length, 'orders')
@@ -58,11 +60,13 @@ export default function MyTickets() {
 
     getUserOrders()
       .then((res: any) => {
+        console.log('[MyTickets .then] Response received:', res)
         const remote = Array.isArray(res?.data) ? res.data
           : Array.isArray(res) ? res
           : Array.isArray(res?.orders) ? res.orders
           : Array.isArray(res?.list) ? res.list
           : []
+        console.log('[MyTickets .then] Remote array length:', remote.length)
         // Дедуп за ідентифікатором замовлення. ВАЖЛИВО: бекенд віддає його як `oid`, не
         // `hash` (order_info з полем hash — застарілий метод, прогер підтвердив не
         // використовувати). Внутрішньо в застосунку ключ поля лишається `.hash` (так
@@ -87,11 +91,10 @@ export default function MyTickets() {
           // за датою поїздки, і порядок виглядає невірним.
           if (!byId[key].bookingDate) byId[key].bookingDate = new Date().toISOString()
         }
-
         finish(Object.values(byId))
       })
       .catch((e) => {
-        console.error('[MyTickets] user-orders failed:', e)
+        console.error('[MyTickets .catch] Error occurred:', e)
         finish(Object.values(local))
       })
   }, [])
