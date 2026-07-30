@@ -85,6 +85,7 @@ export default function Ticket() {
   })
   const scrollerRef = useRef<HTMLDivElement>(null)
   const [activeIdx, setActiveIdx] = useState(0)
+  const { format } = useDisplayPrice()
 
   // Чекаємо завантаження даних з бекенду
   if (loadingBackend) {
@@ -137,7 +138,6 @@ export default function Ticket() {
   const tStation2 = data?.arrivals2?.[0]?.station_name || ''
   const tripDate = data?.date || data?.date1 || ''
   const currency = (data?.crc || trip?.currency || 'uah').toLowerCase() === 'eur' ? 'EUR' : 'UAH'
-  const { format } = useDisplayPrice()
 
   const rawPax = data?.passengers?.length ? data.passengers : data?.passangers
   const paxCount = Math.max(selectedSeats.length, Object.keys(passengerNames).length, 1)
