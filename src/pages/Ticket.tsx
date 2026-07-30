@@ -73,6 +73,19 @@ export default function Ticket() {
     return () => clearTimeout(timer)
   }, [])
 
+  // ВАЖЛИВО: усі хуки мають викликатись у незмінному порядку на кожному
+  // рендері — тому useOrderPolling і useState(activeIdx) стоять тут, ДО
+  // умовних `return` нижче. Раніше вони йшли після early return-ів (loading/
+  // priceReady), через що React ламав рендер щоразу як умова змінювалась
+  // між рендерами ("Показати квиток" відкривав чистий екран/креш).
+  useOrderPolling(hash, needsPolling(data), (o) => {
+    setBackendData((prev: any) => prev ? keepOurPrice(prev, o) : o)
+    setOrderResult(hash, keepOurPrice(data, o))
+    setPriceReady(true)
+  })
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const [activeIdx, setActiveIdx] = useState(0)
+
   // Чекаємо завантаження даних з бекенду
   if (loadingBackend) {
     return (
@@ -92,13 +105,6 @@ export default function Ticket() {
       </div>
     )
   }
-
-  // Polling ціни з бекенду
-  useOrderPolling(hash, needsPolling(data), (o) => { 
-    setBackendData((prev: any) => prev ? keepOurPrice(prev, o) : o)
-    setOrderResult(hash, keepOurPrice(data, o))
-    setPriceReady(true) 
-  })
 
   if (data && !ticketAvailable(data, hash)) {
     return (
@@ -147,9 +153,6 @@ export default function Ticket() {
 
   const ticketPdf: string = data?.ticket_pdf || ''
   const isRoundTrip = Boolean(data?.from2 && data?.to2)
-
-  const scrollerRef = useRef<HTMLDivElement>(null)
-  const [activeIdx, setActiveIdx] = useState(0)
   const hasMultiple = passengers.length > 1
 
   const handleScroll = () => {

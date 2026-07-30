@@ -72,9 +72,11 @@ export default function OrderSuccess() {
   // Prefer order data from order_new response (real, confirmed), fall back to selected trip for display before booking completes
   const dep = trip?.departure?.[0]
   const arr = trip?.arrival?.[0]
-  const depDT = splitDateTime(data?.ftime || dep?.time)
-  const arrDT = splitDateTime(data?.ttime || arr?.time)
-  const duration = calcDuration(data?.ftime || dep?.time, data?.ttime || arr?.time)
+  const ftimeRaw = data?.departures?.[0]?.time || data?.ftime || dep?.time
+  const ttimeRaw = data?.arrivals?.[0]?.time || data?.ttime || arr?.time
+  const depDT = splitDateTime(ftimeRaw)
+  const arrDT = splitDateTime(ttimeRaw)
+  const duration = calcDuration(ftimeRaw, ttimeRaw)
   const hasTransfer = Number(trip?.transfer) === 1
   const transferStop = trip?.stopping?.find((s: any) => Number(s.transfer) === 1)
 
