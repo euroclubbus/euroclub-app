@@ -6,6 +6,7 @@ import { getUserOrders } from '../api/auth'
 import { useBookingStore } from '../store'
 import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted, isPaidCancellation, keepOurPrice} from '../orderStatus'
 import { syncOrderRegistryStatus } from '../orderRegistry'
+import { ensureCitiesLoaded, getCityNameSync } from '../cityNames'
 import SideMenu from '../components/SideMenu'
 import { useT } from '../i18n'
 
@@ -54,7 +55,13 @@ export default function MyTickets() {
           const id = o.oid ?? o.hash
           if (!id) continue
           const key = String(id)
-          const normalized = { ...o, hash: key, oid: key }
+          const normalized = {
+            ...o,
+            hash: key,
+            oid: key,
+            from_city: o.from_city || getCityNameSync(o.from1),
+            to_city: o.to_city || getCityNameSync(o.to1),
+          }
           byId[key] = byId[key] ? keepOurPrice(byId[key], normalized) : normalized
           syncOrderRegistryStatus(key, o.status, Number(o.paid_uah) || 0, Number(o.paid_eur) || 0)
           // Перший раз бачимо це замовлення (нема локального запису з датою бронювання) —
@@ -72,6 +79,10 @@ export default function MyTickets() {
 
   useEffect(() => {
     loadOrders()
+
+    // Довантажуємо мапу міст (id -> назва) і після готовності перезаписуємо
+    // список — щоб from_city/to_city проставились для замовлень, де їх ще нема.
+    ensureCitiesLoaded().then(() => loadOrders())
 
     // Записуємо всі локальні oids одразу в localStorage
     try {

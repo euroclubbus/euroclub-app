@@ -7,6 +7,7 @@ import { ticketAvailable, payInfo, needsPolling, keepOurPrice, passengerDisplayP
 import { useDisplayPrice } from '../currency'
 import { useOrderPolling } from '../useOrderPolling'
 import { findUserOrder } from '../api/auth'
+import { ensureCitiesLoaded, getCityNameSync } from '../cityNames'
 
 const ORange = '#F5A623'
 const Navy = '#0B2E5E'
@@ -58,6 +59,12 @@ export default function Ticket() {
       ensureRoundTripSync(data)
     }
   }, [data, hash])
+
+  // Завантажуємо мапу міст (id -> назва) для перекладу from1/to1/from2/to2
+  const [, forceCityRerender] = useState(0)
+  useEffect(() => {
+    ensureCitiesLoaded().then(() => forceCityRerender(v => v + 1))
+  }, [])
 
   const [priceReady, setPriceReady] = useState(() => !needsPolling(data))
   useEffect(() => {
@@ -112,11 +119,11 @@ export default function Ticket() {
     return num ? num.padStart(9, '0') : '000000000'
   })()
 
-  const fromCity = data?.from_city || trip?.departure?.[0]?.city_ua || trip?.departure?.[0]?.city || ''
-  const toCity = data?.to_city || trip?.arrival?.[0]?.city_ua || trip?.arrival?.[0]?.city || ''
+  const fromCity = data?.from_city || trip?.departure?.[0]?.city_ua || trip?.departure?.[0]?.city || getCityNameSync(data?.from1) || ''
+  const toCity = data?.to_city || trip?.arrival?.[0]?.city_ua || trip?.arrival?.[0]?.city || getCityNameSync(data?.to1) || ''
   const fTime = data?.ftime || trip?.departure?.[0]?.time || ''
   const tTime = data?.ttime || trip?.arrival?.[0]?.time || ''
-  const tripDate = data?.date || ''
+  const tripDate = data?.date || data?.date1 || ''
   const currency = (data?.crc || trip?.currency || 'uah').toLowerCase() === 'eur' ? 'EUR' : 'UAH'
   const { format } = useDisplayPrice()
 
@@ -133,7 +140,7 @@ export default function Ticket() {
   }
 
   const ticketPdf: string = data?.ticket_pdf || ''
-  const isRoundTrip = data?.plc && (data.plc.includes('/') || data.plc.includes('47'))
+  const isRoundTrip = Boolean(data?.from2 && data?.to2)
 
   const scrollerRef = useRef<HTMLDivElement>(null)
   const [activeIdx, setActiveIdx] = useState(0)
@@ -200,21 +207,26 @@ export default function Ticket() {
                     </div>
 
                     {/* Інформація про рейс */}
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 12, color: Gray, marginBottom: 4 }}>Інформація про поїздку</div>
-                      <div style={{ fontSize: 13 }}>
-                        Прямий рейс · Виїзд: {fTime} · Приїзд: {tTime}
+                    {(fTime || tTime) && (
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 12, color: Gray, marginBottom: 4 }}>Інформація про поїздку</div>
+                        <div style={{ fontSize: 13 }}>
+                          Прямий рейс{fTime ? ` · Виїзд: ${fTime}` : ''}{tTime ? ` · Приїзд: ${tTime}` : ''}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Місця пасажирів */}
                     <div>
                       <div style={{ fontSize: 12, color: Gray, marginBottom: 6 }}>Місця пасажирів</div>
-                      {passengers.map((pp: any, pi: number) => (
-                        <div key={pi} style={{ fontSize: 12, marginBottom: pi < passengers.length - 1 ? 4 : 0 }}>
-                          🚪 {pp.name} — Місце {pp.place || '—'}
-                        </div>
-                      ))}
+                      {passengers.map((pp: any, pi: number) => {
+                        const seat = String(pp.place || '').split('/')[0]
+                        return (
+                          <div key={pi} style={{ fontSize: 12, marginBottom: pi < passengers.length - 1 ? 4 : 0 }}>
+                            🚪 {pp.name} — {seat ? `Місце ${seat}` : 'Не визначено'}
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
 
@@ -225,22 +237,22 @@ export default function Ticket() {
                       
                       {/* Маршрут */}
                       <div style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{toCity} → {fromCity}</div>
-                        <div style={{ fontSize: 12, color: Gray }}>Відкрита дата</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{getCityNameSync(data?.from2) || '—'} → {getCityNameSync(data?.to2) || '—'}</div>
+                        <div style={{ fontSize: 12, color: Gray }}>{data?.date2 || 'Відкрита дата'}</div>
                       </div>
 
-                      {/* Інформація про рейс */}
-                      <div style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: 12, color: Gray, marginBottom: 4 }}>Інформація про поїздку</div>
-                        <div style={{ fontSize: 13 }}>
-                          З пересадкою в Ліпську (A) · Виїзд: {data?.ftime2 || '—'} · Приїзд: {data?.ttime2 || '—'}
-                        </div>
-                      </div>
-
-                      {/* Місця пасажирів */}
+                      {/* Місця пасажирів на зворотній рейс */}
                       <div>
                         <div style={{ fontSize: 12, color: Gray, marginBottom: 6 }}>Місця пасажирів</div>
-                        <div style={{ fontSize: 12, color: Gray }}>Не визначені</div>
+                        {passengers.map((pp: any, pi: number) => {
+                          const parts = String(pp.place || '').split('/')
+                          const returnSeat = parts[1] || null
+                          return (
+                            <div key={pi} style={{ fontSize: 12, marginBottom: pi < passengers.length - 1 ? 4 : 0 }}>
+                              {pp.name} — {returnSeat ? `Місце ${returnSeat}` : 'Не визначено'}
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
                   )}
