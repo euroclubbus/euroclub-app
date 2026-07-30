@@ -206,39 +206,47 @@ export default function Ticket() {
                 <div style={{ padding: '20px' }}>
                   
                   {/* ПОЇЗДКА 1 */}
-                  <div style={{ marginBottom: 24, paddingBottom: 24, borderBottom: isRoundTrip ? '1px solid #E0E0E0' : 'none' }}>
-                    <div style={{ fontSize: 12, color: Gray, marginBottom: 8 }}>Поїздка 1</div>
-                    
-                    {/* Маршрут */}
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{fromCity} → {toCity}</div>
-                      <div style={{ fontSize: 12, color: Gray }}>{tripDate}</div>
+                  <div style={{ border: '1px solid #E5E5E5', borderRadius: 14, padding: 16, marginBottom: isRoundTrip ? 12 : 20 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <span style={{ fontSize: 11, color: Gray, textTransform: 'uppercase', letterSpacing: 0.4 }}>Туди</span>
+                      <span style={{ fontSize: 11, color: Gray }}>{tripDate}</span>
                     </div>
 
-                    {/* Інформація про рейс */}
-                    {(fTime || tTime) && (
-                      <div style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: 12, color: Gray, marginBottom: 4 }}>Інформація про поїздку</div>
-                        <div style={{ fontSize: 13 }}>
-                          Прямий рейс{fTime ? ` · Виїзд: ${fTime}` : ''}{tTime ? ` · Приїзд: ${tTime}` : ''}
-                        </div>
-                        {fStation && (
-                          <div style={{ fontSize: 12, color: Gray, marginTop: 4 }}>Звідки: {fStation}</div>
-                        )}
-                        {tStation && (
-                          <div style={{ fontSize: 12, color: Gray, marginTop: 2 }}>Куди: {tStation}</div>
-                        )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 17, fontWeight: 700 }}>{fromCity || '—'}</div>
+                        <div style={{ fontSize: 12, color: Gray, marginTop: 2 }}>{fTime || '--:--'}</div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        <span style={{ fontSize: 15, color: '#BFC4CC' }}>→</span>
+                        <span style={{ fontSize: 10.5, color: Gray }}>Прямий</span>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 17, fontWeight: 700 }}>{toCity || '—'}</div>
+                        <div style={{ fontSize: 12, color: Gray, marginTop: 2 }}>{tTime || '--:--'}</div>
+                      </div>
+                    </div>
+
+                    {(fStation || tStation) && (
+                      <div style={{ fontSize: 11.5, color: Gray, lineHeight: 1.5, marginBottom: 10 }}>
+                        {fStation && <div>Звідки: {fStation}</div>}
+                        {tStation && <div>Куди: {tStation}</div>}
                       </div>
                     )}
 
-                    {/* Місця пасажирів */}
-                    <div>
-                      <div style={{ fontSize: 12, color: Gray, marginBottom: 6 }}>Місця пасажирів</div>
+                    <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderTop: '1px solid #F0F0F0', borderBottom: '1px solid #F0F0F0', marginBottom: 10, fontSize: 11, color: Gray }}>
+                      <span>📶 Wi-Fi</span>
+                      <span>🔌 Розетки</span>
+                      <span>🚻 Туалет</span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       {passengers.map((pp: any, pi: number) => {
-                        const seat = String(pp.place || '').split('/')[0]
+                        const parts = String(pp.place || '').split('/')
+                        const seat = parts[0] || null
                         return (
-                          <div key={pi} style={{ fontSize: 12, marginBottom: pi < passengers.length - 1 ? 4 : 0 }}>
-                            🚪 {pp.name} — {seat ? `Місце ${seat}` : 'Не визначено'}
+                          <div key={pi} style={{ fontSize: 12.5 }}>
+                            {pp.name} <span style={{ color: Gray }}>{seat ? `· Місце ${seat}` : '· Місце не визначено'}</span>
                           </div>
                         )
                       })}
@@ -247,40 +255,49 @@ export default function Ticket() {
 
                   {/* ПОЇЗДКА 2 (Якщо round-trip) */}
                   {isRoundTrip && (
-                    <div>
-                      <div style={{ fontSize: 12, color: Gray, marginBottom: 8 }}>Поїздка 2 (Зворотня)</div>
-                      
-                      {/* Маршрут */}
-                      <div style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{getCityNameSync(data?.from2) || '—'} → {getCityNameSync(data?.to2) || '—'}</div>
-                        <div style={{ fontSize: 12, color: Gray }}>{data?.date2 || 'Відкрита дата'}</div>
+                    <div style={{ border: '1px solid #E5E5E5', borderRadius: 14, padding: 16, marginBottom: 20 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                        <span style={{ fontSize: 11, color: Gray, textTransform: 'uppercase', letterSpacing: 0.4 }}>Назад</span>
+                        <span style={{ fontSize: 11, color: Gray }}>{data?.date2 || 'Відкрита дата'}</span>
                       </div>
 
-                      {/* Інформація про рейс */}
-                      {(fTime2 || tTime2) && (
-                        <div style={{ marginBottom: 12 }}>
-                          <div style={{ fontSize: 12, color: Gray, marginBottom: 4 }}>Інформація про поїздку</div>
-                          <div style={{ fontSize: 13 }}>
-                            Прямий рейс{fTime2 ? ` · Виїзд: ${fTime2}` : ''}{tTime2 ? ` · Приїзд: ${tTime2}` : ''}
-                          </div>
-                          {fStation2 && (
-                            <div style={{ fontSize: 12, color: Gray, marginTop: 4 }}>Звідки: {fStation2}</div>
-                          )}
-                          {tStation2 && (
-                            <div style={{ fontSize: 12, color: Gray, marginTop: 2 }}>Куди: {tStation2}</div>
-                          )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                        <div>
+                          <div style={{ fontSize: 17, fontWeight: 700 }}>{getCityNameSync(data?.from2) || '—'}</div>
+                          <div style={{ fontSize: 12, color: Gray, marginTop: 2 }}>{fTime2 || '--:--'}</div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                          <span style={{ fontSize: 15, color: '#BFC4CC' }}>→</span>
+                          <span style={{ fontSize: 10.5, color: Gray }}>Прямий</span>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 17, fontWeight: 700 }}>{getCityNameSync(data?.to2) || '—'}</div>
+                          <div style={{ fontSize: 12, color: Gray, marginTop: 2 }}>{tTime2 || '--:--'}</div>
+                        </div>
+                      </div>
+
+                      {(fStation2 || tStation2) && (
+                        <div style={{ fontSize: 11.5, color: Gray, lineHeight: 1.5, marginBottom: 10 }}>
+                          {fStation2 && <div>Звідки: {fStation2}</div>}
+                          {tStation2 && <div>Куди: {tStation2}</div>}
                         </div>
                       )}
 
-                      {/* Місця пасажирів на зворотній рейс */}
-                      <div>
-                        <div style={{ fontSize: 12, color: Gray, marginBottom: 6 }}>Місця пасажирів</div>
+                      <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderTop: '1px solid #F0F0F0', borderBottom: '1px solid #F0F0F0', marginBottom: 10, fontSize: 11, color: Gray }}>
+                        <span>📶 Wi-Fi</span>
+                        <span>🔌 Розетки</span>
+                        <span>🚻 Туалет</span>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         {passengers.map((pp: any, pi: number) => {
                           const parts = String(pp.place || '').split('/')
-                          const returnSeat = parts[1] || null
+                          // Якщо є друга частина (41/52) — це окреме місце на зворотній рейс.
+                          // Якщо слеша нема (просто "51") — те саме місце діє в обидва боки.
+                          const seat = parts.length > 1 ? parts[1] : parts[0]
                           return (
-                            <div key={pi} style={{ fontSize: 12, marginBottom: pi < passengers.length - 1 ? 4 : 0 }}>
-                              {pp.name} — {returnSeat ? `Місце ${returnSeat}` : 'Не визначено'}
+                            <div key={pi} style={{ fontSize: 12.5 }}>
+                              {pp.name} <span style={{ color: Gray }}>{seat ? `· Місце ${seat}` : '· Місце не визначено'}</span>
                             </div>
                           )
                         })}
