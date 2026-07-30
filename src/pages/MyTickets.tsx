@@ -31,17 +31,8 @@ export default function MyTickets() {
       // ignored
     }
   }
-  const { setOrderResult } = useBookingStore()
-  const t = useT()
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [orders, setOrders] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
 
-  // Синхронний виклик щоразу, коли пасажир реально бачить цю вкладку — не лише при першому
-  // заході по роутеру (це й так спрацьовує), а й коли застосунок повертається з фону
-  // (visibilitychange/focus) без повної навігації, або вручну кнопкою "Оновити". Саме так
-  // замовлення, які вже скасовані на бекенді, але лишились локально як "очікує оплати",
-  // підтягують актуальний статус.
+  // Синхронний виклик щоразу, коли пасажир реально бачить цю вкладку
   const loadOrders = useCallback(() => {
     setLoading(true)
     const local = getLocalOrders()
