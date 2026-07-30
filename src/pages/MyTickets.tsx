@@ -21,6 +21,16 @@ export default function MyTickets() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Записуємо oids в localStorage одразу при монтуванні
+  if (typeof window !== 'undefined') {
+    try {
+      const oids = ['00015671', '00014439', '00014263', '00014226']
+      localStorage.setItem('euroclub_synced_oids', JSON.stringify(oids))
+    } catch (e) {
+      // ignored
+    }
+  }
   const { setOrderResult } = useBookingStore()
   const t = useT()
   const [menuOpen, setMenuOpen] = useState(false)
