@@ -54,7 +54,10 @@ export default function MyTickets() {
         if (remote && remote.length > 0) {
           const remoteOids = remote.map((o: any) => o.oid ?? o.hash).filter(Boolean)
           try {
-            addSyncedOids(remoteOids)
+            // Пишемо напрямо в localStorage, щоб виключити помилки в addSyncedOids
+            const existing = JSON.parse(localStorage.getItem('euroclub_synced_oids') || '[]')
+            const updated = [...new Set([...existing, ...remoteOids])]
+            localStorage.setItem('euroclub_synced_oids', JSON.stringify(updated))
           } catch (e) {
             console.error('[MyTickets] Failed to sync oids:', e)
           }
