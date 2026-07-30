@@ -15,24 +15,12 @@ const Gray = '#9E9E9E'
 const Navy = '#0A4684'
 
 export default function MyTickets() {
-  alert('MYTICKETS!')
-  
   const nav = useNavigate()
   const { setOrderResult } = useBookingStore()
   const t = useT()
   const [menuOpen, setMenuOpen] = useState(false)
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-
-  // Записуємо oids в localStorage одразу при монтуванні
-  if (typeof window !== 'undefined') {
-    try {
-      const oids = ['00015671', '00014439', '00014263', '00014226']
-      localStorage.setItem('euroclub_synced_oids', JSON.stringify(oids))
-    } catch (e) {
-      // ignored
-    }
-  }
 
   // Синхронний виклик щоразу, коли пасажир реально бачить цю вкладку
   const loadOrders = useCallback(() => {
