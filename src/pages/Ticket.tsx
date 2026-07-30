@@ -121,8 +121,14 @@ export default function Ticket() {
 
   const fromCity = data?.from_city || trip?.departure?.[0]?.city_ua || trip?.departure?.[0]?.city || getCityNameSync(data?.from1) || ''
   const toCity = data?.to_city || trip?.arrival?.[0]?.city_ua || trip?.arrival?.[0]?.city || getCityNameSync(data?.to1) || ''
-  const fTime = data?.ftime || trip?.departure?.[0]?.time || ''
-  const tTime = data?.ttime || trip?.arrival?.[0]?.time || ''
+  const fTime = data?.departures?.[0]?.time || data?.ftime || trip?.departure?.[0]?.time || ''
+  const tTime = data?.arrivals?.[0]?.time || data?.ttime || trip?.arrival?.[0]?.time || ''
+  const fStation = data?.departures?.[0]?.station_name || ''
+  const tStation = data?.arrivals?.[0]?.station_name || ''
+  const fTime2 = data?.departures2?.[0]?.time || ''
+  const tTime2 = data?.arrivals2?.[0]?.time || ''
+  const fStation2 = data?.departures2?.[0]?.station_name || ''
+  const tStation2 = data?.arrivals2?.[0]?.station_name || ''
   const tripDate = data?.date || data?.date1 || ''
   const currency = (data?.crc || trip?.currency || 'uah').toLowerCase() === 'eur' ? 'EUR' : 'UAH'
   const { format } = useDisplayPrice()
@@ -213,6 +219,12 @@ export default function Ticket() {
                         <div style={{ fontSize: 13 }}>
                           Прямий рейс{fTime ? ` · Виїзд: ${fTime}` : ''}{tTime ? ` · Приїзд: ${tTime}` : ''}
                         </div>
+                        {fStation && (
+                          <div style={{ fontSize: 12, color: Gray, marginTop: 4 }}>Звідки: {fStation}</div>
+                        )}
+                        {tStation && (
+                          <div style={{ fontSize: 12, color: Gray, marginTop: 2 }}>Куди: {tStation}</div>
+                        )}
                       </div>
                     )}
 
@@ -240,6 +252,22 @@ export default function Ticket() {
                         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{getCityNameSync(data?.from2) || '—'} → {getCityNameSync(data?.to2) || '—'}</div>
                         <div style={{ fontSize: 12, color: Gray }}>{data?.date2 || 'Відкрита дата'}</div>
                       </div>
+
+                      {/* Інформація про рейс */}
+                      {(fTime2 || tTime2) && (
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontSize: 12, color: Gray, marginBottom: 4 }}>Інформація про поїздку</div>
+                          <div style={{ fontSize: 13 }}>
+                            Прямий рейс{fTime2 ? ` · Виїзд: ${fTime2}` : ''}{tTime2 ? ` · Приїзд: ${tTime2}` : ''}
+                          </div>
+                          {fStation2 && (
+                            <div style={{ fontSize: 12, color: Gray, marginTop: 4 }}>Звідки: {fStation2}</div>
+                          )}
+                          {tStation2 && (
+                            <div style={{ fontSize: 12, color: Gray, marginTop: 2 }}>Куди: {tStation2}</div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Місця пасажирів на зворотній рейс */}
                       <div>
