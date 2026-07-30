@@ -76,8 +76,16 @@ export default function OrderSuccess() {
   // Prefer order data from order_new response (real, confirmed), fall back to selected trip for display before booking completes
   const dep = trip?.departure?.[0]
   const arr = trip?.arrival?.[0]
-  const ftimeRaw = data?.departures?.[0]?.time || data?.ftime || dep?.time
-  const ttimeRaw = data?.arrivals?.[0]?.time || data?.ttime || arr?.time
+  // ВАЖЛИВО: нове поле departures[0].time — це ЛИШЕ час доби ("08:00"), без дати,
+  // на відміну від старого ftime ("дд.мм.рррр гг:хв"). splitDateTime/calcDuration
+  // очікують повний рядок з датою, тому для нового формату дату беремо з date1/date.
+  const tripDateForTime = data?.date || data?.date1 || ''
+  const ftimeRaw = data?.ftime
+    || (data?.departures?.[0]?.time && tripDateForTime ? `${tripDateForTime} ${data.departures[0].time}` : data?.departures?.[0]?.time)
+    || dep?.time
+  const ttimeRaw = data?.ttime
+    || (data?.arrivals?.[0]?.time && tripDateForTime ? `${tripDateForTime} ${data.arrivals[0].time}` : data?.arrivals?.[0]?.time)
+    || arr?.time
   const depDT = splitDateTime(ftimeRaw)
   const arrDT = splitDateTime(ttimeRaw)
   const duration = calcDuration(ftimeRaw, ttimeRaw)

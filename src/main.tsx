@@ -25,6 +25,7 @@ import RoutesPage from './pages/Routes'
 import StaticPage from './pages/StaticPage'
 import Feedback from './pages/Feedback'
 import AdminTransferCities from './pages/AdminTransferCities'
+import ErrorBoundary from './components/ErrorBoundary'
 import CookieBanner from './components/CookieBanner'
 import { useAuthStore } from './authStore'
 import { useState, useEffect } from 'react'
@@ -90,7 +91,9 @@ function Root() {
   return (
     <AuthGate>
       <BrowserRouter>
-        <AppRoutes />
+        <ErrorBoundary>
+          <AppRoutes />
+        </ErrorBoundary>
       </BrowserRouter>
     </AuthGate>
   )
