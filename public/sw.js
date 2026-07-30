@@ -1,5 +1,5 @@
-// v2 — network-first: нові деплої підхоплюються автоматично, кеш лише як офлайн-запас.
-const CACHE_NAME = 'euroclub-v2';
+// v3 — force cache bust, network-first: нові деплої підхоплюються автоматично, кеш лише як офлайн-запас.
+const CACHE_NAME = 'euroclub-v3';
 const ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (event) => {
