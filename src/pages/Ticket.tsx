@@ -128,12 +128,19 @@ export default function Ticket() {
 
   const fromCity = data?.from_city || trip?.departure?.[0]?.city_ua || trip?.departure?.[0]?.city || getCityNameSync(data?.from1) || ''
   const toCity = data?.to_city || trip?.arrival?.[0]?.city_ua || trip?.arrival?.[0]?.city || getCityNameSync(data?.to1) || ''
-  const fTime = data?.departures?.[0]?.time || data?.ftime || trip?.departure?.[0]?.time || ''
-  const tTime = data?.arrivals?.[0]?.time || data?.ttime || trip?.arrival?.[0]?.time || ''
-  const fStation = data?.departures?.[0]?.station_name || ''
-  const tStation = data?.arrivals?.[0]?.station_name || ''
+  // ВАЖЛИВО: реальні поля бекенду — departures1/arrivals1 (з "1"!) для поїздки туди,
+  // departures2/arrivals2 для зворотної. Кожен запис несе свою дату — окремо комбінувати
+  // з date1/date2 більше не треба.
+  const fTime = data?.departures1?.[0]?.time || data?.ftime || trip?.departure?.[0]?.time || ''
+  const tTime = data?.arrivals1?.[0]?.time || data?.ttime || trip?.arrival?.[0]?.time || ''
+  const fDate = data?.departures1?.[0]?.date || data?.date || data?.date1 || ''
+  const tDate = data?.arrivals1?.[0]?.date || data?.date || data?.date1 || ''
+  const fStation = data?.departures1?.[0]?.station_name || ''
+  const tStation = data?.arrivals1?.[0]?.station_name || ''
   const fTime2 = data?.departures2?.[0]?.time || ''
   const tTime2 = data?.arrivals2?.[0]?.time || ''
+  const fDate2 = data?.departures2?.[0]?.date || data?.date2 || ''
+  const tDate2 = data?.arrivals2?.[0]?.date || data?.date2 || ''
   const fStation2 = data?.departures2?.[0]?.station_name || ''
   const tStation2 = data?.arrivals2?.[0]?.station_name || ''
   const tripDate = data?.date || data?.date1 || ''
@@ -152,7 +159,9 @@ export default function Ticket() {
   }
 
   const ticketPdf: string = data?.ticket_pdf || ''
-  const isRoundTrip = Boolean(data?.from2 && data?.to2)
+  // Round-trip визначаємо НЕ по from2/to2 (вони заповнені навіть для одностороннього —
+  // дзеркальні id міст) а по route2/date2/departures2: якщо їх нема — зворотної поїздки нема.
+  const isRoundTrip = Boolean(data?.route2) || Boolean(data?.date2) || (Array.isArray(data?.departures2) && data.departures2.length > 0)
   const hasMultiple = passengers.length > 1
 
   const handleScroll = () => {
@@ -199,7 +208,7 @@ export default function Ticket() {
 
                 {/* Примітка */}
                 <div style={{ padding: '12px 20px', background: '#FFF9EF', fontSize: 12, color: '#7A5A16', lineHeight: 1.5 }}>
-                  Будь ласка, пред'явіть цей квиток водію під час посадки. Квиток поверненню не підлягає.
+                  Будь ласка, пред'явіть цей квиток водію під час посадки.
                 </div>
 
                 {/* Контент квитка */}
@@ -215,40 +224,39 @@ export default function Ticket() {
                   
                   {/* ПОЇЗДКА 1 */}
                   <div style={{ background: '#F3F4F6', borderRadius: 14, padding: 16, marginBottom: isRoundTrip ? 12 : 20 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                      <span style={{ fontSize: 11, color: '#8A8D93', textTransform: 'uppercase', letterSpacing: 0.4 }}>Туди</span>
-                      <span style={{ fontSize: 11, color: '#8A8D93' }}>{tripDate}</span>
-                    </div>
+                    <div style={{ fontSize: 11, color: '#8A8D93', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 }}>Туди</div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                      <div>
-                        <div style={{ fontSize: 17, fontWeight: 700 }}>{fromCity || '—'}</div>
-                        <div style={{ fontSize: 12, color: '#8A8D93', marginTop: 2 }}>{fTime || '--:--'}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{fromCity || '—'}</div>
+                        <div style={{ fontSize: 11.5, color: '#8A8D93', lineHeight: 1.5 }}>
+                          {fStation && <div>{fStation}</div>}
+                          <div>Виїзд: {fTime || '--:--'}{fDate ? ` · ${fDate}` : ''}</div>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                      <div style={{ padding: '0 10px', alignSelf: 'center' }}>
                         <span style={{ fontSize: 15, color: '#B0B4BB' }}>→</span>
-                        <span style={{ fontSize: 10.5, color: '#8A8D93' }}>Прямий</span>
                       </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 17, fontWeight: 700 }}>{toCity || '—'}</div>
-                        <div style={{ fontSize: 12, color: '#8A8D93', marginTop: 2 }}>{tTime || '--:--'}</div>
+                      <div style={{ flex: 1, textAlign: 'right' }}>
+                        <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{toCity || '—'}</div>
+                        <div style={{ fontSize: 11.5, color: '#8A8D93', lineHeight: 1.5 }}>
+                          {tStation && <div>{tStation}</div>}
+                          <div>Приїзд: {tTime || '--:--'}{tDate ? ` · ${tDate}` : ''}</div>
+                        </div>
                       </div>
                     </div>
 
-                    {(fStation || tStation) && (
-                      <div style={{ fontSize: 11.5, color: '#8A8D93', lineHeight: 1.5, marginBottom: 10 }}>
-                        {fStation && <div>Звідки: {fStation}</div>}
-                        {tStation && <div>Куди: {tStation}</div>}
-                      </div>
-                    )}
+                    <div style={{ textAlign: 'center', marginTop: 8 }}>
+                      <span style={{ fontSize: 10.5, color: '#8A8D93' }}>Прямий</span>
+                    </div>
 
-                    <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderTop: '1px solid #E5E7EB', borderBottom: '1px solid #E5E7EB', marginBottom: 10, fontSize: 11, color: '#8A8D93' }}>
+                    <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderTop: '1px solid #E5E7EB', marginTop: 10, fontSize: 11, color: '#8A8D93' }}>
                       <span>📶 Wi-Fi</span>
                       <span>🔌 Розетки</span>
                       <span>🚻 Туалет</span>
                     </div>
 
-                    <div style={{ fontSize: 13 }}>
+                    <div style={{ fontSize: 13, marginTop: 8 }}>
                       Місце <strong>{String(p.place || '').split('/')[0] || '—'}</strong>
                     </div>
                   </div>
@@ -256,40 +264,39 @@ export default function Ticket() {
                   {/* ПОЇЗДКА 2 (Якщо round-trip) */}
                   {isRoundTrip && (
                     <div style={{ background: '#F3F4F6', borderRadius: 14, padding: 16, marginBottom: 20 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                        <span style={{ fontSize: 11, color: '#8A8D93', textTransform: 'uppercase', letterSpacing: 0.4 }}>Назад</span>
-                        <span style={{ fontSize: 11, color: '#8A8D93' }}>{data?.date2 || 'Відкрита дата'}</span>
-                      </div>
+                      <div style={{ fontSize: 11, color: '#8A8D93', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 }}>Назад</div>
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                        <div>
-                          <div style={{ fontSize: 17, fontWeight: 700 }}>{getCityNameSync(data?.from2) || '—'}</div>
-                          <div style={{ fontSize: 12, color: '#8A8D93', marginTop: 2 }}>{fTime2 || '--:--'}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{getCityNameSync(data?.from2) || '—'}</div>
+                          <div style={{ fontSize: 11.5, color: '#8A8D93', lineHeight: 1.5 }}>
+                            {fStation2 && <div>{fStation2}</div>}
+                            <div>Виїзд: {fTime2 || '--:--'}{fDate2 ? ` · ${fDate2}` : ''}</div>
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        <div style={{ padding: '0 10px', alignSelf: 'center' }}>
                           <span style={{ fontSize: 15, color: '#B0B4BB' }}>→</span>
-                          <span style={{ fontSize: 10.5, color: '#8A8D93' }}>Прямий</span>
                         </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: 17, fontWeight: 700 }}>{getCityNameSync(data?.to2) || '—'}</div>
-                          <div style={{ fontSize: 12, color: '#8A8D93', marginTop: 2 }}>{tTime2 || '--:--'}</div>
+                        <div style={{ flex: 1, textAlign: 'right' }}>
+                          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{getCityNameSync(data?.to2) || '—'}</div>
+                          <div style={{ fontSize: 11.5, color: '#8A8D93', lineHeight: 1.5 }}>
+                            {tStation2 && <div>{tStation2}</div>}
+                            <div>Приїзд: {tTime2 || '--:--'}{tDate2 ? ` · ${tDate2}` : ''}</div>
+                          </div>
                         </div>
                       </div>
 
-                      {(fStation2 || tStation2) && (
-                        <div style={{ fontSize: 11.5, color: '#8A8D93', lineHeight: 1.5, marginBottom: 10 }}>
-                          {fStation2 && <div>Звідки: {fStation2}</div>}
-                          {tStation2 && <div>Куди: {tStation2}</div>}
-                        </div>
-                      )}
+                      <div style={{ textAlign: 'center', marginTop: 8 }}>
+                        <span style={{ fontSize: 10.5, color: '#8A8D93' }}>Прямий</span>
+                      </div>
 
-                      <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderTop: '1px solid #E5E7EB', borderBottom: '1px solid #E5E7EB', marginBottom: 10, fontSize: 11, color: '#8A8D93' }}>
+                      <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderTop: '1px solid #E5E7EB', marginTop: 10, fontSize: 11, color: '#8A8D93' }}>
                         <span>📶 Wi-Fi</span>
                         <span>🔌 Розетки</span>
                         <span>🚻 Туалет</span>
                       </div>
 
-                      <div style={{ fontSize: 13 }}>
+                      <div style={{ fontSize: 13, marginTop: 8 }}>
                         {(() => {
                           const parts = String(p.place || '').split('/')
                           const seat = parts.length > 1 ? parts[1] : parts[0]

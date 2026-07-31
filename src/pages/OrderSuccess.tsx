@@ -64,23 +64,20 @@ export default function OrderSuccess() {
   const trip = selectedTrip as any
   const trip2 = selectedTrip2 as any
   const data = orderData as any
-  // ВАЖЛИВО: data?.roundTrip — наш власний локальний прапорець (не з бекенду), trip2 —
-  // тимчасовий стан пошуку (зникає при перезавантаженні/іншому пристрої). Обидва ненадійні
-  // для визначення round-trip після рефрешу. from2/to2 — реальні поля бекенду, завжди
-  // присутні в user-orders для round-trip замовлень (0 для одностороннього).
-  const isRoundTrip = Boolean(data?.from2 && data?.to2) || !!(data?.roundTrip || trip2)
+  // ВАЖЛИВО: from2/to2 НЕ надійний індикатор round-trip — бекенд заповнює їх дзеркально
+  // навіть для одностороннього замовлення (підтверджено реальним прикладом: from2:1,to2:4
+  // при route2:0, date2:"", departures2:[]). Надійна ознака — route2 і date2 і довжина
+  // departures2. data?.roundTrip — наш локальний прапорець, trip2 — тимчасовий стан пошуку;
+  // обидва губляться на іншому пристрої/після рефрешу, лишаємо як додатковий fallback.
+  const isRoundTrip = Boolean(data?.route2) || Boolean(data?.date2) || (Array.isArray(data?.departures2) && data.departures2.length > 0) || !!(data?.roundTrip || trip2)
   const dep2 = trip2?.departure?.[0]
   const arr2 = trip2?.arrival?.[0]
-  // Дані зворотного рейсу для показу — надійні (data.ftime2/ttime2, захищені в keepOurPrice),
-  // а не з trip2 (тимчасовий стан пошуку — губиться при перезаході/оновленні). Міста
-  // зворотного рейсу — дзеркальні до основного (звідки прибули туди — звідти й назад).
-  const tripDateForTime2 = data?.date2 || ''
-  const ftime2Display = data?.ftime2
-    || (data?.departures2?.[0]?.time && tripDateForTime2 ? `${tripDateForTime2} ${data.departures2[0].time}` : data?.departures2?.[0]?.time)
-    || dep2?.time
-  const ttime2Display = data?.ttime2
-    || (data?.arrivals2?.[0]?.time && tripDateForTime2 ? `${tripDateForTime2} ${data.arrivals2[0].time}` : data?.arrivals2?.[0]?.time)
-    || arr2?.time
+  // Реальні поля бекенду: departures2/arrivals2 (з "2"!), кожен запис несе власну дату —
+  // комбінувати з date2 вручну більше не треба.
+  const fTime2 = data?.departures2?.[0]?.time || data?.ftime2 || dep2?.time || ''
+  const tTime2 = data?.arrivals2?.[0]?.time || data?.ttime2 || arr2?.time || ''
+  const fDate2 = data?.departures2?.[0]?.date || data?.date2 || ''
+  const tDate2 = data?.arrivals2?.[0]?.date || data?.date2 || ''
   const fromCity2 = data?.to_city || dep2?.city_ua || dep2?.city || getCityNameSync(data?.from2) || ''
   const toCity2 = data?.from_city || arr2?.city_ua || arr2?.city || getCityNameSync(data?.to2) || ''
   const fStation2 = data?.departures2?.[0]?.station_name || ''
@@ -88,28 +85,20 @@ export default function OrderSuccess() {
   // Prefer order data from order_new response (real, confirmed), fall back to selected trip for display before booking completes
   const dep = trip?.departure?.[0]
   const arr = trip?.arrival?.[0]
-  // ВАЖЛИВО: нове поле departures[0].time — це ЛИШЕ час доби ("08:00"), без дати,
-  // на відміну від старого ftime ("дд.мм.рррр гг:хв"). splitDateTime/calcDuration
-  // очікують повний рядок з датою, тому для нового формату дату беремо з date1/date.
-  const tripDateForTime = data?.date || data?.date1 || ''
-  const ftimeRaw = data?.ftime
-    || (data?.departures?.[0]?.time && tripDateForTime ? `${tripDateForTime} ${data.departures[0].time}` : data?.departures?.[0]?.time)
-    || dep?.time
-  const ttimeRaw = data?.ttime
-    || (data?.arrivals?.[0]?.time && tripDateForTime ? `${tripDateForTime} ${data.arrivals[0].time}` : data?.arrivals?.[0]?.time)
-    || arr?.time
-  const depDT = splitDateTime(ftimeRaw)
-  const arrDT = splitDateTime(ttimeRaw)
-  const duration = calcDuration(ftimeRaw, ttimeRaw)
+  // Реальні поля бекенду: departures1/arrivals1 (з "1"!) для поїздки туди.
+  const fTime = data?.departures1?.[0]?.time || data?.ftime || dep?.time || ''
+  const tTime = data?.arrivals1?.[0]?.time || data?.ttime || arr?.time || ''
+  const fDate = data?.departures1?.[0]?.date || data?.date || data?.date1 || ''
+  const tDate = data?.arrivals1?.[0]?.date || data?.date || data?.date1 || ''
   const hasTransfer = Number(trip?.transfer) === 1
   const transferStop = trip?.stopping?.find((s: any) => Number(s.transfer) === 1)
   // Ті самі поля що і в Ticket.tsx: якщо from_city/fstation відсутні (замовлення
   // відкрите на іншому пристрої чи після перезавантаження) — беремо назву міста
-  // з мапи по числовому from1/to1, і назву станції з нового departures/arrivals.
+  // з мапи по числовому from1/to1, і назву станції з departures1/arrivals1.
   const fromCity = data?.from_city || dep?.city_ua || dep?.city || getCityNameSync(data?.from1) || ''
   const toCity = data?.to_city || arr?.city_ua || arr?.city || getCityNameSync(data?.to1) || ''
-  const fStation = data?.fstation || data?.departures?.[0]?.station_name || dep?.name || ''
-  const tStation = data?.tstation || data?.arrivals?.[0]?.station_name || arr?.name || ''
+  const fStation = data?.fstation || data?.departures1?.[0]?.station_name || dep?.name || ''
+  const tStation = data?.tstation || data?.arrivals1?.[0]?.station_name || arr?.name || ''
 
   const hash = orderHash || data?.hash || ''
 
@@ -363,41 +352,40 @@ export default function OrderSuccess() {
 
         {/* ПОЇЗДКА 1 — Туди */}
         <div style={{ background: '#F3F4F6', borderRadius: 14, padding: 16, marginBottom: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <span style={{ fontSize: 11, color: '#8A8D93', textTransform: 'uppercase', letterSpacing: 0.4 }}>{t('booking.outbound')}</span>
-            <span style={{ fontSize: 11, color: '#8A8D93' }}>{depDT.date || tripDateForTime}</span>
-          </div>
+          <div style={{ fontSize: 11, color: '#8A8D93', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 }}>{t('booking.outbound')}</div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <div>
-              <div style={{ fontSize: 17, fontWeight: 700 }}>{fromCity || '—'}</div>
-              <div style={{ fontSize: 12, color: '#8A8D93', marginTop: 2 }}>{depDT.time}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{fromCity || '—'}</div>
+              <div style={{ fontSize: 11.5, color: '#8A8D93', lineHeight: 1.5 }}>
+                {fStation && <div>{fStation}</div>}
+                <div>Виїзд: {fTime || '--:--'}{fDate ? ` · ${fDate}` : ''}</div>
+              </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+            <div style={{ padding: '0 10px', alignSelf: 'center' }}>
               <span style={{ fontSize: 15, color: '#B0B4BB' }}>→</span>
-              <span style={{ fontSize: 10.5, color: '#8A8D93' }}>{hasTransfer ? 'Пересадка' : 'Прямий'}</span>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 17, fontWeight: 700 }}>{toCity || '—'}</div>
-              <div style={{ fontSize: 12, color: '#8A8D93', marginTop: 2 }}>{arrDT.time}</div>
+            <div style={{ flex: 1, textAlign: 'right' }}>
+              <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{toCity || '—'}</div>
+              <div style={{ fontSize: 11.5, color: '#8A8D93', lineHeight: 1.5 }}>
+                {tStation && <div>{tStation}</div>}
+                <div>Приїзд: {tTime || '--:--'}{tDate ? ` · ${tDate}` : ''}</div>
+              </div>
             </div>
           </div>
 
-          {(fStation || tStation) && (
-            <div style={{ fontSize: 11.5, color: '#8A8D93', lineHeight: 1.5, marginBottom: 10 }}>
-              {fStation && <div>Звідки: {fStation}</div>}
-              {tStation && <div>Куди: {tStation}</div>}
-            </div>
-          )}
+          <div style={{ textAlign: 'center', marginTop: 8 }}>
+            <span style={{ fontSize: 10.5, color: '#8A8D93' }}>{hasTransfer ? 'Пересадка' : 'Прямий'}</span>
+          </div>
 
-          <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderTop: '1px solid #E5E7EB', borderBottom: '1px solid #E5E7EB', marginBottom: 10, fontSize: 11, color: '#8A8D93' }}>
+          <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderTop: '1px solid #E5E7EB', marginTop: 10, fontSize: 11, color: '#8A8D93' }}>
             <span>📶 Wi-Fi</span>
             <span>🔌 Розетки</span>
             <span>🚻 Туалет</span>
           </div>
 
           {passengers.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
               {passengers.map((p: any, i: number) => (
                 <div key={i} style={{ fontSize: 12.5 }}>
                   {p.name} <span style={{ color: '#8A8D93' }}>· Місце {legSeat(p.place, 1)}</span>
@@ -410,41 +398,40 @@ export default function OrderSuccess() {
         {/* ПОЇЗДКА 2 — Назад (якщо round-trip) */}
         {isRoundTrip && (
           <div style={{ background: '#F3F4F6', borderRadius: 14, padding: 16, marginBottom: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <span style={{ fontSize: 11, color: '#8A8D93', textTransform: 'uppercase', letterSpacing: 0.4 }}>{t('booking.return')}</span>
-              <span style={{ fontSize: 11, color: '#8A8D93' }}>{splitDateTime(ftime2Display).date || data?.date2 || 'Відкрита дата'}</span>
-            </div>
+            <div style={{ fontSize: 11, color: '#8A8D93', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 }}>{t('booking.return')}</div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div>
-                <div style={{ fontSize: 17, fontWeight: 700 }}>{fromCity2 || '—'}</div>
-                <div style={{ fontSize: 12, color: '#8A8D93', marginTop: 2 }}>{splitDateTime(ftime2Display).time}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{fromCity2 || '—'}</div>
+                <div style={{ fontSize: 11.5, color: '#8A8D93', lineHeight: 1.5 }}>
+                  {fStation2 && <div>{fStation2}</div>}
+                  <div>Виїзд: {fTime2 || '--:--'}{fDate2 ? ` · ${fDate2}` : ''}</div>
+                </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <div style={{ padding: '0 10px', alignSelf: 'center' }}>
                 <span style={{ fontSize: 15, color: '#B0B4BB' }}>→</span>
-                <span style={{ fontSize: 10.5, color: '#8A8D93' }}>Прямий</span>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 17, fontWeight: 700 }}>{toCity2 || '—'}</div>
-                <div style={{ fontSize: 12, color: '#8A8D93', marginTop: 2 }}>{splitDateTime(ttime2Display).time}</div>
+              <div style={{ flex: 1, textAlign: 'right' }}>
+                <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{toCity2 || '—'}</div>
+                <div style={{ fontSize: 11.5, color: '#8A8D93', lineHeight: 1.5 }}>
+                  {tStation2 && <div>{tStation2}</div>}
+                  <div>Приїзд: {tTime2 || '--:--'}{tDate2 ? ` · ${tDate2}` : ''}</div>
+                </div>
               </div>
             </div>
 
-            {(fStation2 || tStation2) && (
-              <div style={{ fontSize: 11.5, color: '#8A8D93', lineHeight: 1.5, marginBottom: 10 }}>
-                {fStation2 && <div>Звідки: {fStation2}</div>}
-                {tStation2 && <div>Куди: {tStation2}</div>}
-              </div>
-            )}
+            <div style={{ textAlign: 'center', marginTop: 8 }}>
+              <span style={{ fontSize: 10.5, color: '#8A8D93' }}>Прямий</span>
+            </div>
 
-            <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderTop: '1px solid #E5E7EB', borderBottom: '1px solid #E5E7EB', marginBottom: 10, fontSize: 11, color: '#8A8D93' }}>
+            <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderTop: '1px solid #E5E7EB', marginTop: 10, fontSize: 11, color: '#8A8D93' }}>
               <span>📶 Wi-Fi</span>
               <span>🔌 Розетки</span>
               <span>🚻 Туалет</span>
             </div>
 
             {passengers.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
                 {passengers.map((p: any, i: number) => (
                   <div key={i} style={{ fontSize: 12.5 }}>
                     {p.name} <span style={{ color: '#8A8D93' }}>· Місце {legSeat(p.place, 2)}</span>
