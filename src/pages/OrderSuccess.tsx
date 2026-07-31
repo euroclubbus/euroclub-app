@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ArrowLeft } from 'lucide-react'
 import { useBookingStore, useSearchStore } from '../store'
 import { getCities, getRoutes, saveOrderLocally } from '../api/euroclub'
 import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, isCancelled } from '../orderStatus'
@@ -321,6 +322,10 @@ export default function OrderSuccess() {
   return (
     <div style={{ minHeight: '100vh', background: '#F5F5F5', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '30px 16px' }}>
       <div style={{ background: '#fff', borderRadius: 24, padding: 24, width: '100%', maxWidth: 400 }}>
+        <button onClick={() => nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 16, display: 'flex', alignItems: 'center' }}>
+          <ArrowLeft size={22} color="#1A1A1A" />
+        </button>
+
         {/* Status icon */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
           <div style={{ width: 56, height: 56, borderRadius: '50%', background: status === 'active' ? '#E8F5E9' : '#F5F5F5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
