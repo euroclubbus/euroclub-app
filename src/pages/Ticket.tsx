@@ -204,115 +204,108 @@ export default function Ticket() {
 
                 {/* Контент квитка */}
                 <div style={{ padding: '20px' }}>
+
+                  {/* Пасажир цього конкретного квитка (не всі разом — кожен пасажир
+                      має власний квиток зі своїм номером/QR/ціною) */}
+                  <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                    <div style={{ fontSize: 12, color: Gray }}>Пасажир</div>
+                    <div style={{ fontSize: 17, fontWeight: 700 }}>{p.name}</div>
+                    <div style={{ fontSize: 12, color: Gray, marginTop: 2 }}>{p.type || '—'}</div>
+                  </div>
                   
                   {/* ПОЇЗДКА 1 */}
-                  <div style={{ border: '1px solid #E5E5E5', borderRadius: 14, padding: 16, marginBottom: isRoundTrip ? 12 : 20 }}>
+                  <div style={{ background: '#F3F4F6', borderRadius: 14, padding: 16, marginBottom: isRoundTrip ? 12 : 20 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                      <span style={{ fontSize: 11, color: Gray, textTransform: 'uppercase', letterSpacing: 0.4 }}>Туди</span>
-                      <span style={{ fontSize: 11, color: Gray }}>{tripDate}</span>
+                      <span style={{ fontSize: 11, color: '#8A8D93', textTransform: 'uppercase', letterSpacing: 0.4 }}>Туди</span>
+                      <span style={{ fontSize: 11, color: '#8A8D93' }}>{tripDate}</span>
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                       <div>
                         <div style={{ fontSize: 17, fontWeight: 700 }}>{fromCity || '—'}</div>
-                        <div style={{ fontSize: 12, color: Gray, marginTop: 2 }}>{fTime || '--:--'}</div>
+                        <div style={{ fontSize: 12, color: '#8A8D93', marginTop: 2 }}>{fTime || '--:--'}</div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                        <span style={{ fontSize: 15, color: '#BFC4CC' }}>→</span>
-                        <span style={{ fontSize: 10.5, color: Gray }}>Прямий</span>
+                        <span style={{ fontSize: 15, color: '#B0B4BB' }}>→</span>
+                        <span style={{ fontSize: 10.5, color: '#8A8D93' }}>Прямий</span>
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: 17, fontWeight: 700 }}>{toCity || '—'}</div>
-                        <div style={{ fontSize: 12, color: Gray, marginTop: 2 }}>{tTime || '--:--'}</div>
+                        <div style={{ fontSize: 12, color: '#8A8D93', marginTop: 2 }}>{tTime || '--:--'}</div>
                       </div>
                     </div>
 
                     {(fStation || tStation) && (
-                      <div style={{ fontSize: 11.5, color: Gray, lineHeight: 1.5, marginBottom: 10 }}>
+                      <div style={{ fontSize: 11.5, color: '#8A8D93', lineHeight: 1.5, marginBottom: 10 }}>
                         {fStation && <div>Звідки: {fStation}</div>}
                         {tStation && <div>Куди: {tStation}</div>}
                       </div>
                     )}
 
-                    <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderTop: '1px solid #F0F0F0', borderBottom: '1px solid #F0F0F0', marginBottom: 10, fontSize: 11, color: Gray }}>
+                    <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderTop: '1px solid #E5E7EB', borderBottom: '1px solid #E5E7EB', marginBottom: 10, fontSize: 11, color: '#8A8D93' }}>
                       <span>📶 Wi-Fi</span>
                       <span>🔌 Розетки</span>
                       <span>🚻 Туалет</span>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {passengers.map((pp: any, pi: number) => {
-                        const parts = String(pp.place || '').split('/')
-                        const seat = parts[0] || null
-                        return (
-                          <div key={pi} style={{ fontSize: 12.5 }}>
-                            {pp.name} <span style={{ color: Gray }}>{seat ? `· Місце ${seat}` : '· Місце не визначено'}</span>
-                          </div>
-                        )
-                      })}
+                    <div style={{ fontSize: 13 }}>
+                      Місце <strong>{String(p.place || '').split('/')[0] || '—'}</strong>
                     </div>
                   </div>
 
                   {/* ПОЇЗДКА 2 (Якщо round-trip) */}
                   {isRoundTrip && (
-                    <div style={{ border: '1px solid #E5E5E5', borderRadius: 14, padding: 16, marginBottom: 20 }}>
+                    <div style={{ background: '#F3F4F6', borderRadius: 14, padding: 16, marginBottom: 20 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                        <span style={{ fontSize: 11, color: Gray, textTransform: 'uppercase', letterSpacing: 0.4 }}>Назад</span>
-                        <span style={{ fontSize: 11, color: Gray }}>{data?.date2 || 'Відкрита дата'}</span>
+                        <span style={{ fontSize: 11, color: '#8A8D93', textTransform: 'uppercase', letterSpacing: 0.4 }}>Назад</span>
+                        <span style={{ fontSize: 11, color: '#8A8D93' }}>{data?.date2 || 'Відкрита дата'}</span>
                       </div>
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                         <div>
                           <div style={{ fontSize: 17, fontWeight: 700 }}>{getCityNameSync(data?.from2) || '—'}</div>
-                          <div style={{ fontSize: 12, color: Gray, marginTop: 2 }}>{fTime2 || '--:--'}</div>
+                          <div style={{ fontSize: 12, color: '#8A8D93', marginTop: 2 }}>{fTime2 || '--:--'}</div>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                          <span style={{ fontSize: 15, color: '#BFC4CC' }}>→</span>
-                          <span style={{ fontSize: 10.5, color: Gray }}>Прямий</span>
+                          <span style={{ fontSize: 15, color: '#B0B4BB' }}>→</span>
+                          <span style={{ fontSize: 10.5, color: '#8A8D93' }}>Прямий</span>
                         </div>
                         <div style={{ textAlign: 'right' }}>
                           <div style={{ fontSize: 17, fontWeight: 700 }}>{getCityNameSync(data?.to2) || '—'}</div>
-                          <div style={{ fontSize: 12, color: Gray, marginTop: 2 }}>{tTime2 || '--:--'}</div>
+                          <div style={{ fontSize: 12, color: '#8A8D93', marginTop: 2 }}>{tTime2 || '--:--'}</div>
                         </div>
                       </div>
 
                       {(fStation2 || tStation2) && (
-                        <div style={{ fontSize: 11.5, color: Gray, lineHeight: 1.5, marginBottom: 10 }}>
+                        <div style={{ fontSize: 11.5, color: '#8A8D93', lineHeight: 1.5, marginBottom: 10 }}>
                           {fStation2 && <div>Звідки: {fStation2}</div>}
                           {tStation2 && <div>Куди: {tStation2}</div>}
                         </div>
                       )}
 
-                      <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderTop: '1px solid #F0F0F0', borderBottom: '1px solid #F0F0F0', marginBottom: 10, fontSize: 11, color: Gray }}>
+                      <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderTop: '1px solid #E5E7EB', borderBottom: '1px solid #E5E7EB', marginBottom: 10, fontSize: 11, color: '#8A8D93' }}>
                         <span>📶 Wi-Fi</span>
                         <span>🔌 Розетки</span>
                         <span>🚻 Туалет</span>
                       </div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        {passengers.map((pp: any, pi: number) => {
-                          const parts = String(pp.place || '').split('/')
-                          // Якщо є друга частина (41/52) — це окреме місце на зворотній рейс.
-                          // Якщо слеша нема (просто "51") — те саме місце діє в обидва боки.
+                      <div style={{ fontSize: 13 }}>
+                        {(() => {
+                          const parts = String(p.place || '').split('/')
                           const seat = parts.length > 1 ? parts[1] : parts[0]
-                          return (
-                            <div key={pi} style={{ fontSize: 12.5 }}>
-                              {pp.name} <span style={{ color: Gray }}>{seat ? `· Місце ${seat}` : '· Місце не визначено'}</span>
-                            </div>
-                          )
-                        })}
+                          return <>Місце <strong>{seat || '—'}</strong></>
+                        })()}
                       </div>
                     </div>
                   )}
 
-                  {/* Пасажир информация */}
-                  <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid #E0E0E0' }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Пасажир {i + 1}</div>
-                    <div style={{ fontSize: 14, marginBottom: 2 }}>{p.name}</div>
-                    <div style={{ fontSize: 12, color: Gray, marginBottom: 8 }}>{p.type || '—'}</div>
-                    <div style={{ fontSize: 13 }}>Ціна: {format(p.price || 0)} {currency}</div>
+                  {/* Ціна цього конкретного квитка */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 12, borderTop: '1px solid #E5E5E5' }}>
+                    <span style={{ fontSize: 13, color: Gray }}>Ціна квитка</span>
+                    <span style={{ fontSize: 20, fontWeight: 700 }}>{format(p.price || 0)} {currency}</span>
                   </div>
                 </div>
+
               </div>
             </div>
           )
@@ -321,8 +314,8 @@ export default function Ticket() {
 
       {/* Сума і кнопки */}
       <div className="no-print" style={{ padding: '24px 16px 16px', background: Navy }}>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>Всього</div>
-        <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: 16 }}>{format(data?.summ ?? data?.price ?? 0)} {currency}</div>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>Ціна квитка</div>
+        <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: 16 }}>{format(passengers[activeIdx]?.price || 0)} {currency}</div>
         
         {ticketPdf && (
           <button onClick={() => window.open(ticketPdf)} style={{ width: '100%', padding: '12px', background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>

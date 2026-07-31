@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useBookingStore, useSearchStore } from '../store'
 import { getCities, getRoutes } from '../api/euroclub'
 import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, isCancelled } from '../orderStatus'
+import { ensureCitiesLoaded, getCityNameSync } from '../cityNames'
 import { useOrderRegistry } from '../orderRegistryRead'
 import { useOrderPolling } from '../useOrderPolling'
 import { useDisplayPrice } from '../currency'
@@ -63,16 +64,27 @@ export default function OrderSuccess() {
   const trip = selectedTrip as any
   const trip2 = selectedTrip2 as any
   const data = orderData as any
-  const isRoundTrip = !!(data?.roundTrip || trip2)
+  // ВАЖЛИВО: data?.roundTrip — наш власний локальний прапорець (не з бекенду), trip2 —
+  // тимчасовий стан пошуку (зникає при перезавантаженні/іншому пристрої). Обидва ненадійні
+  // для визначення round-trip після рефрешу. from2/to2 — реальні поля бекенду, завжди
+  // присутні в user-orders для round-trip замовлень (0 для одностороннього).
+  const isRoundTrip = Boolean(data?.from2 && data?.to2) || !!(data?.roundTrip || trip2)
   const dep2 = trip2?.departure?.[0]
   const arr2 = trip2?.arrival?.[0]
   // Дані зворотного рейсу для показу — надійні (data.ftime2/ttime2, захищені в keepOurPrice),
   // а не з trip2 (тимчасовий стан пошуку — губиться при перезаході/оновленні). Міста
   // зворотного рейсу — дзеркальні до основного (звідки прибули туди — звідти й назад).
-  const ftime2Display = data?.ftime2 || dep2?.time
-  const ttime2Display = data?.ttime2 || arr2?.time
-  const fromCity2 = data?.to_city || dep2?.city_ua || dep2?.city
-  const toCity2 = data?.from_city || arr2?.city_ua || arr2?.city
+  const tripDateForTime2 = data?.date2 || ''
+  const ftime2Display = data?.ftime2
+    || (data?.departures2?.[0]?.time && tripDateForTime2 ? `${tripDateForTime2} ${data.departures2[0].time}` : data?.departures2?.[0]?.time)
+    || dep2?.time
+  const ttime2Display = data?.ttime2
+    || (data?.arrivals2?.[0]?.time && tripDateForTime2 ? `${tripDateForTime2} ${data.arrivals2[0].time}` : data?.arrivals2?.[0]?.time)
+    || arr2?.time
+  const fromCity2 = data?.to_city || dep2?.city_ua || dep2?.city || getCityNameSync(data?.from2) || ''
+  const toCity2 = data?.from_city || arr2?.city_ua || arr2?.city || getCityNameSync(data?.to2) || ''
+  const fStation2 = data?.departures2?.[0]?.station_name || ''
+  const tStation2 = data?.arrivals2?.[0]?.station_name || ''
   // Prefer order data from order_new response (real, confirmed), fall back to selected trip for display before booking completes
   const dep = trip?.departure?.[0]
   const arr = trip?.arrival?.[0]
@@ -91,6 +103,13 @@ export default function OrderSuccess() {
   const duration = calcDuration(ftimeRaw, ttimeRaw)
   const hasTransfer = Number(trip?.transfer) === 1
   const transferStop = trip?.stopping?.find((s: any) => Number(s.transfer) === 1)
+  // Ті самі поля що і в Ticket.tsx: якщо from_city/fstation відсутні (замовлення
+  // відкрите на іншому пристрої чи після перезавантаження) — беремо назву міста
+  // з мапи по числовому from1/to1, і назву станції з нового departures/arrivals.
+  const fromCity = data?.from_city || dep?.city_ua || dep?.city || getCityNameSync(data?.from1) || ''
+  const toCity = data?.to_city || arr?.city_ua || arr?.city || getCityNameSync(data?.to1) || ''
+  const fStation = data?.fstation || data?.departures?.[0]?.station_name || dep?.name || ''
+  const tStation = data?.tstation || data?.arrivals?.[0]?.station_name || arr?.name || ''
 
   const hash = orderHash || data?.hash || ''
 
@@ -101,6 +120,14 @@ export default function OrderSuccess() {
   const [bonusError, setBonusError] = useState('')
   const [bonusApplied, setBonusApplied] = useState(false)
   const [wantsBonus, setWantsBonus] = useState(false)
+
+  // Довантажуємо мапу міст (id -> назва) один раз на сесію, для fromCity/toCity
+  // fallback через getCityNameSync (from1/to1/from2/to2)
+  const [, forceCityRerender] = useState(0)
+  useEffect(() => {
+    ensureCitiesLoaded().then(() => forceCityRerender(v => v + 1))
+  }, [])
+
   useEffect(() => {
     getUserOrders().then((res: any) => setCabBonus(Number(res?.cab?.['b='] ?? 0))).catch(() => {})
   }, [])
@@ -334,7 +361,101 @@ export default function OrderSuccess() {
           )
         })()}
 
-        {/* Пасажири: ім'я (тип) — ціна, стовпчиком, першими на екрані */}
+        {/* ПОЇЗДКА 1 — Туди */}
+        <div style={{ background: '#F3F4F6', borderRadius: 14, padding: 16, marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, color: '#8A8D93', textTransform: 'uppercase', letterSpacing: 0.4 }}>{t('booking.outbound')}</span>
+            <span style={{ fontSize: 11, color: '#8A8D93' }}>{depDT.date || tripDateForTime}</span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 700 }}>{fromCity || '—'}</div>
+              <div style={{ fontSize: 12, color: '#8A8D93', marginTop: 2 }}>{depDT.time}</div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <span style={{ fontSize: 15, color: '#B0B4BB' }}>→</span>
+              <span style={{ fontSize: 10.5, color: '#8A8D93' }}>{hasTransfer ? 'Пересадка' : 'Прямий'}</span>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 17, fontWeight: 700 }}>{toCity || '—'}</div>
+              <div style={{ fontSize: 12, color: '#8A8D93', marginTop: 2 }}>{arrDT.time}</div>
+            </div>
+          </div>
+
+          {(fStation || tStation) && (
+            <div style={{ fontSize: 11.5, color: '#8A8D93', lineHeight: 1.5, marginBottom: 10 }}>
+              {fStation && <div>Звідки: {fStation}</div>}
+              {tStation && <div>Куди: {tStation}</div>}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderTop: '1px solid #E5E7EB', borderBottom: '1px solid #E5E7EB', marginBottom: 10, fontSize: 11, color: '#8A8D93' }}>
+            <span>📶 Wi-Fi</span>
+            <span>🔌 Розетки</span>
+            <span>🚻 Туалет</span>
+          </div>
+
+          {passengers.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {passengers.map((p: any, i: number) => (
+                <div key={i} style={{ fontSize: 12.5 }}>
+                  {p.name} <span style={{ color: '#8A8D93' }}>· Місце {legSeat(p.place, 1)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ПОЇЗДКА 2 — Назад (якщо round-trip) */}
+        {isRoundTrip && (
+          <div style={{ background: '#F3F4F6', borderRadius: 14, padding: 16, marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontSize: 11, color: '#8A8D93', textTransform: 'uppercase', letterSpacing: 0.4 }}>{t('booking.return')}</span>
+              <span style={{ fontSize: 11, color: '#8A8D93' }}>{splitDateTime(ftime2Display).date || data?.date2 || 'Відкрита дата'}</span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 700 }}>{fromCity2 || '—'}</div>
+                <div style={{ fontSize: 12, color: '#8A8D93', marginTop: 2 }}>{splitDateTime(ftime2Display).time}</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <span style={{ fontSize: 15, color: '#B0B4BB' }}>→</span>
+                <span style={{ fontSize: 10.5, color: '#8A8D93' }}>Прямий</span>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 17, fontWeight: 700 }}>{toCity2 || '—'}</div>
+                <div style={{ fontSize: 12, color: '#8A8D93', marginTop: 2 }}>{splitDateTime(ttime2Display).time}</div>
+              </div>
+            </div>
+
+            {(fStation2 || tStation2) && (
+              <div style={{ fontSize: 11.5, color: '#8A8D93', lineHeight: 1.5, marginBottom: 10 }}>
+                {fStation2 && <div>Звідки: {fStation2}</div>}
+                {tStation2 && <div>Куди: {tStation2}</div>}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderTop: '1px solid #E5E7EB', borderBottom: '1px solid #E5E7EB', marginBottom: 10, fontSize: 11, color: '#8A8D93' }}>
+              <span>📶 Wi-Fi</span>
+              <span>🔌 Розетки</span>
+              <span>🚻 Туалет</span>
+            </div>
+
+            {passengers.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {passengers.map((p: any, i: number) => (
+                  <div key={i} style={{ fontSize: 12.5 }}>
+                    {p.name} <span style={{ color: '#8A8D93' }}>· Місце {legSeat(p.place, 2)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Пасажири: ім'я (тип) — ціна, стовпчиком, перед сумою */}
         {passengers.length > 0 && (
           <div style={{ marginBottom: 18 }}>
             {passengers.map((p: any, i: number) => {
@@ -347,78 +468,6 @@ export default function OrderSuccess() {
               )
             })}
           </div>
-        )}
-
-        {/* Trip card */}
-        {isRoundTrip && <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>{t('booking.outbound')}</div>}
-        <div style={{ border: '1.5px solid #EEE', borderRadius: 16, padding: 16, marginBottom: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, marginBottom: 10 }}>
-            <span>{depDT.date} → {arrDT.date}</span>
-            {duration && <span>⏱ {duration}</span>}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 22 }}>{depDT.time}</div>
-              <div style={{ fontSize: 13 }}>{data?.from_city || dep?.city}</div>
-              <div style={{ fontSize: 11, color: Gray }}>{data?.fstation || dep?.name}</div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-              <span style={{ fontSize: 16 }}>{hasTransfer ? '🚌→🔄' : '🚌'}</span>
-              {hasTransfer && transferStop && <span style={{ fontSize: 10, color: Gray }}>{transferStop.city_ua || transferStop.city}</span>}
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontWeight: 800, fontSize: 22 }}>{arrDT.time}</div>
-              <div style={{ fontSize: 13 }}>{data?.to_city || arr?.city}</div>
-              <div style={{ fontSize: 11, color: Gray }}>{data?.tstation || arr?.name}</div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px dashed #EEE', alignItems: 'center' }}>
-            <span style={{ fontSize: 13, color: Gray }}>{hasTransfer ? 'Пересадка' : 'Прямий'}</span>
-            {!isRoundTrip && <span style={{ fontWeight: 800, fontSize: 17 }}>{format(summ, currencyCode)}</span>}
-          </div>
-        </div>
-        {passengers.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            {passengers.map((p: any, i: number) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5, marginBottom: 3 }}>
-                <span>{p.name}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span>💺</span>{legSeat(p.place, 1)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {isRoundTrip && (
-          <>
-            <div style={{ fontSize: 12, fontWeight: 700, color: ORange, marginBottom: 6 }}>{t('booking.return')}</div>
-            <div style={{ border: '1.5px solid #EEE', borderRadius: 16, padding: 16, marginBottom: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, marginBottom: 10 }}>
-                <span>{splitDateTime(ftime2Display).date} → {splitDateTime(ttime2Display).date}</span>
-                <span>⏱ {calcDuration(ftime2Display, ttime2Display)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 22 }}>{splitDateTime(ftime2Display).time}</div>
-                  <div style={{ fontSize: 13 }}>{fromCity2}</div>
-                </div>
-                <span style={{ fontSize: 16 }}>🚌</span>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 800, fontSize: 22 }}>{splitDateTime(ttime2Display).time}</div>
-                  <div style={{ fontSize: 13 }}>{toCity2}</div>
-                </div>
-              </div>
-            </div>
-            {passengers.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                {passengers.map((p: any, i: number) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5, marginBottom: 3 }}>
-                    <span>{p.name}</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span>💺</span>{legSeat(p.place, 2)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
         )}
 
         {/* Total */}
