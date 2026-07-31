@@ -34,10 +34,15 @@ export default function MyTickets() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Синхронний виклик щоразу, коли пасажир реально бачить цю вкладку
+  // ВАЖЛИВО (домовлено з Кепом): список "Мої замовлення" більше НЕ робить мережевий
+  // запит getUserOrders() при кожному вході — тільки один раз, коли локальний кеш
+  // (localStorage) ще порожній (перший вхід на пристрої). Далі — завжди з кешу.
+  // Дані конкретного замовлення (Ticket/OrderSuccess) все одно запитуються живо по
+  // oid при відкритті — це не стосується списку.
   const loadOrders = useCallback(() => {
     setLoading(true)
     const local = getLocalOrders()
+    const hasCache = Object.keys(local).length > 0
 
     function finish(merged: any[]) {
       merged.forEach((o: any) => saveOrderLocally(o.hash, o))
@@ -45,6 +50,13 @@ export default function MyTickets() {
       setLoading(false)
     }
 
+    if (hasCache) {
+      // Кеш вже є — показуємо його одразу, без запиту до бекенду.
+      finish(Object.values(local))
+      return
+    }
+
+    // Кеш порожній — це перший вхід, робимо єдиний запит і зберігаємо результат.
     getUserOrders()
       .then((res: any) => {
         const remote = Array.isArray(res?.data) ? res.data
@@ -55,14 +67,8 @@ export default function MyTickets() {
         // Дедуп за ідентифікатором замовлення. ВАЖЛИВО: бекенд віддає його як `oid`, не
         // `hash` (order_info з полем hash — застарілий метод, прогер підтвердив не
         // використовувати). Внутрішньо в застосунку ключ поля лишається `.hash` (так
-        // історично склалось у решті коду), але значення — завжди `oid`. Раніше тут
-        // перевірялось `if (!o.hash) continue`, і всі записи з user-orders (де є тільки
-        // oid) відсіювались — замовлення, відомі лише з сервера, зникали зі списку.
+        // історично склалось у решті коду), але значення — завжди `oid`.
         const byId: Record<string, any> = {}
-        for (const o of Object.values(local)) {
-          const id = (o as any).hash ?? (o as any).oid
-          if (id) byId[String(id)] = { ...(o as any) }
-        }
         for (const o of remote) {
           const id = o.oid ?? o.hash
           if (!id) continue
@@ -74,13 +80,9 @@ export default function MyTickets() {
             from_city: o.from_city || getCityNameSync(o.from1),
             to_city: o.to_city || getCityNameSync(o.to1),
           }
-          byId[key] = byId[key] ? keepOurPrice(byId[key], normalized) : normalized
+          byId[key] = normalized
           syncOrderRegistryStatusIfChanged(key, o.status, Number(o.paid_uah) || 0, Number(o.paid_eur) || 0)
-          // Перший раз бачимо це замовлення (нема локального запису з датою бронювання) —
-          // фіксуємо дату зараз, назавжди. Без цього кроку сортування "останнє зверху"
-          // непослідовне: одні замовлення сортуються за датою бронювання, інші (без неї) —
-          // за датою поїздки, і порядок виглядає невірним.
-          if (!byId[key].bookingDate) byId[key].bookingDate = new Date().toISOString()
+          byId[key].bookingDate = new Date().toISOString()
         }
         finish(Object.values(byId))
       })
@@ -103,34 +105,10 @@ export default function MyTickets() {
       })))
     })
 
-    // Записуємо всі локальні oids одразу в localStorage
-    try {
-      const local = getLocalOrders()
-      const localOids = Object.keys(local).map(hash => local[hash]?.oid ?? hash).filter(Boolean)
-      if (localOids.length > 0) {
-        localStorage.setItem('euroclub_synced_oids', JSON.stringify(localOids))
-      }
-    } catch (e) {
-      // ignored
-    }
-
-    // Застосунок повернувся на передній план — теж оновити, АЛЕ не частіше ніж
-    // раз на 60 секунд: без цього кожне перемикання вкладок/додатків (навіть
-    // відкриття DevTools чи скріншот) стріляло новим запитом до бекенду.
-    let lastFetch = Date.now()
-    const throttledReload = () => {
-      const now = Date.now()
-      if (now - lastFetch < 60000) return
-      lastFetch = now
-      loadOrders()
-    }
-    const onVisible = () => { if (document.visibilityState === 'visible') throttledReload() }
-    document.addEventListener('visibilitychange', onVisible)
-    window.addEventListener('focus', throttledReload)
-    return () => {
-      document.removeEventListener('visibilitychange', onVisible)
-      window.removeEventListener('focus', throttledReload)
-    }
+    // ВАЖЛИВО (домовлено з Кепом): список більше НЕ оновлюється автоматично при
+    // поверненні фокуса на вкладку/додаток — це й було основним джерелом зайвого
+    // навантаження на бекенд. Живі дані запитуються лише на екрані КОНКРЕТНОГО
+    // замовлення (Ticket/OrderSuccess), і тільки для нього одного.
   }, [loadOrders])
 
   function parseOrderDate(str: any): number {

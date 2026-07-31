@@ -7,6 +7,7 @@ import { ticketAvailable, payInfo, needsPolling, keepOurPrice, passengerDisplayP
 import { useDisplayPrice } from '../currency'
 import { useOrderPolling } from '../useOrderPolling'
 import { findUserOrder } from '../api/auth'
+import { saveOrderLocally } from '../api/euroclub'
 import { ensureCitiesLoaded, getCityNameSync } from '../cityNames'
 
 const ORange = '#F5A623'
@@ -40,6 +41,9 @@ export default function Ticket() {
         if (freshData) {
           setBackendData(freshData)
           setOrderResult(hash, freshData)
+          // Оновлюємо кеш списку "Мої замовлення" тими ж даними, що вже отримали —
+          // без жодного додаткового мережевого запиту.
+          saveOrderLocally(hash, freshData)
         }
       } catch (e) {
         console.warn('[Ticket] Failed to fetch from backend, using local data')
@@ -79,8 +83,10 @@ export default function Ticket() {
   // priceReady), через що React ламав рендер щоразу як умова змінювалась
   // між рендерами ("Показати квиток" відкривав чистий екран/креш).
   useOrderPolling(hash, needsPolling(data), (o) => {
+    const merged = keepOurPrice(data, o)
     setBackendData((prev: any) => prev ? keepOurPrice(prev, o) : o)
-    setOrderResult(hash, keepOurPrice(data, o))
+    setOrderResult(hash, merged)
+    saveOrderLocally(hash, merged)
     setPriceReady(true)
   })
   const scrollerRef = useRef<HTMLDivElement>(null)

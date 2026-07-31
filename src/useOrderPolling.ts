@@ -2,10 +2,11 @@ import { useEffect, useRef } from 'react'
 import { findUserOrder } from './api/auth'
 import { syncOrderRegistryStatus } from './orderRegistry'
 
-// Опитує user-orders кожні 0.5с (за прямою вимогою прогера) — лише коли active &&
-// додаток на передньому плані, і лише поки відкритий конкретний екран замовлення/оплати
-// (Payment/Ticket/TicketDetails/OrderSuccess). "Мої замовлення" (список) сюди не належить —
-// там окремий одноразовий запит при вході/поверненні, без цього циклу.
+// Опитує user-orders кожні 15с (було 0.5с — за домовленістю з Кепом зменшуємо навантаження
+// на бекенд) — лише коли active && додаток на передньому плані, і лише поки відкритий
+// конкретний екран замовлення/оплати (Payment/Ticket/TicketDetails/OrderSuccess).
+// "Мої замовлення" (список) сюди не належить — там окремий одноразовий запит при
+// першому вході, з кешем у localStorage, без цього циклу.
 //
 // ВАЖЛИВО (пояснено прогеру): order_info (перевірка ОДНОГО замовлення) — застарілий метод,
 // підтверджено самим прогером. Єдиний доступний зараз — user-orders, який завжди повертає
@@ -35,7 +36,7 @@ export function useOrderPolling(oid: string, active: boolean, onUpdate: (order: 
       } catch {}
     }
     tick()
-    const timer = setInterval(tick, 500)
+    const timer = setInterval(tick, 15000)
     const onVis = () => { if (document.visibilityState === 'visible') tick() }
     document.addEventListener('visibilitychange', onVis)
     return () => { stopped = true; clearInterval(timer); document.removeEventListener('visibilitychange', onVis) }

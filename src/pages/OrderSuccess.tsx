@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBookingStore, useSearchStore } from '../store'
-import { getCities, getRoutes } from '../api/euroclub'
+import { getCities, getRoutes, saveOrderLocally } from '../api/euroclub'
 import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, isCancelled } from '../orderStatus'
 import { ensureCitiesLoaded, getCityNameSync } from '../cityNames'
 import { useOrderRegistry } from '../orderRegistryRead'
@@ -137,7 +137,11 @@ export default function OrderSuccess() {
         setBonusApplied(true)
         setBonusInput('')
         const fresh: any = await findUserOrder(hash).catch(() => null)
-        if (fresh) setOrderResult(hash, keepOurPrice(data, fresh))
+        if (fresh) {
+          const merged = keepOurPrice(data, fresh)
+          setOrderResult(hash, merged)
+          saveOrderLocally(hash, merged)
+        }
       } else {
         setBonusError(res?.error || 'Не вдалось списати бонуси')
       }
@@ -192,17 +196,12 @@ export default function OrderSuccess() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useOrderPolling(hash, needsPolling({ ...data, summ }), (o) => {
-    setOrderResult(hash, keepOurPrice(data, o))
+    const merged = keepOurPrice(data, o)
+    setOrderResult(hash, merged)
+    saveOrderLocally(hash, merged)
     setPriceReady(true)
     setPollCount(c => c + 1)
   })
-
-  useEffect(() => {
-    if (data?.status) {
-      setStatus(String(data.status).toLowerCase().includes('cancel') ? 'cancelled' : 'active')
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hash])
 
   const handleRefresh = async () => {
     if (!hash) return
@@ -212,8 +211,8 @@ export default function OrderSuccess() {
       if (fresh) {
         const merged = keepOurPrice(data, fresh)
         setOrderResult(hash, merged)
-        if (merged.status && String(merged.status).toLowerCase().includes('cancel')) setStatus('cancelled')
-        else if (merged.status) setStatus('active')
+        saveOrderLocally(hash, merged)
+        setStatus(isCancelled(merged) ? 'cancelled' : 'active')
         const d = new Date()
         setRefreshedAt(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`)
       }
@@ -229,7 +228,10 @@ export default function OrderSuccess() {
     setLoading(true)
     try {
       const res = await cancelOrderApi(hash)
-      if (res.ok) setStatus('cancelled')
+      if (res.ok) {
+        setStatus('cancelled')
+        saveOrderLocally(hash, { ...data, status: 0 })
+      }
       else alert(res.error || 'Помилка')
     } catch { alert('Помилка') }
     finally { setLoading(false) }
@@ -240,7 +242,10 @@ export default function OrderSuccess() {
     setLoading(true)
     try {
       const res = await restoreOrderApi(hash)
-      if (res.ok) setStatus('active')
+      if (res.ok) {
+        setStatus('active')
+        saveOrderLocally(hash, { ...data, status: 1 })
+      }
       else alert(res.error || 'Помилка')
     } catch { alert('Помилка') }
     finally { setLoading(false) }
@@ -280,7 +285,11 @@ export default function OrderSuccess() {
     setLoading(true)
     try {
       const res = await restoreOrderApi(hash)
-      if (res.ok) { setStatus('active'); setRestorePhase('idle') }
+      if (res.ok) {
+        setStatus('active')
+        saveOrderLocally(hash, { ...data, status: 1 })
+        setRestorePhase('idle')
+      }
       else alert(res.error || 'Помилка')
     } catch { alert('Помилка') }
     finally { setLoading(false) }
