@@ -446,10 +446,12 @@ export default function OrderSuccess() {
             </button>
           </>
         ) : payInfo({ ...data, summ }).paid > 0 ? (
-          // Скасовано, але була часткова/повна оплата — простий флоу без перевірки місць
-          <button onClick={handleRestore} disabled={loading} style={{ width: '100%', padding: 16, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
-            {loading ? '...' : t('os.restore')}
-          </button>
+          // Скасовано, АЛЕ вже була часткова/повна оплата — це критичний випадок
+          // (гроші списані, поїздки не буде), кнопки "Відновити" тут НЕ показуємо
+          // взагалі — тільки прохання звернутись напряму в офіс.
+          <div style={{ textAlign: 'center', color: Gray, fontSize: 14, padding: '10px 4px', lineHeight: 1.5 }}>
+            {t('os.contactOfficePaidCancel')}
+          </div>
         ) : restoreEligibility(data) === 'too_close' ? (
           // Неоплачене, скасоване, підтверджено <24 год до рейсу — відновлення закрите
           <div style={{ textAlign: 'center', color: Gray, fontSize: 14, padding: '10px 4px', lineHeight: 1.5 }}>
