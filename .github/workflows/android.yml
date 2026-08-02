@@ -18,12 +18,22 @@ jobs:
       - run: npx cap sync android
       - run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
       - run: rm -rf ~/.gradle/caches ~/.gradle/wrapper
-      - name: Build APK (retry up to 3x, flaky jar download)
+      
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+      
+      - name: Build Release APK (retry up to 3x)
         run: |
           cd android && chmod +x gradlew
           success=false
           for i in 1 2 3; do
-            if ./gradlew assembleDebug --no-daemon --no-parallel --max-workers=1 --refresh-dependencies; then
+            if ./gradlew assembleRelease \
+              -Pandroid.injected.signing.store.file=$(pwd)/app/upload-keystore.jks \
+              -Pandroid.injected.signing.store.password=euroclub123 \
+              -Pandroid.injected.signing.key.alias=upload \
+              -Pandroid.injected.signing.key.password=euroclub123 \
+              --no-daemon --no-parallel --max-workers=1 --refresh-dependencies; then
               success=true
               break
             fi
@@ -35,10 +45,12 @@ jobs:
             echo "All build attempts failed"
             exit 1
           fi
-      - name: Debug - list APK outputs
+      
+      - name: List release APK outputs
         run: find android/app/build/outputs -type f
         if: always()
+      
       - uses: actions/upload-artifact@v4
         with:
-          name: EuroClub-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: EuroClub-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
