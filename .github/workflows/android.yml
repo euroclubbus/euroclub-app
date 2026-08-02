@@ -23,12 +23,12 @@ jobs:
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
       
-      - name: Build Release APK (retry up to 3x)
+      - name: Build Release AAB (retry up to 3x)
         run: |
           cd android && chmod +x gradlew
           success=false
           for i in 1 2 3; do
-            if ./gradlew assembleRelease \
+            if ./gradlew bundleRelease \
               -Pandroid.injected.signing.store.file=$(pwd)/app/upload-keystore.jks \
               -Pandroid.injected.signing.store.password=euroclub123 \
               -Pandroid.injected.signing.key.alias=upload \
@@ -46,11 +46,11 @@ jobs:
             exit 1
           fi
       
-      - name: List release APK outputs
+      - name: List release bundle outputs
         run: find android/app/build/outputs -type f
         if: always()
       
       - uses: actions/upload-artifact@v4
         with:
-          name: EuroClub-release-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          name: EuroClub-release-bundle
+          path: android/app/build/outputs/bundle/release/app-release.aab
