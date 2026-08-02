@@ -1,4 +1,4 @@
-package com.euroclub.app;
+package com.eclub.app;
 
 import com.getcapacitor.BridgeActivity;
 
