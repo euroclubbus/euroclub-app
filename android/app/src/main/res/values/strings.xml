@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">EuroClub</string>
     <string name="title_activity_main">EuroClub</string>
-    <string name="package_name">com.euroclub.app</string>
-    <string name="custom_url_scheme">com.euroclub.app</string>
+    <string name="package_name">com.eclub.app</string>
+    <string name="custom_url_scheme">com.eclub.app</string>
 </resources>
