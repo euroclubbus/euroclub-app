@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android AAB
 on:
   workflow_dispatch:
 jobs:
