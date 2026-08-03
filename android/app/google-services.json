@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1018363723545",
+    "project_id": "eurocclub",
+    "storage_bucket": "eurocclub.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1018363723545:android:080619e76e2b51e4664f88",
+        "android_client_info": {
+          "package_name": "com.eclub.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA85tJj1gHu8yjFafz6IUFeNp5_1HX7mzw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
