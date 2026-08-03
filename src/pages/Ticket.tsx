@@ -3,7 +3,7 @@ import { useRef, useState, useEffect } from 'react'
 import { ArrowLeft, Download, ChevronRight, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
-import { ticketAvailable, payInfo, needsPolling, keepOurPrice, passengerDisplayPrices, ensureRoundTripSync } from '../orderStatus'
+import { ticketAvailable, payInfo, needsPolling, keepOurPrice, passengerDisplayPrices, ensureRoundTripSync, legInfo } from '../orderStatus'
 import { useDisplayPrice } from '../currency'
 import { useOrderPolling } from '../useOrderPolling'
 import { findUserOrder } from '../api/auth'
@@ -139,18 +139,24 @@ export default function Ticket() {
   // ВАЖЛИВО: реальні поля бекенду — departures1/arrivals1 (з "1"!) для поїздки туди,
   // departures2/arrivals2 для зворотної. Кожен запис несе свою дату — окремо комбінувати
   // з date1/date2 більше не треба.
-  const fTime = data?.departures1?.[0]?.time || data?.ftime || trip?.departure?.[0]?.time || ''
-  const tTime = data?.arrivals1?.[0]?.time || data?.ttime || trip?.arrival?.[0]?.time || ''
-  const fDate = data?.departures1?.[0]?.date || data?.date || data?.date1 || ''
-  const tDate = data?.arrivals1?.[0]?.date || data?.date || data?.date1 || ''
-  const fStation = data?.departures1?.[0]?.station_name || ''
-  const tStation = data?.arrivals1?.[0]?.station_name || ''
-  const fTime2 = data?.departures2?.[0]?.time || ''
-  const tTime2 = data?.arrivals2?.[0]?.time || ''
-  const fDate2 = data?.departures2?.[0]?.date || data?.date2 || ''
-  const tDate2 = data?.arrivals2?.[0]?.date || data?.date2 || ''
-  const fStation2 = data?.departures2?.[0]?.station_name || ''
-  const tStation2 = data?.arrivals2?.[0]?.station_name || ''
+  // Бекенд віддає departures1/arrivals1/departures2/arrivals2 то масивом, то об'єктом —
+  // legInfo() приводить обидва варіанти до одного вигляду (див. orderStatus.ts).
+  const dep1Info = legInfo(data?.departures1)
+  const arr1Info = legInfo(data?.arrivals1)
+  const dep2Info = legInfo(data?.departures2)
+  const arr2Info = legInfo(data?.arrivals2)
+  const fTime = dep1Info?.time || data?.ftime || trip?.departure?.[0]?.time || ''
+  const tTime = arr1Info?.time || data?.ttime || trip?.arrival?.[0]?.time || ''
+  const fDate = dep1Info?.date || data?.date || data?.date1 || ''
+  const tDate = arr1Info?.date || data?.date || data?.date1 || ''
+  const fStation = dep1Info?.station_name || ''
+  const tStation = arr1Info?.station_name || ''
+  const fTime2 = dep2Info?.time || ''
+  const tTime2 = arr2Info?.time || ''
+  const fDate2 = dep2Info?.date || data?.date2 || ''
+  const tDate2 = arr2Info?.date || data?.date2 || ''
+  const fStation2 = dep2Info?.station_name || ''
+  const tStation2 = arr2Info?.station_name || ''
   const tripDate = data?.date || data?.date1 || ''
   const currency = (data?.crc || trip?.currency || 'uah').toLowerCase() === 'eur' ? 'EUR' : 'UAH'
 
@@ -169,7 +175,7 @@ export default function Ticket() {
   const ticketPdf: string = data?.ticket_pdf || ''
   // Round-trip визначаємо НЕ по from2/to2 (вони заповнені навіть для одностороннього —
   // дзеркальні id міст) а по route2/date2/departures2: якщо їх нема — зворотної поїздки нема.
-  const isRoundTrip = Boolean(data?.route2) || Boolean(data?.date2) || (Array.isArray(data?.departures2) && data.departures2.length > 0)
+  const isRoundTrip = Boolean(data?.route2) || Boolean(data?.date2) || Boolean(legInfo(data?.departures2))
   const hasMultiple = passengers.length > 1
 
   const handleScroll = () => {

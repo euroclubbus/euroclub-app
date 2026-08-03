@@ -15,6 +15,17 @@ function num(v: any): number {
   return isNaN(n) ? 0 : n
 }
 
+// Бекенд повертає departures1/arrivals1/departures2/arrivals2 то як масив [{...}]
+// (напр. для замовлень з пересадкою — кілька зупинок), то як просто об'єкт {...}
+// (пряме сполучення, одна зупинка) — залежно від маршруту й ендпоінту (user-orders
+// частіше віддає об'єкт). Код усюди читав це як масив (?.[0]?.field) — для об'єктного
+// варіанту [0] завжди давав undefined, і час/станція зникали повністю. Ця функція
+// приводить обидва варіанти до одного вигляду.
+export function legInfo(v: any): any {
+  if (!v) return undefined
+  return Array.isArray(v) ? v[0] : v
+}
+
 export function currencySign(o: any): string {
   return String(o?.crc || 'uah').toLowerCase() === 'eur' ? '€' : '₴'
 }

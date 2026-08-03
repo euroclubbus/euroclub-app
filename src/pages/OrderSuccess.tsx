@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useBookingStore, useSearchStore } from '../store'
 import { getCities, getRoutes, saveOrderLocally } from '../api/euroclub'
-import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, isCancelled } from '../orderStatus'
+import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, isCancelled, legInfo } from '../orderStatus'
 import { ensureCitiesLoaded, getCityNameSync } from '../cityNames'
 import { useOrderRegistry } from '../orderRegistryRead'
 import { useOrderPolling } from '../useOrderPolling'
@@ -70,27 +70,32 @@ export default function OrderSuccess() {
   // при route2:0, date2:"", departures2:[]). Надійна ознака — route2 і date2 і довжина
   // departures2. data?.roundTrip — наш локальний прапорець, trip2 — тимчасовий стан пошуку;
   // обидва губляться на іншому пристрої/після рефрешу, лишаємо як додатковий fallback.
-  const isRoundTrip = Boolean(data?.route2) || Boolean(data?.date2) || (Array.isArray(data?.departures2) && data.departures2.length > 0) || !!(data?.roundTrip || trip2)
+  const isRoundTrip = Boolean(data?.route2) || Boolean(data?.date2) || Boolean(legInfo(data?.departures2)) || !!(data?.roundTrip || trip2)
   const dep2 = trip2?.departure?.[0]
   const arr2 = trip2?.arrival?.[0]
   // Реальні поля бекенду: departures2/arrivals2 (з "2"!), кожен запис несе власну дату —
-  // комбінувати з date2 вручну більше не треба.
-  const fTime2 = data?.departures2?.[0]?.time || data?.ftime2 || dep2?.time || ''
-  const tTime2 = data?.arrivals2?.[0]?.time || data?.ttime2 || arr2?.time || ''
-  const fDate2 = data?.departures2?.[0]?.date || data?.date2 || ''
-  const tDate2 = data?.arrivals2?.[0]?.date || data?.date2 || ''
+  // комбінувати з date2 вручну більше не треба. Бекенд віддає це то масивом, то об'єктом
+  // (залежно від маршруту/ендпоінту) — legInfo() приводить обидва варіанти до одного.
+  const dep2Info = legInfo(data?.departures2)
+  const arr2Info = legInfo(data?.arrivals2)
+  const fTime2 = dep2Info?.time || data?.ftime2 || dep2?.time || ''
+  const tTime2 = arr2Info?.time || data?.ttime2 || arr2?.time || ''
+  const fDate2 = dep2Info?.date || data?.date2 || ''
+  const tDate2 = arr2Info?.date || data?.date2 || ''
   const fromCity2 = data?.to_city || dep2?.city_ua || dep2?.city || getCityNameSync(data?.from2) || ''
   const toCity2 = data?.from_city || arr2?.city_ua || arr2?.city || getCityNameSync(data?.to2) || ''
-  const fStation2 = data?.departures2?.[0]?.station_name || ''
-  const tStation2 = data?.arrivals2?.[0]?.station_name || ''
+  const fStation2 = dep2Info?.station_name || ''
+  const tStation2 = arr2Info?.station_name || ''
   // Prefer order data from order_new response (real, confirmed), fall back to selected trip for display before booking completes
   const dep = trip?.departure?.[0]
   const arr = trip?.arrival?.[0]
   // Реальні поля бекенду: departures1/arrivals1 (з "1"!) для поїздки туди.
-  const fTime = data?.departures1?.[0]?.time || data?.ftime || dep?.time || ''
-  const tTime = data?.arrivals1?.[0]?.time || data?.ttime || arr?.time || ''
-  const fDate = data?.departures1?.[0]?.date || data?.date || data?.date1 || ''
-  const tDate = data?.arrivals1?.[0]?.date || data?.date || data?.date1 || ''
+  const dep1Info = legInfo(data?.departures1)
+  const arr1Info = legInfo(data?.arrivals1)
+  const fTime = dep1Info?.time || data?.ftime || dep?.time || ''
+  const tTime = arr1Info?.time || data?.ttime || arr?.time || ''
+  const fDate = dep1Info?.date || data?.date || data?.date1 || ''
+  const tDate = arr1Info?.date || data?.date || data?.date1 || ''
   const hasTransfer = Number(trip?.transfer) === 1
   const transferStop = trip?.stopping?.find((s: any) => Number(s.transfer) === 1)
   // Ті самі поля що і в Ticket.tsx: якщо from_city/fstation відсутні (замовлення
@@ -98,8 +103,8 @@ export default function OrderSuccess() {
   // з мапи по числовому from1/to1, і назву станції з departures1/arrivals1.
   const fromCity = data?.from_city || dep?.city_ua || dep?.city || getCityNameSync(data?.from1) || ''
   const toCity = data?.to_city || arr?.city_ua || arr?.city || getCityNameSync(data?.to1) || ''
-  const fStation = data?.fstation || data?.departures1?.[0]?.station_name || dep?.name || ''
-  const tStation = data?.tstation || data?.arrivals1?.[0]?.station_name || arr?.name || ''
+  const fStation = data?.fstation || dep1Info?.station_name || dep?.name || ''
+  const tStation = data?.tstation || arr1Info?.station_name || arr?.name || ''
 
   const hash = orderHash || data?.hash || ''
 
