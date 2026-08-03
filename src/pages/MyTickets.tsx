@@ -34,12 +34,14 @@ export default function MyTickets() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // ВАЖЛИВО (домовлено з Кепом): список "Мої замовлення" більше НЕ робить мережевий
-  // запит getUserOrders() при кожному вході — тільки один раз, коли локальний кеш
-  // (localStorage) ще порожній (перший вхід на пристрої). Далі — завжди з кешу.
+  // Перший вхід на новому пристрої (кеш порожній) — один автоматичний запит до бекенду.
+  // Далі показуємо кеш миттєво, БЕЗ мережі — щоб не бомбити бекенд запитами на кожен вхід.
+  // Але кнопка "Оновити" (force=true) завжди йде в мережу і зливає свіжі дані з кешем:
+  // нові замовлення (зроблені не в цьому застосунку/на іншому пристрої) додаються,
+  // а наявні оновлюються свіжими полями (ціна/статус/оплата) з бекенду.
   // Дані конкретного замовлення (Ticket/OrderSuccess) все одно запитуються живо по
   // oid при відкритті — це не стосується списку.
-  const loadOrders = useCallback(() => {
+  const loadOrders = useCallback((force = false) => {
     setLoading(true)
     const local = getLocalOrders()
     const hasCache = Object.keys(local).length > 0
@@ -50,13 +52,15 @@ export default function MyTickets() {
       setLoading(false)
     }
 
-    if (hasCache) {
-      // Кеш вже є — показуємо його одразу, без запиту до бекенду.
+    if (hasCache && !force) {
+      // Кеш вже є, і це не примусове оновлення — показуємо його одразу, без запиту до бекенду.
       finish(Object.values(local))
       return
     }
 
-    // Кеш порожній — це перший вхід, робимо єдиний запит і зберігаємо результат.
+    // Кеш порожній (перший вхід) АБО користувач натиснув "Оновити" — питаємо бекенд і
+    // зливаємо результат з тим, що вже є локально (щоб не загубити суто локальні поля,
+    // напр. bookingDate — бекенд їх не повертає).
     getUserOrders()
       .then((res: any) => {
         const remote = Array.isArray(res?.data) ? res.data
@@ -68,7 +72,7 @@ export default function MyTickets() {
         // `hash` (order_info з полем hash — застарілий метод, прогер підтвердив не
         // використовувати). Внутрішньо в застосунку ключ поля лишається `.hash` (так
         // історично склалось у решті коду), але значення — завжди `oid`.
-        const byId: Record<string, any> = {}
+        const byId: Record<string, any> = { ...local }
         for (const o of remote) {
           const id = o.oid ?? o.hash
           if (!id) continue
@@ -80,13 +84,16 @@ export default function MyTickets() {
             from_city: o.from_city || getCityNameSync(o.from1),
             to_city: o.to_city || getCityNameSync(o.to1),
           }
-          byId[key] = normalized
+          // Свіжі дані з бекенду мають пріоритет над кешем для всіх спільних полів
+          // (ціна/статус/оплата); локальні службові поля (bookingDate тощо), яких
+          // бекенд не повертає, лишаються з кешу.
+          byId[key] = { ...byId[key], ...normalized }
           syncOrderRegistryStatusIfChanged(key, o.status, Number(o.paid_uah) || 0, Number(o.paid_eur) || 0)
-          byId[key].bookingDate = new Date().toISOString()
+          if (!byId[key].bookingDate) byId[key].bookingDate = new Date().toISOString()
         }
         finish(Object.values(byId))
       })
-      .catch((e) => {
+      .catch(() => {
         finish(Object.values(local))
       })
   }, [])
@@ -196,7 +203,7 @@ export default function MyTickets() {
             boxShadow: filter === key ? 'none' : '0 1px 4px rgba(0,0,0,0.08)',
           }}>{label}</button>
         ))}
-        <button onClick={loadOrders} disabled={loading} aria-label={t('common.refresh') || 'Оновити'} style={{
+        <button onClick={() => loadOrders(true)} disabled={loading} aria-label={t('common.refresh') || 'Оновити'} style={{
           marginLeft: 'auto', flexShrink: 0, width: 34, height: 34, borderRadius: '50%', border: 'none',
           background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', cursor: loading ? 'default' : 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
