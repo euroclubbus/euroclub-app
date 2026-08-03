@@ -31,6 +31,17 @@ import { useAuthStore } from './authStore'
 import { useState, useEffect } from 'react'
 import { registerPushToken } from './push'
 import { useLocation } from 'react-router-dom'
+import { useForceUpdate } from './forceUpdate'
+import ForceUpdateScreen from './components/ForceUpdateScreen'
+
+// Guideline 5.1.1(v) Apple: логін вимагається лише для account-based функцій
+// (бронювання, оплата, квитки, профіль, сповіщення). Пошук/перегляд маршрутів —
+// публічно, без входу.
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore(s => s.user)
+  if (!user) return <Auth />
+  return <>{children}</>
+}
 
 function AppRoutes() {
   const loc = useLocation()
@@ -43,24 +54,24 @@ function AppRoutes() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/results" element={<Results />} />
-          <Route path="/booking" element={<Booking />} />
-          <Route path="/round-trip-summary" element={<RoundTripSummary />} />
-          <Route path="/order-success" element={<OrderSuccess />} />
-          <Route path="/payment" element={<Payment />} />
+          <Route path="/booking" element={<RequireAuth><Booking /></RequireAuth>} />
+          <Route path="/round-trip-summary" element={<RequireAuth><RoundTripSummary /></RequireAuth>} />
+          <Route path="/order-success" element={<RequireAuth><OrderSuccess /></RequireAuth>} />
+          <Route path="/payment" element={<RequireAuth><Payment /></RequireAuth>} />
           <Route path="/game" element={<Game />} />
-          <Route path="/ticket" element={<Ticket />} />
-          <Route path="/ticket-details" element={<TicketDetails />} />
+          <Route path="/ticket" element={<RequireAuth><Ticket /></RequireAuth>} />
+          <Route path="/ticket-details" element={<RequireAuth><TicketDetails /></RequireAuth>} />
           <Route path="/agreement-privacy" element={<AgreementPrivacy />} />
           <Route path="/agreement-contract" element={<AgreementContract />} />
           <Route path="/agreement-offer" element={<AgreementOffer />} />
-          <Route path="/tickets" element={<MyTickets />} />
+          <Route path="/tickets" element={<RequireAuth><MyTickets /></RequireAuth>} />
           <Route path="/fleet" element={<Fleet />} />
           <Route path="/routes" element={<RoutesPage />} />
           <Route path="/page/:slug" element={<StaticPage />} />
           <Route path="/feedback" element={<Feedback />} />
-          <Route path="/admin/transfer-cities" element={<AdminTransferCities />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/admin/transfer-cities" element={<RequireAuth><AdminTransferCities /></RequireAuth>} />
+          <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+          <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
           <Route path="*" element={<Home />} />
         </Routes>
       </div>
@@ -69,9 +80,7 @@ function AppRoutes() {
   )
 }
 
-const REQUIRE_LOGIN = true  // обов'язковий вхід
-
-function AuthGate({ children }: { children: React.ReactNode }) {
+function PushTokenSync() {
   const user = useAuthStore(s => s.user)
   useEffect(() => {
     if (!user) return
@@ -81,21 +90,21 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       if (localStorage.getItem('eclub_notif_asked') === '1') registerPushToken().catch(() => {})
     } catch {}
   }, [user])
-  if (REQUIRE_LOGIN && !user) return <Auth />
-  return <>{children}</>
+  return null
 }
 
 function Root() {
   const [splashDone, setSplashDone] = useState(false)
+  const forceUpdate = useForceUpdate()
   if (!splashDone) return <Splash onDone={() => setSplashDone(true)} />
+  if (forceUpdate.blocked) return <ForceUpdateScreen storeUrl={forceUpdate.storeUrl} />
   return (
-    <AuthGate>
-      <BrowserRouter>
-        <ErrorBoundary>
-          <AppRoutes />
-        </ErrorBoundary>
-      </BrowserRouter>
-    </AuthGate>
+    <BrowserRouter>
+      <ErrorBoundary>
+        <PushTokenSync />
+        <AppRoutes />
+      </ErrorBoundary>
+    </BrowserRouter>
   )
 }
 
