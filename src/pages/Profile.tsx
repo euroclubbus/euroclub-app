@@ -59,7 +59,7 @@ export default function Profile() {
       `Телефон: ${user?.phone || '—'}\n` +
       `Email: ${user?.email || '—'}`
     )
-    window.location.href = `mailto:eclubbus21@gmail.com?subject=${subject}&body=${body}`
+    window.location.href = `mailto:eclubbus24@gmail.com?subject=${subject}&body=${body}`
   }
   const [newPax, setNewPax] = useState('')
   const [newPaxBday, setNewPaxBday] = useState('')
