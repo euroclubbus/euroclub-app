@@ -1,6 +1,7 @@
 import { saveDeviceToken } from './api/auth'
 import { useAuthStore } from './authStore'
 import { getFirebaseApp } from './firebaseApp'
+import { addNotif } from './notifications'
 
 // Крім eclub.com.ua (де вже давно приймається токен через addtoken), пишемо той самий
 // токен і в Firestore — прив'язаний до ID користувача з логіну EuroClub (той самий id,
@@ -45,6 +46,20 @@ export async function registerPushToken() {
     })
     PushNotifications.addListener('registrationError', (err) => {
       console.error('[Push] registration error', err)
+    })
+
+    // Записуємо повідомлення локально (з точним часом), щоб воно було видно у
+    // вкладці "Сповіщення" — раніше це ніде не зберігалось, спливаюче показувала
+    // тільки сама ОС, і після закриття банера повідомлення губилось назавжди.
+    // 'pushNotificationReceived' — застосунок був відкритий (foreground).
+    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      addNotif({ title: notification.title || '', body: notification.body || '' })
+    })
+    // 'pushNotificationActionPerformed' — користувач тапнув на повідомлення, коли
+    // застосунок був згорнутий/закритий (тут дані лежать у вкладеному .notification).
+    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+      const n = action.notification
+      addNotif({ title: n?.title || '', body: n?.body || '' })
     })
   } catch (e) {
     console.error('[Push] setup failed', e)
