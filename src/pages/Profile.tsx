@@ -43,6 +43,24 @@ export default function Profile() {
 
   // Збережені пасажири (родина, ті кому часто купуєш квитки)
   const [passengers, setPassengers] = useState<SavedPassenger[]>(() => getSavedPassengers())
+
+  // Видалення акаунту (Apple Guideline 5.1.1(v)) — самообслуговуючого видалення на
+  // бекенді зараз немає, тому найшвидший законний шлях: підтвердження в застосунку →
+  // лист-запит на пошту підтримки з даними, потрібними для ідентифікації користувача.
+  // Менеджер обробляє вручну. Якщо згодом з'явиться API для видалення — замінити на
+  // прямий виклик замість mailto.
+  const requestAccountDeletion = () => {
+    if (!window.confirm(t('profile.deleteAccountConfirm'))) return
+    const subject = encodeURIComponent(`Запит на видалення акаунту — ${user?.id || ''}`)
+    const body = encodeURIComponent(
+      `Прошу видалити мій акаунт EuroClub.\n\n` +
+      `ID: ${user?.id || '—'}\n` +
+      `ПІБ: ${user?.header || '—'}\n` +
+      `Телефон: ${user?.phone || '—'}\n` +
+      `Email: ${user?.email || '—'}`
+    )
+    window.location.href = `mailto:eclubbus21@gmail.com?subject=${subject}&body=${body}`
+  }
   const [newPax, setNewPax] = useState('')
   const [newPaxBday, setNewPaxBday] = useState('')
 
@@ -244,6 +262,10 @@ export default function Profile() {
 
         <button onClick={logout} style={{ width: '100%', marginTop: 14, padding: 16, background: 'none', border: '1.5px solid #EEE', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: 'pointer', color: '#E53935', fontWeight: 700, fontSize: 15 }}>
           <LogOut size={18} /> {t('profile.logout')}
+        </button>
+
+        <button onClick={requestAccountDeletion} style={{ width: '100%', marginTop: 10, padding: 12, background: 'none', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', color: Gray, fontWeight: 600, fontSize: 13, textDecoration: 'underline' }}>
+          <Trash2 size={14} /> {t('profile.deleteAccount')}
         </button>
       </div>
       <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} />

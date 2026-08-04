@@ -165,6 +165,13 @@ export const dict: Dict = {
   'profile.namePlaceholder': { uk: "Ім'я та прізвище (латиницею)", en: 'First and last name (in Latin letters)', de: 'Vor- und Nachname (lateinische Schrift)', ru: 'Имя и фамилия (латиницей)' },
   'profile.myOrders': { uk: 'Мої замовлення', en: 'My orders', de: 'Meine Bestellungen', ru: 'Мои заказы' },
   'profile.logout': { uk: 'Вийти', en: 'Log out', de: 'Abmelden', ru: 'Выйти' },
+  'profile.deleteAccount': { uk: 'Видалити акаунт', en: 'Delete account', de: 'Konto löschen', ru: 'Удалить аккаунт' },
+  'profile.deleteAccountConfirm': {
+    uk: 'Надіслати запит на видалення акаунту? Ми обробимо його та видалимо ваші дані.',
+    en: 'Send a request to delete your account? We will process it and remove your data.',
+    de: 'Antrag auf Kontolöschung senden? Wir bearbeiten ihn und entfernen Ihre Daten.',
+    ru: 'Отправить запрос на удаление аккаунта? Мы обработаем его и удалим ваши данные.',
+  },
   'profile.language': { uk: 'Мова', en: 'Language', de: 'Sprache', ru: 'Язык' },
 
   // ── Auth ──
