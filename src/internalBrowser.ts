@@ -15,3 +15,15 @@ export async function openInternalBrowser(url: string) {
   }
   window.open(url, '_blank')
 }
+
+// Закриває вікно, відкрите через openInternalBrowser() (лише нативні платформи —
+// SFSafariViewController/Custom Tabs дозволяють лише одне активне вікно за раз,
+// тому окремий "ref" на конкретний інстанс не потрібен).
+export async function closeInternalBrowser() {
+  try {
+    const { Capacitor } = await import('@capacitor/core')
+    if (!Capacitor.isNativePlatform()) return
+    const { Browser } = await import('@capacitor/browser')
+    await Browser.close()
+  } catch {}
+}

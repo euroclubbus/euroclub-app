@@ -2,16 +2,10 @@ import { FileText, Gift, Map, Bus, Star, Share2, Info, X, Gamepad2 } from 'lucid
 import { useNavigate } from 'react-router-dom'
 import { useT } from '../i18n'
 import LanguageSwitcher from './LanguageSwitcher'
+import { openInternalBrowser } from '../internalBrowser'
 
 const Navy = '#0A4684'
 const ORange = '#F5A623'
-
-// Відкрити URL: у APK — InAppBrowser (тулбар знизу), у PWA — нова вкладка
-function openUrl(url: string) {
-  const iab = (window as any).cordova?.InAppBrowser
-  if (iab?.open) { iab.open(url, '_blank', 'location=yes,toolbarposition=bottom,closebuttoncaption=Готово,toolbarcolor=#0A4684,closebuttoncolor=#ffffff'); return }
-  window.open(url, '_blank')
-}
 
 export default function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useT()
@@ -40,7 +34,7 @@ export default function SideMenu({ open, onClose }: { open: boolean; onClose: ()
         </div>
         <div style={{ padding: '8px 0', overflowY: 'auto' }}>
           {ITEMS.map((it, i) => (
-            <button key={i} onClick={() => { onClose(); it.internal ? nav(it.internal) : openUrl(it.url!) }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', background: 'none', border: 'none', borderBottom: '1px solid #F4F4F4', cursor: 'pointer', textAlign: 'left' }}>
+            <button key={i} onClick={() => { onClose(); it.internal ? nav(it.internal) : openInternalBrowser(it.url!) }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', background: 'none', border: 'none', borderBottom: '1px solid #F4F4F4', cursor: 'pointer', textAlign: 'left' }}>
               <it.icon size={20} color={ORange} />
               <span style={{ fontSize: 15, fontWeight: 600, color: '#1A1A1A' }}>{it.label}</span>
             </button>

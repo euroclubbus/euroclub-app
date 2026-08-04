@@ -7,6 +7,7 @@ import { payInfo, keepOurPrice, passengerDisplayPrices, formatSeat } from '../or
 import { useOrderPolling } from '../useOrderPolling'
 import { useDisplayPrice } from '../currency'
 import { useT } from '../i18n'
+import { openInternalBrowser, closeInternalBrowser } from '../internalBrowser'
 
 const ORange = '#F5A623'
 const Navy = '#0A4684'
@@ -25,21 +26,18 @@ export default function Payment() {
   const passengers = (rawPax || []).map((p: any) => ({ name: p.name, place: p.plc ?? p.place, price: p.prc ?? p.price }))
   const passengerPrices = passengerDisplayPrices(Number(data?.summ ?? data?.price ?? 0) || 0, passengers)
   const [checking, setChecking] = useState(false)
-  const browserRef = useRef<any>(null)
   const doneRef = useRef(false)
 
-  // Відкрити сторінку оплати у власному вікні (не у фреймі — щоб LiqPay вантажився без обмежень)
+  // Відкрити сторінку оплати у системному браузері (Safari View Controller / Custom Tabs) —
+  // НЕ у внутрішньому WebView застосунку. Apple (Guideline 5.1.2(i), ATT) трактує вебвміст,
+  // відкритий у власному in-app browser, як "контент застосунку" — якщо там є cookies,
+  // потрібен запит ATT-дозволу. Системний браузер такою вимогою не покривається.
   const openPay = () => {
     if (!payUrl) return
-    const iab = (window as any).cordova?.InAppBrowser
-    if (iab?.open) {
-      browserRef.current = iab.open(payUrl, '_blank', 'location=yes,toolbarposition=bottom,closebuttoncaption=Готово,toolbarcolor=#0A4684,closebuttoncolor=#ffffff,navigationbuttoncolor=#ffffff')
-    } else {
-      window.open(payUrl, '_blank')
-    }
+    openInternalBrowser(payUrl)
   }
 
-  const closeBrowser = () => { try { browserRef.current?.close?.() } catch {} browserRef.current = null }
+  const closeBrowser = () => { closeInternalBrowser() }
 
   const goSuccess = () => { if (doneRef.current) return; doneRef.current = true; closeBrowser(); nav('/order-success') }
 
@@ -92,7 +90,7 @@ export default function Payment() {
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       const d: any = e.data || {}
-      if (d && d.eclubPayUrl) { const iab = (window as any).cordova?.InAppBrowser; if (iab?.open) browserRef.current = iab.open(String(d.eclubPayUrl), '_blank', 'location=yes,toolbarposition=bottom,closebuttoncaption=Готово,toolbarcolor=#0A4684,closebuttoncolor=#ffffff'); else window.open(String(d.eclubPayUrl), '_blank') }
+      if (d && d.eclubPayUrl) openInternalBrowser(String(d.eclubPayUrl))
       if (d && d.eclubPaid) checkPaid()
     }
     window.addEventListener('message', onMsg)
