@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
 import { useDisplayPrice } from '../currency'
 import { payInfo, needsPolling, keepOurPrice, formatSeat, passengerDisplayPrices} from '../orderStatus'
+import BankTransferBox from '../components/BankTransferBox'
 import { useOrderPolling } from '../useOrderPolling'
 
 const ORange = '#F5A623'
@@ -139,13 +140,23 @@ export default function TicketDetails() {
           </div>
           <div style={{ fontSize: 17, fontWeight: 800, marginTop: 2 }}>{format(data?.summ ?? data?.price, currency)}</div>
         </div>
-        <div style={{ flex: 1, background: pi.remainder > 0 ? '#FFF5E6' : '#EAF7ED', borderRadius: 16, padding: '12px 14px' }}>
-          <div style={{ fontSize: 10.5, color: Gray, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>{pi.remainder > 0 ? 'Доплата' : 'Статус'}</div>
-          <div style={{ fontSize: 17, fontWeight: 800, marginTop: 2, color: pi.remainder > 0 ? '#B8860B' : '#2E7D32' }}>
-            {pi.remainder > 0 ? format(pi.remainder, currency) : 'Оплачено'}
-          </div>
+        <div style={{ flex: 1, background: '#EAF7ED', borderRadius: 16, padding: '12px 14px' }}>
+          <div style={{ fontSize: 10.5, color: Gray, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>Оплачено</div>
+          <div style={{ fontSize: 17, fontWeight: 800, marginTop: 2, color: '#2E7D32' }}>{format(pi.paid, currency)}</div>
         </div>
       </div>
+
+      {pi.remainder > 0 && (
+        <div style={{ margin: '10px 16px 0' }}>
+          <div style={{ background: '#FFF5E6', borderRadius: 16, padding: '12px 14px' }}>
+            <div style={{ fontSize: 10.5, color: Gray, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>Доплата</div>
+            <div style={{ fontSize: 17, fontWeight: 800, marginTop: 2, color: '#B8860B' }}>
+              {format(pi.remainder, currency)} — при посадці в автобус або на рахунок
+            </div>
+          </div>
+          <BankTransferBox oid={orderNo} amount={pi.remainder} currencyLabel={currency === 'EUR' ? '€' : 'грн'} />
+        </div>
+      )}
 
       {/* Попередження */}
       <div style={{ margin: '12px 16px 0', background: '#FFF9EF', borderRadius: 16, padding: 14, fontSize: 12, lineHeight: 1.6, color: '#7A5A16' }}>

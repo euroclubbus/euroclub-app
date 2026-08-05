@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react'
 import { useBookingStore, useSearchStore } from '../store'
 import { getCities, getRoutes, saveOrderLocally } from '../api/euroclub'
 import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, isCancelled, legInfo } from '../orderStatus'
+import BankTransferBox from '../components/BankTransferBox'
 import { ensureCitiesLoaded, getCityNameSync } from '../cityNames'
 import { useOrderRegistry } from '../orderRegistryRead'
 import { useOrderPolling } from '../useOrderPolling'
@@ -359,11 +360,21 @@ export default function OrderSuccess() {
           return (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 14 }}>
               <span style={{ fontSize: 13, fontWeight: 700, padding: '5px 14px', borderRadius: 20, background: st.bg, color: st.color }}>{st.text}</span>
+              {pi.paid > 0 && (
+                <span style={{ fontSize: 13, color: '#2E7D32', fontWeight: 600 }}>
+                  Оплачено: {format(pi.paid, currencyCode)}
+                </span>
+              )}
               {pi.ticketReady && pi.remainder > 0 && (
                 <span style={{ fontSize: 13, color: '#E07B00', fontWeight: 600, textAlign: 'center' }}>
-                  Доплата: {format(pi.remainder, currencyCode)}
+                  Доплата: {format(pi.remainder, currencyCode)} — при посадці в автобус або на рахунок
                   {latestSurcharge && <span style={{ display: 'block', fontSize: 12, fontWeight: 400, color: Gray }}>Причина: {latestSurcharge.reason}</span>}
                 </span>
+              )}
+              {pi.ticketReady && pi.remainder > 0 && (
+                <div style={{ width: '100%', maxWidth: 360, margin: '0 auto' }}>
+                  <BankTransferBox oid={displayOrder} amount={pi.remainder} currencyLabel={currencyCode === 'eur' ? '€' : 'грн'} />
+                </div>
               )}
             </div>
           )

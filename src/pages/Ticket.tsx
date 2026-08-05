@@ -3,6 +3,7 @@ import { useRef, useState, useEffect } from 'react'
 import { ArrowLeft, Download, ChevronRight, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
+import BankTransferBox from '../components/BankTransferBox'
 import { ticketAvailable, payInfo, needsPolling, keepOurPrice, passengerDisplayPrices, ensureRoundTripSync, legInfo } from '../orderStatus'
 import { useDisplayPrice } from '../currency'
 import { useOrderPolling } from '../useOrderPolling'
@@ -343,7 +344,36 @@ export default function Ticket() {
       <div className="no-print" style={{ padding: '24px 16px 16px', background: Navy }}>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>Ціна квитка</div>
         <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: 16 }}>{format(passengers[activeIdx]?.price || 0)} {currency}</div>
-        
+
+        {(() => {
+          const pi = payInfo(data)
+          if (pi.paid <= 0 && pi.remainder <= 0) return null
+          return (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', gap: 10, marginBottom: pi.remainder > 0 ? 10 : 0 }}>
+                <div style={{ flex: 1, background: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: '10px 12px' }}>
+                  <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase' }}>Оплачено</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, marginTop: 2, color: '#7CD992' }}>{format(pi.paid)} {currency}</div>
+                </div>
+                {pi.remainder > 0 && (
+                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase' }}>Доплата</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, marginTop: 2, color: '#F5C463' }}>{format(pi.remainder)} {currency}</div>
+                  </div>
+                )}
+              </div>
+              {pi.remainder > 0 && (
+                <>
+                  <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.75)', marginBottom: 8 }}>
+                    {format(pi.remainder)} {currency} — при посадці в автобус або на рахунок
+                  </div>
+                  <BankTransferBox oid={orderNo} amount={pi.remainder} currencyLabel={currency} />
+                </>
+              )}
+            </div>
+          )
+        })()}
+
         {ticketPdf && (
           <button onClick={() => window.open(ticketPdf)} style={{ width: '100%', padding: '12px', background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <Download size={18} /> Завантажити PDF

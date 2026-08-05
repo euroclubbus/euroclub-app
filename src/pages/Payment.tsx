@@ -4,6 +4,7 @@ import { ArrowLeft, ShieldCheck, Bus } from 'lucide-react'
 import { useBookingStore } from '../store'
 import { findUserOrder } from '../api/auth'
 import { payInfo, keepOurPrice, passengerDisplayPrices, formatSeat } from '../orderStatus'
+import BankTransferBox from '../components/BankTransferBox'
 import { useOrderPolling } from '../useOrderPolling'
 import { useDisplayPrice } from '../currency'
 import { useT } from '../i18n'
@@ -107,6 +108,37 @@ export default function Payment() {
   }
 
   if (!payUrl) {
+    // Немає жодного посилання на LiqPay/Stripe — це не завжди помилка: для замовлення,
+    // яке вже раз оплачене й потім отримало ДОПЛАТУ (менеджер підняв ціну/додав
+    // послугу), бекенд може не видавати нову платіжну сторінку взагалі. Якщо є
+    // залишок до сплати (needpay) — показуємо суму вже оплаченого й реквізити для
+    // доплати переказом, замість глухого "оплата недоступна".
+    const pi = payInfo(data)
+    const currency = String(data?.crc || 'uah').toUpperCase()
+    const orderNo = data?.oid || hash
+    if (pi.remainder > 0) {
+      return (
+        <div style={{ minHeight: '100vh', background: '#F5F5F5', padding: 24 }}>
+          <div style={{ background: '#fff', borderRadius: 20, padding: 22, maxWidth: 400, margin: '40px auto 0' }}>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+              <div style={{ flex: 1, background: '#EAF7ED', borderRadius: 16, padding: '12px 14px' }}>
+                <div style={{ fontSize: 10.5, color: Gray, fontWeight: 600, textTransform: 'uppercase' }}>Оплачено</div>
+                <div style={{ fontSize: 17, fontWeight: 800, marginTop: 2, color: '#2E7D32' }}>{format(pi.paid, currency)}</div>
+              </div>
+              <div style={{ flex: 1, background: '#FFF5E6', borderRadius: 16, padding: '12px 14px' }}>
+                <div style={{ fontSize: 10.5, color: Gray, fontWeight: 600, textTransform: 'uppercase' }}>Доплата</div>
+                <div style={{ fontSize: 17, fontWeight: 800, marginTop: 2, color: '#B8860B' }}>{format(pi.remainder, currency)}</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 13.5, color: Navy, textAlign: 'center', marginBottom: 4 }}>
+              {format(pi.remainder, currency)} — при посадці в автобус або на рахунок
+            </div>
+            <BankTransferBox oid={orderNo} amount={pi.remainder} currencyLabel={currency === 'EUR' ? '€' : 'грн'} />
+          </div>
+          <button onClick={() => nav(-1)} style={{ display: 'block', margin: '20px auto 0', padding: '12px 26px', background: 'none', border: 'none', color: Gray, fontWeight: 600, cursor: 'pointer' }}>{t('common.back')}</button>
+        </div>
+      )
+    }
     return (
       <div style={{ minHeight: '100vh', background: '#F5F5F5', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
         <div style={{ fontSize: 16, fontWeight: 700, color: '#E53935', marginBottom: 8 }}>{t('payment.unavailable')}</div>
