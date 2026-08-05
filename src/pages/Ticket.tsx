@@ -1,9 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import { useRef, useState, useEffect } from 'react'
-import { ArrowLeft, Download, ChevronRight, X } from 'lucide-react'
+import { ArrowLeft, Download, ChevronRight, X, CalendarCheck, AlertTriangle } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
-import BankTransferBox from '../components/BankTransferBox'
 import { ticketAvailable, payInfo, needsPolling, keepOurPrice, passengerDisplayPrices, ensureRoundTripSync, legInfo } from '../orderStatus'
 import { useDisplayPrice } from '../currency'
 import { useOrderPolling } from '../useOrderPolling'
@@ -11,6 +10,9 @@ import { findUserOrder } from '../api/auth'
 import { saveOrderLocally } from '../api/euroclub'
 import { ensureCitiesLoaded, getCityNameSync } from '../cityNames'
 import BottomNav from '../components/BottomNav'
+import BottomSheet from '../components/BottomSheet'
+import SimpleCalendar from '../components/SimpleCalendar'
+import { fetchOpenReturnMarker, markOpenReturnRequested, buildFixationMailto, OpenReturnMarker } from '../openReturn'
 
 const ORange = '#F5A623'
 const Navy = '#0B2E5E'
@@ -30,6 +32,25 @@ export default function Ticket() {
   // Дані з бекенду (пріоритет над store для свіжості)
   const [backendData, setBackendData] = useState<any>(null)
   const [loadingBackend, setLoadingBackend] = useState(true)
+
+  // "Відкрита дата повернення" — маркер існує лише якщо це замовлення бронювалось
+  // одностороннім через відкриту дату (Booking.tsx). null — звичайне замовлення.
+  const [openReturnMarker, setOpenReturnMarker] = useState<OpenReturnMarker | null>(null)
+  const [showFixSheet, setShowFixSheet] = useState(false)
+  const [pickedDateISO, setPickedDateISO] = useState<string>('')
+  useEffect(() => {
+    if (!hash) return
+    fetchOpenReturnMarker(hash).then(setOpenReturnMarker).catch(() => {})
+  }, [hash])
+  const todayISO = new Date().toISOString().split('T')[0]
+  const deadlinePassed = !!openReturnMarker && openReturnMarker.deadlineISO < todayISO
+  const handleConfirmFixation = () => {
+    if (!openReturnMarker || !pickedDateISO) return
+    window.location.href = buildFixationMailto(openReturnMarker, pickedDateISO)
+    markOpenReturnRequested(openReturnMarker.oid, pickedDateISO).catch(() => {})
+    setOpenReturnMarker({ ...openReturnMarker, requested: true, chosenDateISO: pickedDateISO })
+    setShowFixSheet(false)
+  }
   
   // Завантажуємо ПОВНІ дані з бекенду при вході на квиток
   useEffect(() => {
@@ -344,36 +365,7 @@ export default function Ticket() {
       <div className="no-print" style={{ padding: '24px 16px 16px', background: Navy }}>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>Ціна квитка</div>
         <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: 16 }}>{format(passengers[activeIdx]?.price || 0)} {currency}</div>
-
-        {(() => {
-          const pi = payInfo(data)
-          if (pi.paid <= 0 && pi.remainder <= 0) return null
-          return (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', gap: 10, marginBottom: pi.remainder > 0 ? 10 : 0 }}>
-                <div style={{ flex: 1, background: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: '10px 12px' }}>
-                  <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase' }}>Оплачено</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, marginTop: 2, color: '#7CD992' }}>{format(pi.paid)} {currency}</div>
-                </div>
-                {pi.remainder > 0 && (
-                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: '10px 12px' }}>
-                    <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase' }}>Доплата</div>
-                    <div style={{ fontSize: 16, fontWeight: 800, marginTop: 2, color: '#F5C463' }}>{format(pi.remainder)} {currency}</div>
-                  </div>
-                )}
-              </div>
-              {pi.remainder > 0 && (
-                <>
-                  <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.75)', marginBottom: 8 }}>
-                    {format(pi.remainder)} {currency} — при посадці в автобус або на рахунок
-                  </div>
-                  <BankTransferBox oid={orderNo} amount={pi.remainder} currencyLabel={currency} />
-                </>
-              )}
-            </div>
-          )
-        })()}
-
+        
         {ticketPdf && (
           <button onClick={() => window.open(ticketPdf)} style={{ width: '100%', padding: '12px', background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <Download size={18} /> Завантажити PDF
@@ -383,7 +375,49 @@ export default function Ticket() {
         <button onClick={() => setFullscreenOpen(true)} style={{ width: '100%', padding: '12px', background: '#fff', color: Navy, border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
           Відкрити електронний квиток
         </button>
+
+        {/* "Відкрита дата повернення" — кнопка фіксації, поки маркер існує, запит ще не
+            надіслано, дедлайн (180 днів від поїздки туди) не минув, і бекенд ще НЕ додав
+            зворотний рейс (isRoundTrip тут вище вже визначає це живими даними). */}
+        {openReturnMarker && !isRoundTrip && (
+          <div style={{ marginTop: 12 }}>
+            {!openReturnMarker.requested && !deadlinePassed && (
+              <button onClick={() => { setPickedDateISO(''); setShowFixSheet(true) }} style={{ width: '100%', padding: '12px', background: 'transparent', color: ORange, border: `1.5px solid ${ORange}`, borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <CalendarCheck size={17} /> Зафіксувати дату повернення
+              </button>
+            )}
+            {openReturnMarker.requested && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 12px', background: 'rgba(245,166,35,0.12)', borderRadius: 12, fontSize: 12.5, color: 'rgba(255,255,255,0.85)' }}>
+                <CalendarCheck size={15} color={ORange} style={{ flexShrink: 0, marginTop: 1 }} />
+                <span>Запит на фіксацію надіслано. Дата повернення з'явиться тут, щойно менеджер підтвердить.</span>
+              </div>
+            )}
+            {!openReturnMarker.requested && deadlinePassed && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 12px', background: 'rgba(229,57,53,0.12)', borderRadius: 12, fontSize: 12.5, color: 'rgba(255,255,255,0.85)' }}>
+                <AlertTriangle size={15} color="#E53935" style={{ flexShrink: 0, marginTop: 1 }} />
+                <span>Термін фіксації дати повернення (180 днів) минув.</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Вибір дати для фіксації зворотного квитка */}
+      {openReturnMarker && (
+        <BottomSheet open={showFixSheet} onClose={() => setShowFixSheet(false)} title="Дата повернення">
+          <div style={{ padding: '0 20px 12px' }}>
+            <SimpleCalendar
+              minDateISO={todayISO > openReturnMarker.firstTripDateISO ? todayISO : openReturnMarker.firstTripDateISO}
+              maxDateISO={openReturnMarker.deadlineISO}
+              valueISO={pickedDateISO}
+              onSelect={setPickedDateISO}
+            />
+            <button onClick={handleConfirmFixation} disabled={!pickedDateISO} style={{ width: '100%', marginTop: 16, padding: '14px 0', background: pickedDateISO ? ORange : '#EEE', border: 'none', borderRadius: 12, color: pickedDateISO ? '#fff' : '#AAA', fontWeight: 700, fontSize: 15, cursor: pickedDateISO ? 'pointer' : 'default' }}>
+              Зафіксувати
+            </button>
+          </div>
+        </BottomSheet>
+      )}
 
       {/* Повноекранний перегляд квитка — відкривається кнопкою вище */}
       {fullscreenOpen && (
