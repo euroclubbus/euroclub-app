@@ -19,7 +19,9 @@ export default function Payment() {
   const t = useT()
   const { orderData, orderHash, setOrderResult } = useBookingStore()
   const data = orderData as any
-  const payUrl = data?.link_liqpay || data?.link_stripe || (isIOS ? data?.link2 : data?.link1) || ''
+  const payUrlUah = data?.link_liqpay || (isIOS ? data?.link2 : data?.link1) || ''
+  const payUrlEur = data?.link_stripe || ''
+  const payUrl = payUrlUah || payUrlEur
   const hash = orderHash || data?.hash || ''
   const { format } = useDisplayPrice()
   const rawPax = data?.passengers?.length ? data.passengers : data?.passangers
@@ -32,9 +34,9 @@ export default function Payment() {
   // НЕ у внутрішньому WebView застосунку. Apple (Guideline 5.1.2(i), ATT) трактує вебвміст,
   // відкритий у власному in-app browser, як "контент застосунку" — якщо там є cookies,
   // потрібен запит ATT-дозволу. Системний браузер такою вимогою не покривається.
-  const openPay = () => {
-    if (!payUrl) return
-    openInternalBrowser(payUrl)
+  const openPay = (url: string) => {
+    if (!url) return
+    openInternalBrowser(url)
   }
 
   const closeBrowser = () => { closeInternalBrowser() }
@@ -42,13 +44,10 @@ export default function Payment() {
   const goSuccess = () => { if (doneRef.current) return; doneRef.current = true; closeBrowser(); nav('/order-success') }
 
   const [waited, setWaited] = useState(false)
-  const openedRef = useRef(false)
 
-  // Автовідкриття при заході на екран оплати (і повторно, якщо посилання підвантажилось пізніше)
-  useEffect(() => {
-    if (payUrl && !openedRef.current) { openedRef.current = true; openPay() }
-    // eslint-disable-next-line
-  }, [payUrl])
+  // Раніше тут було автовідкриття однієї з посилань одразу при заході на екран —
+  // прибрано, бо тепер є ДВА способи оплати (LiqPay/грн і Stripe/євро) і користувач
+  // сам обирає, натискаючи відповідну кнопку нижче.
 
   useEffect(() => {
     const t = setTimeout(() => { if (!doneRef.current) { closeBrowser(); nav('/booking') } }, 5 * 60 * 1000)
@@ -156,9 +155,14 @@ export default function Payment() {
           <div style={{ fontSize: 14, color: Gray, lineHeight: 1.5, marginBottom: 20 }}>
             {t('payment.instructions')}
           </div>
-          <button onClick={openPay} style={{ width: '100%', padding: 15, background: ORange, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: 12 }}>
-            {t('payment.open')}
+          <button onClick={() => openPay(payUrlUah)} disabled={!payUrlUah} style={{ width: '100%', padding: 15, background: payUrlUah ? ORange : '#EEE', color: payUrlUah ? '#fff' : Gray, border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: payUrlUah ? 'pointer' : 'default', marginBottom: 8 }}>
+            {t('payment.payUah')}
           </button>
+          <div style={{ fontSize: 12, color: Gray, marginBottom: 16 }}>{t('payment.payUahHint')}</div>
+          <button onClick={() => openPay(payUrlEur)} disabled={!payUrlEur} style={{ width: '100%', padding: 15, background: 'none', border: `2px solid ${payUrlEur ? Navy : '#EEE'}`, color: payUrlEur ? Navy : Gray, borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: payUrlEur ? 'pointer' : 'default', marginBottom: 8 }}>
+            {t('payment.payEur')}
+          </button>
+          <div style={{ fontSize: 12, color: Gray, marginBottom: 16 }}>{t('payment.payEurHint')}</div>
           <button onClick={checkPaid} disabled={checking} style={{ width: '100%', padding: 13, background: 'none', border: `2px solid ${ORange}`, color: ORange, borderRadius: 14, fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
             {checking ? t('payment.checking') : t('payment.iPaid')}
           </button>
