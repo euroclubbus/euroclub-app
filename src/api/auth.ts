@@ -1,9 +1,16 @@
 // Авторизація йде на eclub.com.ua/input.php через проксі Worker (/input), щоб не було CORS.
 const WORKER = 'https://curly-voice-8a71.eclubbus21.workers.dev'
 
+// app=1 для Android/web, app=2 для iOS — бекенд розрізняє платформу саме за цим полем
+// (домовлено з розробником бекенду 04.08). iOS-застосунок ЗАВЖДИ app=2, незалежно від
+// того, PWA це чи нативний білд — визначаємо через navigator.userAgent (простіше й
+// надійніше за Capacitor.getPlatform(), бо ця функція викликається і поза React-деревом,
+// де синхронний імпорт @capacitor/core в усіх контекстах гарантувати важче).
+const APP_PLATFORM: '1' | '2' = /iphone|ipad|ipod/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : '') ? '2' : '1'
+
 async function inputPost(fields: Record<string, string>) {
   const body = new URLSearchParams({
-    work: 'work', app: '1', lng: 'uk', uidkey: '0', ...fields,
+    work: 'work', app: APP_PLATFORM, lng: 'uk', uidkey: '0', ...fields,
   }).toString()
   console.log('[EuroClub AUTH] →', fields.opr, fields.email || '')
   const res = await fetch(`${WORKER}/input`, {
@@ -96,7 +103,7 @@ export async function createOrderNew(
 ) {
   const body = new URLSearchParams()
   body.set('work', 'work')
-  body.set('app', '1')
+  body.set('app', APP_PLATFORM)
   body.set('lng', 'uk')
   body.set('uidkey', currentUidKey())
   body.set('mod', 'apimobile')
