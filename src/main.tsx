@@ -19,6 +19,8 @@ import MyTickets from './pages/MyTickets'
 import Profile from './pages/Profile'
 import Notifications from './pages/Notifications'
 import Auth from './pages/Auth'
+import Welcome from './pages/Welcome'
+import { useT } from './i18n'
 import Splash from './pages/Splash'
 import Fleet from './pages/Fleet'
 import RoutesPage from './pages/Routes'
@@ -36,10 +38,12 @@ import ForceUpdateScreen from './components/ForceUpdateScreen'
 
 // Guideline 5.1.1(v) Apple: логін вимагається лише для account-based функцій
 // (бронювання, оплата, квитки, профіль, сповіщення). Пошук/перегляд маршрутів —
-// публічно, без входу.
+// публічно, без входу. Коли не залогінений користувач намагається перейти на таку
+// сторінку — пояснюємо чому (message), а не просто мовчки показуємо форму логіну.
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const user = useAuthStore(s => s.user)
-  if (!user) return <Auth />
+  const t = useT()
+  if (!user) return <Auth message={t('auth.continueMessage')} />
   return <>{children}</>
 }
 
@@ -93,10 +97,29 @@ function PushTokenSync() {
   return null
 }
 
+const WELCOME_SEEN_KEY = 'eclub_welcome_seen'
+
 function Root() {
   const [splashDone, setSplashDone] = useState(false)
   const forceUpdate = useForceUpdate()
+  const user = useAuthStore(s => s.user)
+  const t = useT()
+  // Екран вибору "Зареєструватися" / "Продовжити без реєстрації" — показуємо один раз
+  // на пристрої, тільки якщо ще не залогінені. Якщо вже є сесія (напр. після
+  // перевстановлення з тим самим локальним сховищем чи повторного відкриття) —
+  // пропускаємо одразу.
+  const [welcomeStep, setWelcomeStep] = useState<'welcome' | 'auth' | 'done'>(() => {
+    if (user) return 'done'
+    try { return localStorage.getItem(WELCOME_SEEN_KEY) === '1' ? 'done' : 'welcome' } catch { return 'done' }
+  })
+  const dismissWelcome = () => {
+    try { localStorage.setItem(WELCOME_SEEN_KEY, '1') } catch {}
+    setWelcomeStep('done')
+  }
+
   if (!splashDone) return <Splash onDone={() => setSplashDone(true)} />
+  if (welcomeStep === 'welcome') return <Welcome onRegister={() => setWelcomeStep('auth')} onGuest={dismissWelcome} />
+  if (welcomeStep === 'auth') return <Auth initialMode="register" onAuthed={dismissWelcome} message={t('welcome.subtitle')} />
   if (forceUpdate.blocked) return <ForceUpdateScreen storeUrl={forceUpdate.storeUrl} />
   return (
     <BrowserRouter>

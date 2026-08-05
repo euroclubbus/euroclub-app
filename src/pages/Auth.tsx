@@ -9,10 +9,10 @@ const Gray = '#9E9E9E'
 
 type Mode = 'login' | 'register' | 'forgot'
 
-export default function Auth({ onAuthed }: { onAuthed?: () => void }) {
+export default function Auth({ onAuthed, message, initialMode = 'login' }: { onAuthed?: () => void; message?: string; initialMode?: Mode }) {
   const t = useT()
   const { setUser } = useAuthStore()
-  const [mode, setMode] = useState<Mode>('login')
+  const [mode, setMode] = useState<Mode>(initialMode)
   const [step, setStep] = useState(1) // для forgot
   const [email, setEmail] = useState('')
   const [pass, setPass] = useState('')
@@ -94,11 +94,17 @@ export default function Auth({ onAuthed }: { onAuthed?: () => void }) {
     <div style={{ minHeight: '100vh', background: '#fff', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '24px 20px' }}>
       <img src="/app-icon.png" alt="EuroClub" style={{ width: 76, height: 76, borderRadius: 18, display: 'block', margin: '0 auto 14px' }} />
       <div style={{ fontSize: 28, fontWeight: 900, textAlign: 'center', marginBottom: 4 }}>Euro<span style={{ color: ORange }}>Club</span></div>
-      <div style={{ textAlign: 'center', color: Gray, fontSize: 14, marginBottom: 28 }}>
+      <div style={{ textAlign: 'center', color: Gray, fontSize: 14, marginBottom: message ? 14 : 28 }}>
         {mode === 'login' && t('auth.loginTitle')}
         {mode === 'register' && t('auth.registerTitle')}
         {mode === 'forgot' && t('auth.forgotTitle')}
       </div>
+
+      {message && (
+        <div style={{ maxWidth: 400, width: '100%', margin: '0 auto 20px', background: '#FFF4E5', color: '#8A5A00', fontSize: 14, lineHeight: 1.5, padding: '14px 16px', borderRadius: 12, textAlign: 'center' }}>
+          {message}
+        </div>
+      )}
 
       <div style={{ maxWidth: 400, width: '100%', margin: '0 auto' }}>
         {ok && <div style={{ background: '#E8F5E9', color: '#2E7D32', fontSize: 13, padding: '10px 14px', borderRadius: 10, marginBottom: 12 }}>{ok}</div>}
