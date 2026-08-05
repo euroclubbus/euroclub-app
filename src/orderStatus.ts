@@ -63,7 +63,18 @@ export function payInfo(o: any): PayInfo {
   const ratio = summ > 0 ? paid / summ : 0
   const serverRemainder = needPayAmount(o)
   const remainder = serverRemainder != null ? Math.max(0, serverRemainder) : Math.max(0, +(summ - paid).toFixed(2))
-  return { summ, paid, ratio, remainder, ticketReady: summ > 0 && ratio >= THRESHOLD, fullyPaid: summ > 0 && paid + 0.01 >= summ, sign: currencySign(o) }
+  // fullyPaid — напряму з needpay (0 = повністю оплачено), а не з paid/summ: paid_uah/eur
+  // може бути ВІД'ЄМНИМ, коли менеджер додає доплату на бекенді (реальна, підтверджена
+  // поведінка, не тестовий артефакт) — ratio в такому разі йде в глибокий мінус.
+  // ticketReady — коли є реальний числовий status із бекенду (user-orders), довіряємо йому
+  // напряму: 2/3 = оплачено достатньо для квитка (той самий підхід, що вже застосований в
+  // isCancelled/isCompleted). status з'являється лише ПІСЛЯ першого підтвердження з бекенду —
+  // для щойно створеного замовлення (перші секунди після бронювання, до першого опитування)
+  // status ще відсутній, і тоді лишаємо стару ratio-формулу (70%) як тимчасовий заступник.
+  const status = o?.status != null ? Number(o.status) : null
+  const fullyPaid = serverRemainder != null ? remainder <= 0 : (summ > 0 && paid + 0.01 >= summ)
+  const ticketReady = status != null ? (status === 2 || status === 3) : (summ > 0 && ratio >= THRESHOLD)
+  return { summ, paid, ratio, remainder, ticketReady, fullyPaid, sign: currencySign(o) }
 }
 
 // Зливаємо свіжу відповідь order_info з уже відомим замовленням, АЛЕ навмисно не даємо
