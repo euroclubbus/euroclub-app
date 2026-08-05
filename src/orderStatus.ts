@@ -57,6 +57,21 @@ function needPayAmount(o: any): number | null {
 
 export interface PayInfo { summ: number; paid: number; ratio: number; remainder: number; ticketReady: boolean; fullyPaid: boolean; sign: string }
 
+export interface SurchargeInfo { active: boolean; paidLabel: number; needpay: number; sign: string }
+
+// Пряма, буквальна логіка доплати (без ticketReady/status/ratio) — за точною специфікацією:
+// якщо paid_uah від'ємний і summ > 0, то needpay_uah — це сума доплати. Показуємо БЕЗУМОВНО,
+// незалежно від того, що вважає payInfo() про готовність квитка чи повну оплату.
+export function surchargeInfo(o: any): SurchargeInfo {
+  const cur = String(o?.crc || 'uah').toLowerCase()
+  const summ = num(o?.summ ?? o?.price)
+  const paid = cur === 'eur' ? num(o?.paid_eur ?? o?.pay_eur) : num(o?.paid_uah ?? o?.pay_uah)
+  const needpayRaw = cur === 'eur' ? o?.needpay_eur : o?.needpay_uah
+  const needpay = num(needpayRaw)
+  const active = paid < 0 && summ > 0 && needpay > 0
+  return { active, paidLabel: summ, needpay, sign: currencySign(o) }
+}
+
 export function payInfo(o: any): PayInfo {
   const summ = num(o?.summ ?? o?.price)
   const paid = paidAmount(o)
