@@ -379,12 +379,16 @@ export default function Results() {
   const { from, to, dateFrom, dateTo, isOpenReturn, passengerCategories, setDateFrom, setDateTo, setOpenReturn } = useSearchStore()
   const { setTrip, setTrip2 } = useBookingStore()
 
-  const isRoundTrip = !!dateTo || isOpenReturn
-  // Для відкритої дати повернення точної дати нема — беремо +7 днів від виїзду як орієнтир,
-  // далі так само підбираємо найближчу доступну, якщо на цю дату нічого нема.
-  const returnDateISO = isRoundTrip
-    ? (dateTo || (() => { const d = new Date(dateFrom || new Date()); d.setDate(d.getDate() + 7); return d.toISOString().split('T')[0] })())
-    : undefined
+  // ВАЖЛИВО: "Відкрита дата повернення" НЕ означає "підібрати якийсь зворотний рейс
+  // автоматично" — backend (createOrderNew/neworder) не має поняття "round trip з
+  // невизначеною датою назад", тому раніше код підставляв фейкову дату (+7 днів) і тихо
+  // бронював користувача на конкретний зворотний рейс, який той ніколи не обирав. Тепер:
+  // isRoundTrip (пошук/показ/бронювання зворотної ноги) керується ВИКЛЮЧНО конкретною
+  // датою dateTo. isOpenReturn лише показує інформаційну нотатку — фактичний бекенд-заказ
+  // буде односторонній (in), зворотний квиток користувач купує окремо пізніше, коли
+  // визначиться з датою.
+  const isRoundTrip = !!dateTo
+  const returnDateISO = isRoundTrip ? dateTo : undefined
 
   const outLeg = useLegSearch(from?.id, to?.id, dateFrom, true)
   const retLeg = useLegSearch(to?.id, from?.id, returnDateISO, isRoundTrip)
@@ -439,7 +443,7 @@ export default function Results() {
               <div style={{ width: 6, height: 6, borderRadius: '50%', border: '1.5px solid #fff', flexShrink: 0 }} />
               <div style={{ flex: 1, borderTop: '1.5px dashed rgba(255,255,255,0.6)' }} />
               <Bus size={18} color="#fff" />
-              {isRoundTrip && <span style={{ fontSize: 11, opacity: 0.85 }}>⇄</span>}
+              {(isRoundTrip || isOpenReturn) && <span style={{ fontSize: 11, opacity: 0.85 }}>⇄</span>}
               <div style={{ flex: 1, borderTop: '1.5px dashed rgba(255,255,255,0.6)' }} />
               <div style={{ width: 6, height: 6, borderRadius: '50%', border: '1.5px solid #fff', flexShrink: 0 }} />
             </div>
@@ -481,6 +485,19 @@ export default function Results() {
               <>
                 <TripCard trip={outTrip} cats={passengerCategories} hideBookButton />
                 {isRoundTrip && retTrip && <TripCard trip={retTrip} cats={passengerCategories} hideBookButton />}
+
+                {/* "Відкрита дата повернення" без обраної dateTo — бекенд не підтримує
+                    round-trip з невизначеною датою назад, тому зараз заброниться лише
+                    квиток "туди". Пояснюємо це прямо тут, щоб не було сюрпризу на оплаті. */}
+                {isOpenReturn && !isRoundTrip && (
+                  <div style={{ background: '#FFF3DC', border: `1px solid ${ORange}`, borderRadius: 16, padding: 14, marginBottom: 14, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <AlertTriangle size={16} color={ORange} style={{ flexShrink: 0, marginTop: 1 }} />
+                    <div style={{ fontSize: 13, color: '#7A5A00', lineHeight: 1.4 }}>
+                      Зараз бронюється лише квиток «туди». Дата повернення відкрита — зворотний
+                      квиток можна буде придбати окремо, коли ви визначитесь з датою.
+                    </div>
+                  </div>
+                )}
 
                 <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
