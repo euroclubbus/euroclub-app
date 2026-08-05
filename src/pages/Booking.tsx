@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Pencil, X, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Pencil, X, Plus, Trash2, AlertTriangle } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { useAuthStore } from '../authStore'
 import { saveOrderLocally } from '../api/euroclub'
@@ -357,6 +357,18 @@ export default function Booking() {
       </div>
 
       <div style={{ background: '#F5F5F5', minHeight: 'calc(100vh - 60px)', padding: '16px 16px 40px' }}>
+        {/* Користувач обирав "Відкрита дата повернення" на пошуку — бекенд не підтримує
+            round-trip з невизначеною датою назад, тому це бронювання ОДНОСТОРОННЄ (лише
+            "туди"). Нагадуємо тут ще раз, перед оплатою, щоб не було сюрпризу. */}
+        {isOpenReturn && !isRoundTrip && (
+          <div style={{ background: '#FFF3DC', border: `1px solid ${ORange}`, borderRadius: 16, padding: 14, marginBottom: 12, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <AlertTriangle size={16} color={ORange} style={{ flexShrink: 0, marginTop: 1 }} />
+            <div style={{ fontSize: 13, color: '#7A5A00', lineHeight: 1.4 }}>
+              Бронюється лише квиток «туди». Зворотний квиток з відкритою датою можна буде
+              придбати окремо, коли ви визначитесь з датою повернення.
+            </div>
+          </div>
+        )}
         {/* Passengers */}
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12 }}>
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 14 }}>Пасажири</div>
