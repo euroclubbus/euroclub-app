@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useBookingStore, useSearchStore } from '../store'
 import { getCities, getRoutes, saveOrderLocally } from '../api/euroclub'
-import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, isCancelled, legInfo } from '../orderStatus'
-import BankTransferBox from '../components/BankTransferBox'
+import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, isCancelled, legInfo, hasFixedReturnLeg } from '../orderStatus'
 import { ensureCitiesLoaded, getCityNameSync } from '../cityNames'
 import { useOrderRegistry } from '../orderRegistryRead'
 import { useOrderPolling } from '../useOrderPolling'
@@ -68,10 +67,13 @@ export default function OrderSuccess() {
   const data = orderData as any
   // ВАЖЛИВО: from2/to2 НЕ надійний індикатор round-trip — бекенд заповнює їх дзеркально
   // навіть для одностороннього замовлення (підтверджено реальним прикладом: from2:1,to2:4
-  // при route2:0, date2:"", departures2:[]). Надійна ознака — route2 і date2 і довжина
-  // departures2. data?.roundTrip — наш локальний прапорець, trip2 — тимчасовий стан пошуку;
-  // обидва губляться на іншому пристрої/після рефрешу, лишаємо як додатковий fallback.
-  const isRoundTrip = Boolean(data?.route2) || Boolean(data?.date2) || Boolean(legInfo(data?.departures2)) || !!(data?.roundTrip || trip2)
+  // при route2:0, date2:"", departures2:[]). hasFixedReturnLeg() — надійна перевірка (і
+  // коректно виключає route2:"-1", маркер round-trip з відкритою датою, де реального
+  // другого рейсу ще нема). trip2 (тимчасовий стан пошуку) — fallback лише для щойно
+  // створеного замовлення з РЕАЛЬНОЮ обраною датою назад, поки бекенд ще не встиг віддати
+  // route2/date2 у відповіді; для відкритої дати trip2 завжди null, тому fallback її не
+  // зачіпає.
+  const isRoundTrip = hasFixedReturnLeg(data) || !!trip2
   const dep2 = trip2?.departure?.[0]
   const arr2 = trip2?.arrival?.[0]
   // Реальні поля бекенду: departures2/arrivals2 (з "2"!), кожен запис несе власну дату —
@@ -360,21 +362,11 @@ export default function OrderSuccess() {
           return (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 14 }}>
               <span style={{ fontSize: 13, fontWeight: 700, padding: '5px 14px', borderRadius: 20, background: st.bg, color: st.color }}>{st.text}</span>
-              {pi.paid > 0 && (
-                <span style={{ fontSize: 13, color: '#2E7D32', fontWeight: 600 }}>
-                  Оплачено: {format(pi.paid, currencyCode)}
-                </span>
-              )}
               {pi.ticketReady && pi.remainder > 0 && (
                 <span style={{ fontSize: 13, color: '#E07B00', fontWeight: 600, textAlign: 'center' }}>
-                  Доплата: {format(pi.remainder, currencyCode)} — при посадці в автобус або на рахунок
+                  Доплата: {format(pi.remainder, currencyCode)}
                   {latestSurcharge && <span style={{ display: 'block', fontSize: 12, fontWeight: 400, color: Gray }}>Причина: {latestSurcharge.reason}</span>}
                 </span>
-              )}
-              {pi.ticketReady && pi.remainder > 0 && (
-                <div style={{ width: '100%', maxWidth: 360, margin: '0 auto' }}>
-                  <BankTransferBox oid={displayOrder} amount={pi.remainder} currencyLabel={currencyCode === 'eur' ? '€' : 'грн'} />
-                </div>
               )}
             </div>
           )
