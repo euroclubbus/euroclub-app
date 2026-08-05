@@ -377,47 +377,48 @@ export default function Results() {
   const nav = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const { from, to, dateFrom, dateTo, isOpenReturn, passengerCategories, setDateFrom, setDateTo, setOpenReturn } = useSearchStore()
-  const { setTrip, setTrip2 } = useBookingStore()
+  const { setTrip, setTrip2, setOpenReturnPending } = useBookingStore()
 
-  // ВАЖЛИВО: "Відкрита дата повернення" НЕ означає "підібрати якийсь зворотний рейс
-  // автоматично" — backend (createOrderNew/neworder) не має поняття "round trip з
-  // невизначеною датою назад", тому раніше код підставляв фейкову дату (+7 днів) і тихо
-  // бронював користувача на конкретний зворотний рейс, який той ніколи не обирав. Тепер:
-  // isRoundTrip (пошук/показ/бронювання зворотної ноги) керується ВИКЛЮЧНО конкретною
-  // датою dateTo. isOpenReturn лише показує інформаційну нотатку — фактичний бекенд-заказ
-  // буде односторонній (in), зворотний квиток користувач купує окремо пізніше, коли
-  // визначиться з датою.
-  const isRoundTrip = !!dateTo
-  const returnDateISO = isRoundTrip ? dateTo : undefined
+  // "Відкрита дата повернення" (Кеп, 05.08): бекенд ВСЕ Ж підтримує такий тип замовлення —
+  // передається route2=-1 (див. Booking.tsx), і рахується/оплачується як round-trip. Тому
+  // ціна (twoWay) рахується для isOpenReturn так само, як для конкретної dateTo. Єдине, що
+  // НЕ робимо для відкритої дати — не шукаємо/не показуємо/не бронюємо КОНКРЕТНИЙ зворотний
+  // рейс (hasFixedReturn нижче, окремо від "хоче round-trip ціну/оплату").
+  const hasFixedReturn = !!dateTo
+  const wantsTwoWay = hasFixedReturn || isOpenReturn
+  const returnDateISO = hasFixedReturn ? dateTo : undefined
 
   const outLeg = useLegSearch(from?.id, to?.id, dateFrom, true)
-  const retLeg = useLegSearch(to?.id, from?.id, returnDateISO, isRoundTrip)
+  const retLeg = useLegSearch(to?.id, from?.id, returnDateISO, hasFixedReturn)
 
   const outTrip = legResolvedTrip(outLeg)
-  const retTrip = isRoundTrip ? legResolvedTrip(retLeg) : null
+  const retTrip = hasFixedReturn ? legResolvedTrip(retLeg) : null
 
   const outBlocked = legBlocked(outLeg)
-  const retBlocked = isRoundTrip && legBlocked(retLeg)
+  const retBlocked = hasFixedReturn && legBlocked(retLeg)
   const outNeedsConfirm = legNeedsConfirm(outLeg)
-  const retNeedsConfirm = isRoundTrip && legNeedsConfirm(retLeg)
+  const retNeedsConfirm = hasFixedReturn && legNeedsConfirm(retLeg)
 
-  const anyLoading = outLeg.loading || (isRoundTrip && retLeg.loading)
+  const anyLoading = outLeg.loading || (hasFixedReturn && retLeg.loading)
   const anyError = outLeg.error || retLeg.error
-  const ready = !!outTrip && (!isRoundTrip || !!retTrip)
+  const ready = !!outTrip && (!hasFixedReturn || !!retTrip)
 
   // Напрямок для підбору шаблону ціни: відправлення з України -> UAH, з Європи -> EUR
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
-  const twoWay = (isRoundTrip && ready && from && to)
+  const twoWay = (wantsTwoWay && ready && from && to)
     ? findTwoWayGroupPrice(perPassengerOneWayPrices(outTrip, passengerCategories), fullFareOneWayPrice(outTrip), from.id, to.id, direction)
     : null
 
   const handleSelect = () => {
     if (!outTrip) return
     setTrip(outTrip)
-    if (isRoundTrip) {
+    if (hasFixedReturn) {
       if (!retTrip) return
       setTrip2(retTrip)
+    } else {
+      setTrip2(null) // прибираємо стару обрану дату назад, якщо юзер повернувся й переключився на відкриту
     }
+    setOpenReturnPending(isOpenReturn && !hasFixedReturn)
     nav('/booking')
   }
 
@@ -443,7 +444,7 @@ export default function Results() {
               <div style={{ width: 6, height: 6, borderRadius: '50%', border: '1.5px solid #fff', flexShrink: 0 }} />
               <div style={{ flex: 1, borderTop: '1.5px dashed rgba(255,255,255,0.6)' }} />
               <Bus size={18} color="#fff" />
-              {(isRoundTrip || isOpenReturn) && <span style={{ fontSize: 11, opacity: 0.85 }}>⇄</span>}
+              {wantsTwoWay && <span style={{ fontSize: 11, opacity: 0.85 }}>⇄</span>}
               <div style={{ flex: 1, borderTop: '1.5px dashed rgba(255,255,255,0.6)' }} />
               <div style={{ width: 6, height: 6, borderRadius: '50%', border: '1.5px solid #fff', flexShrink: 0 }} />
             </div>
@@ -484,24 +485,25 @@ export default function Results() {
             {ready && outTrip && (
               <>
                 <TripCard trip={outTrip} cats={passengerCategories} hideBookButton />
-                {isRoundTrip && retTrip && <TripCard trip={retTrip} cats={passengerCategories} hideBookButton />}
+                {hasFixedReturn && retTrip && <TripCard trip={retTrip} cats={passengerCategories} hideBookButton />}
 
-                {/* "Відкрита дата повернення" без обраної dateTo — бекенд не підтримує
-                    round-trip з невизначеною датою назад, тому зараз заброниться лише
-                    квиток "туди". Пояснюємо це прямо тут, щоб не було сюрпризу на оплаті. */}
-                {isOpenReturn && !isRoundTrip && (
+                {/* "Відкрита дата повернення" без обраної dateTo — бекенд ПІДТРИМУЄ такий
+                    round-trip (route2=-1, ціна/оплата рахуються як за два боки), просто
+                    конкретного зворотного рейсу поки нема — його фіксують пізніше на
+                    екрані вже оплаченого квитка. */}
+                {isOpenReturn && !hasFixedReturn && (
                   <div style={{ background: '#FFF3DC', border: `1px solid ${ORange}`, borderRadius: 16, padding: 14, marginBottom: 14, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                     <AlertTriangle size={16} color={ORange} style={{ flexShrink: 0, marginTop: 1 }} />
                     <div style={{ fontSize: 13, color: '#7A5A00', lineHeight: 1.4 }}>
-                      Зараз бронюється лише квиток «туди». Дата повернення відкрита — зворотний
-                      квиток можна буде придбати окремо, коли ви визначитесь з датою.
+                      Ціна вже враховує поїздку в два боки. Конкретну дату повернення ви
+                      зафіксуєте пізніше — на екрані свого квитка.
                     </div>
                   </div>
                 )}
 
                 <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                    <span style={{ fontSize: 14, color: Gray }}>{isRoundTrip ? 'Разом за поїздку в два боки' : 'Разом за поїздку'}</span>
+                    <span style={{ fontSize: 14, color: Gray }}>{wantsTwoWay ? 'Разом за поїздку в два боки' : 'Разом за поїздку'}</span>
                     <CurrencyToggle />
                   </div>
                   <TotalPrice trip={outTrip} twoWayTotal={twoWay?.total ?? null} cats={passengerCategories} />
