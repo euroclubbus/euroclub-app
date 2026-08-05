@@ -13,6 +13,7 @@ import { validatePromo, redeemPromo } from '../game/gameApi'
 import { applyPromoCode, createOrderNew, NewOrderPassenger, findUserOrder } from '../api/auth'
 import { reportTrip } from '../reporting'
 import { writeOrderRegistry } from '../orderRegistry'
+import { saveOpenReturnMarker } from '../openReturn'
 import BottomSheet from '../components/BottomSheet'
 import CurrencyToggle from '../components/CurrencyToggle'
 import { useT } from '../i18n'
@@ -245,6 +246,18 @@ export default function Booking() {
         saveOrderLocally(oid, order)
         setOrderResult(oid, order)
         nav('/order-success')
+
+        // "Відкрита дата повернення" на пошуку, але фактично заброньовано лише "туди"
+        // (isRoundTrip тут false, бо trip2 не було) — зберігаємо маркер, щоб на екрані
+        // квитка з'явилась кнопка "Зафіксувати дату повернення". Фонова дія, не блокує.
+        if (isOpenReturn && !isRoundTrip) {
+          saveOpenReturnMarker({
+            oid,
+            passengers: localPassangers.map(p => p.name).filter(Boolean),
+            contactEmail: contactEmail.trim(),
+            firstTripDateISO: dateFrom,
+          }).catch(() => {})
+        }
 
         // Фонові дії — не блокують перехід на екран успіху.
         // Ціну лишаємо нашою (keepOurPrice), АЛЕ тільки доки нема реальної оплати — щойно
