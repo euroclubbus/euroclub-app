@@ -3,7 +3,7 @@ import { useRef, useState, useEffect } from 'react'
 import { ArrowLeft, Download, ChevronRight, X, CalendarCheck, AlertTriangle } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
-import { ticketAvailable, payInfo, needsPolling, keepOurPrice, passengerDisplayPrices, ensureRoundTripSync, legInfo } from '../orderStatus'
+import { ticketAvailable, payInfo, needsPolling, keepOurPrice, passengerDisplayPrices, ensureRoundTripSync, legInfo, hasFixedReturnLeg } from '../orderStatus'
 import { useDisplayPrice } from '../currency'
 import { useOrderPolling } from '../useOrderPolling'
 import { findUserOrder } from '../api/auth'
@@ -196,8 +196,9 @@ export default function Ticket() {
 
   const ticketPdf: string = data?.ticket_pdf || ''
   // Round-trip визначаємо НЕ по from2/to2 (вони заповнені навіть для одностороннього —
-  // дзеркальні id міст) а по route2/date2/departures2: якщо їх нема — зворотної поїздки нема.
-  const isRoundTrip = Boolean(data?.route2) || Boolean(data?.date2) || Boolean(legInfo(data?.departures2))
+  // дзеркальні id міст), а по route2/date2/departures2 — АЛЕ route2:"-1" означає "round-trip
+  // з відкритою датою, зворотний рейс ще не зафіксовано" (hasFixedReturnLeg це враховує).
+  const isRoundTrip = hasFixedReturnLeg(data)
   const hasMultiple = passengers.length > 1
 
   const handleScroll = () => {
