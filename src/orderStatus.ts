@@ -26,6 +26,18 @@ export function legInfo(v: any): any {
   return Array.isArray(v) ? v[0] : v
 }
 
+// Round-trip з "Відкритою датою повернення" передається на бекенд як route2=-1 (див.
+// Booking.tsx) — сам бекенд рахує ціну/оплату як за round-trip, але КОНКРЕТНОГО зворотного
+// рейсу ще нема (менеджер фіксує його вручну пізніше). Тому "route2 присутній" НЕ означає
+// "є другий рейс" — user-orders може повернути route2:"-1" з порожніми date2/departures2.
+// Використовувати ЦЮ функцію всюди, де раніше перевіряли Boolean(data?.route2) напряму.
+export function hasFixedReturnLeg(o: any): boolean {
+  const route2 = o?.route2
+  const isPendingMarker = route2 != null && String(route2) === '-1'
+  if (isPendingMarker) return false
+  return Boolean(route2) || Boolean(o?.date2) || Boolean(legInfo(o?.departures2))
+}
+
 export function currencySign(o: any): string {
   return String(o?.crc || 'uah').toLowerCase() === 'eur' ? '€' : '₴'
 }
