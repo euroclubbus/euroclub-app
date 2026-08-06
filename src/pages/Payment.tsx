@@ -60,7 +60,9 @@ export default function Payment() {
   // Опитування order_info — доки нема посилання (могло ще не підвантажитись у фоні після
   // бронювання) АБО оплата ще не підтверджена. Раніше умова вимагала payUrl вже готовим —
   // тобто якщо посилання ще не підвантажилось, опитування взагалі не стартувало (глухий кут).
-  useOrderPolling(hash, !doneRef.current, (o) => {
+  // ВИМКНЕНО, коли активна доплата (paid_uah від'ємний): живе опитування підміняло правильну
+  // суму до сплати на needpay_uah з наступного циклу, що вело до неправильної ціни на екрані.
+  useOrderPolling(hash, !doneRef.current && !surchargeInfo(data).active, (o) => {
     const merged = keepOurPrice(data, o)
     setOrderResult(hash, merged)
     if (payInfo(merged).ticketReady) goSuccess()
