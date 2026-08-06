@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useBookingStore, useSearchStore } from '../store'
 import { getCities, getRoutes, saveOrderLocally } from '../api/euroclub'
-import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, isCancelled, legInfo, hasFixedReturnLeg } from '../orderStatus'
+import BankTransferBox from '../components/BankTransferBox'
+import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, isCancelled, legInfo, hasFixedReturnLeg, surchargeInfo } from '../orderStatus'
 import { ensureCitiesLoaded, getCityNameSync } from '../cityNames'
 import { useOrderRegistry } from '../orderRegistryRead'
 import { useOrderPolling } from '../useOrderPolling'
@@ -355,18 +356,24 @@ export default function OrderSuccess() {
 
         {(() => {
           const st = statusLabel(data)
-          // payInfo рахуємо з нашої (реєстрової для round-trip, живої для one-way) суми —
-          // не з сирого data.summ, інакше доплата на двобічних порахується неправильно.
-          const pi = payInfo({ ...data, summ })
+          // Пряма буквальна формула доплати (без ticketReady/status): paid<0 && summ>0 &&
+          // needpay>0 → показуємо БЕЗУМОВНО. summ тут — та сама, що вже фіксована на цій
+          // сторінці для round-trip (реєстрова/жива), не сирий data.summ.
+          const si = surchargeInfo({ ...data, summ })
           const latestSurcharge = registry?.surcharges?.length ? registry.surcharges[registry.surcharges.length - 1] : null
           return (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 14 }}>
               <span style={{ fontSize: 13, fontWeight: 700, padding: '5px 14px', borderRadius: 20, background: st.bg, color: st.color }}>{st.text}</span>
-              {pi.ticketReady && pi.remainder > 0 && (
+              {si.active && (
                 <span style={{ fontSize: 13, color: '#E07B00', fontWeight: 600, textAlign: 'center' }}>
-                  Доплата: {format(pi.remainder, currencyCode)}
+                  Оплачено: {format(si.paidLabel, currencyCode)} · Доплата: {format(si.needpay, currencyCode)} — при посадці в автобус або на рахунок
                   {latestSurcharge && <span style={{ display: 'block', fontSize: 12, fontWeight: 400, color: Gray }}>Причина: {latestSurcharge.reason}</span>}
                 </span>
+              )}
+              {si.active && (
+                <div style={{ width: '100%', maxWidth: 340 }}>
+                  <BankTransferBox oid={data?.oid || hash} amount={si.needpay} currencyLabel={currencyCode} />
+                </div>
               )}
             </div>
           )
