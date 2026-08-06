@@ -44,7 +44,7 @@ export default function Booking() {
   const t = useT()
   const { from, to, dateFrom, isOpenReturn, passengerCount, passengerCategories, addPassengerCategory, removePassengerCategoryAt } = useSearchStore()
   const {
-    selectedTrip, selectedSeats, selectedTrip2, selectedSeats2,
+    selectedTrip, selectedSeats, selectedTrip2, selectedSeats2, openReturnPending,
     passengerNames, passengerDiscounts, contactEmail, contactPhone, payerName, setPayerName,
     setSeats, setSeats2, setPassengerName, setPassengerDiscount, removePassengerDataAt, setContact, setOrderResult
   } = useBookingStore()
@@ -58,6 +58,11 @@ export default function Booking() {
   const trip = selectedTrip as any
   const trip2 = selectedTrip2 as any
   const isRoundTrip = !!trip2
+  // "Відкрита дата повернення" — Кеп (06.08): рахується/оплачується ІДЕНТИЧНО звичайному
+  // round-trip, різниться лише route2 (реальний id vs "-1"). pricedAsRoundTrip керує ЛИШЕ
+  // ціною/route2-параметром/заголовками — реальні дані другого рейсу (місця/час/seat-map)
+  // лишаються на isRoundTrip, бо для відкритої дати їх просто нема.
+  const pricedAsRoundTrip = isRoundTrip || openReturnPending
   const dep = trip?.departure?.[0]
   const arr = trip?.arrival?.[0]
   const dep2 = trip2?.departure?.[0]
@@ -113,15 +118,15 @@ export default function Booking() {
   // рейсу 1), підсумок — сума цих тарифів. Показуємо юзеру лише один фінальний тариф, без розбивки.
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
   const perPassengerOneWay = Array.from({ length: totalPax }, (_, i) => getPassengerPrice(i))
-  const twoWayGroup = isRoundTrip && from && to
+  const twoWayGroup = pricedAsRoundTrip && from && to
     ? findTwoWayGroupPrice(perPassengerOneWay, fullFareOneWayPrice(trip), from.id, to.id, direction)
     : null
-  const total = isRoundTrip ? (twoWayGroup?.total ?? subtotal) : subtotal
+  const total = pricedAsRoundTrip ? (twoWayGroup?.total ?? subtotal) : subtotal
   // Тариф — базова ціна ОДНОГО повного квитка в два боки, саме вона йде в бронювання
   // (`price` в neworder), незалежно від кількості пасажирів чи їхніх знижок. Система
   // бронювання сама рахує суму по пасажирах зі своїх кодів знижок. У прев'ю/на екрані —
   // завжди показуємо `total` (нашу ціну), а не тариф.
-  const tariff = isRoundTrip ? (twoWayGroup?.tariff ?? subtotal) : subtotal
+  const tariff = pricedAsRoundTrip ? (twoWayGroup?.tariff ?? subtotal) : subtotal
 
   // Ціна конкретної категорії знижки для показу в пікерах вибору — якщо це рейс в два боки,
   // категорія має показувати ціну В ДВА БОКИ (тариф, масштабований за співвідношенням
@@ -130,7 +135,7 @@ export default function Booking() {
   // 5500 замість 9500+ для рейсу в два боки.
   const fullOneWay = fullFareOneWayPrice(trip)
   const categoryPrice = (oneWayPrice: number) =>
-    isRoundTrip && fullOneWay > 0 ? Math.round(tariff * (oneWayPrice / fullOneWay)) : oneWayPrice
+    pricedAsRoundTrip && fullOneWay > 0 ? Math.round(tariff * (oneWayPrice / fullOneWay)) : oneWayPrice
 
   // Промокод (наприклад, приз за гру EuroClub Racer) — знижка застосовується лише в застосунку,
   // на боці eclub.com.ua не існує (поки прогер не додасть офіційне поле для промокодів).
@@ -192,7 +197,7 @@ export default function Booking() {
         from: String(from.id),
         to: String(to.id),
         route1: String(trip.id).split('-')[0],
-        route2: isRoundTrip ? String(trip2.id).split('-')[0] : undefined,
+        route2: isRoundTrip ? String(trip2.id).split('-')[0] : (openReturnPending ? '-1' : undefined),
       }, passengers)
 
       // Успіх визначаємо НЕ через result?.err === 0 (на реальному успіху відповідь — це повний
@@ -238,7 +243,7 @@ export default function Booking() {
           link_liqpay: result?.link_liqpay,
           link_stripe: result?.link_stripe,
           passangers: result?.passangers || localPassangers,
-          roundTrip: isRoundTrip,
+          roundTrip: pricedAsRoundTrip,
           ftime2: isRoundTrip ? (dep2?.time || '') : undefined,
           ttime2: isRoundTrip ? (arr2?.time || '') : undefined,
         }
@@ -290,7 +295,7 @@ export default function Booking() {
             toCity: order.to_city || to?.name || '',
             passengerCount: totalPax,
             discountIds,
-            roundTrip: isRoundTrip,
+            roundTrip: pricedAsRoundTrip,
             bookingDate,
           })
           // Реєстр замовлень для панелі керування — окремий, редагований документ (знижка/
@@ -302,13 +307,13 @@ export default function Booking() {
             toCity: order.to_city || to?.name || '',
             tripDate: String(order.ftime || '').split(' ')[0],
             tripDate2: isRoundTrip ? String(order.ftime2 || '').split(' ')[0] : undefined,
-            roundTrip: isRoundTrip,
+            roundTrip: pricedAsRoundTrip,
             createdAt: bookingDate,
             passengers: order.passangers.map((p: any, i: number) => {
               const discountOpt = orderedDiscounts.find(d => String(d.id) === discountIds[i])
               const discountName = discountOpt ? catName(discountOpt) : 'Повний тариф'
               const discountPercent = discountOpt ? Number(discountOpt.discount) || 0 : 0
-              const ownPrice = isRoundTrip
+              const ownPrice = pricedAsRoundTrip
                 ? (twoWayGroup?.perPassenger?.[i] ?? Number(p.prc ?? p.price ?? 0))
                 : Number(p.prc ?? p.price ?? 0)
               return {
@@ -316,7 +321,7 @@ export default function Booking() {
                 ticketNumber: String(p.tck ?? p.ticket ?? ''),
                 discountName,
                 discountPercent,
-                tariff: isRoundTrip ? tariff : ownPrice,
+                tariff: pricedAsRoundTrip ? tariff : ownPrice,
                 price: ownPrice,
               }
             }),
@@ -351,7 +356,7 @@ export default function Booking() {
           <button onClick={() => nav(-1)} aria-label="Назад" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
             <ArrowLeft size={24} color="#fff" />
           </button>
-          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800, flex: 1 }}>{t('booking.title')}{isRoundTrip ? t('booking.titleRoundTrip') : ''}</span>
+          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800, flex: 1 }}>{t('booking.title')}{pricedAsRoundTrip ? t('booking.titleRoundTrip') : ''}</span>
           <CurrencyToggle light />
         </div>
       </div>
@@ -550,7 +555,7 @@ export default function Booking() {
             const catId = resolveDiscountId(passengerCategories[i], discountOptions, passengerDiscounts[i])
             const cat = orderedDiscounts.find(d => String(d.id) === catId)
             const typeName = cat ? catName(cat) : ''
-            const ownPrice = isRoundTrip ? (twoWayGroup?.perPassenger?.[i] ?? getPassengerPrice(i)) : getPassengerPrice(i)
+            const ownPrice = pricedAsRoundTrip ? (twoWayGroup?.perPassenger?.[i] ?? getPassengerPrice(i)) : getPassengerPrice(i)
             return (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4, padding: '0 2px' }}>
                 <span style={{ fontSize: 13.5, fontWeight: 600 }}>{(passengerNames[i] || `Пасажир ${i + 1}`)}{typeName && <span style={{ fontWeight: 400, color: Gray }}> ({typeName})</span>}</span>
@@ -561,7 +566,7 @@ export default function Booking() {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, padding: '0 2px' }}>
-          <span style={{ fontSize: 14, color: Gray }}>{t('booking.total')}{isRoundTrip ? t('booking.totalRoundTrip') : ''}</span>
+          <span style={{ fontSize: 14, color: Gray }}>{t('booking.total')}{pricedAsRoundTrip ? t('booking.totalRoundTrip') : ''}</span>
           <span style={{ fontSize: 20, fontWeight: 800 }}>{format(promoApplied ? finalTotal : total, trip?.currency)}</span>
         </div>
 
