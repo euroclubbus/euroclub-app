@@ -47,8 +47,18 @@ export default function MyTickets() {
     const hasCache = Object.keys(local).length > 0
 
     function finish(merged: any[]) {
-      merged.forEach((o: any) => saveOrderLocally(o.hash, o))
-      setOrders(merged)
+      // Дедуп за реальним ID замовлення (oid, або hash якщо oid нема) — старий кеш міг
+      // містити той самий запис під іншим ключем localStorage (з часів, коли hash і oid
+      // не завжди збігались), і без цього одне замовлення показувалось двічі в списку.
+      const byOid = new Map<string, any>()
+      for (const o of merged) {
+        const id = String(o?.oid ?? o?.hash ?? '')
+        if (!id) continue
+        byOid.set(id, { ...byOid.get(id), ...o })
+      }
+      const deduped = Array.from(byOid.values())
+      deduped.forEach((o: any) => saveOrderLocally(o.hash, o))
+      setOrders(deduped)
       setLoading(false)
     }
 
