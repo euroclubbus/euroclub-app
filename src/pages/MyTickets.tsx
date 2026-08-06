@@ -99,7 +99,6 @@ export default function MyTickets() {
           // бекенд не повертає, лишаються з кешу.
           byId[key] = { ...byId[key], ...normalized }
           syncOrderRegistryStatusIfChanged(key, o.status, Number(o.paid_uah) || 0, Number(o.paid_eur) || 0)
-          if (!byId[key].bookingDate) byId[key].bookingDate = new Date().toISOString()
         }
         finish(Object.values(byId))
       })
@@ -256,10 +255,6 @@ export default function MyTickets() {
           const st = statusLabel(o)
           const paid = ticketAvailable(o, o.hash)
           const alertPaidCancel = isPaidCancellation(o)
-          const createdAt = o.bookingDate ? new Date(o.bookingDate) : null
-          const createdAtStr = createdAt && !isNaN(createdAt.getTime())
-            ? createdAt.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-            : null
           return (
             <div key={i} onClick={() => openOrder(o)} style={{
               background: '#fff', borderRadius: 20, padding: 18, marginBottom: 12,
@@ -295,7 +290,6 @@ export default function MyTickets() {
               )}
               <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
                 <span style={{ color: Gray, fontSize: 12 }}>{orderNo(o)}</span>
-                {createdAtStr && <span style={{ color: Gray, fontSize: 11.5 }}>створено {createdAtStr}</span>}
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
                 <button onClick={e => { e.stopPropagation(); openOrder(o) }} style={{ flex: 1, padding: '11px 0', background: 'none', border: `2px solid ${ORange}`, borderRadius: 12, color: ORange, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
