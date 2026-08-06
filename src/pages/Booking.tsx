@@ -192,7 +192,13 @@ export default function Booking() {
         email: contactEmail.trim() || '',
         phone: contactPhone.trim(),
         header: (payerName || passengerNames[0] || '').trim().toUpperCase() || 'PASSENGER',
-        price: String(tariff),
+        // route2=-1: бекенд САМ рахує round-trip суму, побачивши цей маркер (Кеп підтвердив,
+        // 06.08) — тому сюди йде ОДНОСТОРОННІЙ тариф (subtotal), інакше бекенд подвоює вже
+        // подвоєну клієнтом суму (підтверджено тестом: 3500→7000 на прев'ю, потім 7000→14000
+        // після бронювання). Для РЕАЛЬНОГО round-trip (isRoundTrip, є trip2) бекенд просто
+        // підсумовує дві односторонні ноги — там наш власний двобічний тариф (tariff)
+        // потрібен і лишається без змін.
+        price: String(isRoundTrip ? tariff : subtotal),
         crc: currency,
         from: String(from.id),
         to: String(to.id),
