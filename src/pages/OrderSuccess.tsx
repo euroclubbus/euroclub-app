@@ -205,7 +205,10 @@ export default function OrderSuccess() {
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  useOrderPolling(hash, needsPolling({ ...data, summ }), (o) => {
+  // ВИМКНЕНО, коли активна доплата (paid_uah від'ємний): живе опитування підміняло
+  // правильну суму новими даними, що вело до неправильної ціни на екрані (той самий баг,
+  // що виправлений на Payment.tsx).
+  useOrderPolling(hash, needsPolling({ ...data, summ }) && !surchargeInfo({ ...data, summ }).active, (o) => {
     const merged = keepOurPrice(data, o)
     setOrderResult(hash, merged)
     saveOrderLocally(hash, merged)

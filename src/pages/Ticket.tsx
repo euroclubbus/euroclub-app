@@ -106,7 +106,9 @@ export default function Ticket() {
   // умовних `return` нижче. Раніше вони йшли після early return-ів (loading/
   // priceReady), через що React ламав рендер щоразу як умова змінювалась
   // між рендерами ("Показати квиток" відкривав чистий екран/креш).
-  useOrderPolling(hash, needsPolling(data), (o) => {
+  // ВИМКНЕНО, коли активна доплата (paid_uah від'ємний) — той самий захист, що на
+  // Payment.tsx/OrderSuccess.tsx: живе опитування підміняло правильну суму невірною.
+  useOrderPolling(hash, needsPolling(data) && !surchargeInfo(data).active, (o) => {
     const merged = keepOurPrice(data, o)
     setBackendData((prev: any) => prev ? keepOurPrice(prev, o) : o)
     setOrderResult(hash, merged)
