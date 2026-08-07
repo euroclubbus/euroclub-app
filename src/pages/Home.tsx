@@ -411,7 +411,7 @@ export default function Home() {
     nextField === 'from' ? t('home.chooseCity') + ' (' + t('home.from') + ')' :
     nextField === 'to' ? t('home.chooseCity') + ' (' + t('home.to') + ')' :
     nextField === 'dateFrom' ? 'Оберіть дату відправлення' :
-    nextField === 'dateTo' ? 'Оберіть дату повернення' : ''
+    nextField === 'dateTo' ? 'Оберіть дату зворотного квитка' : ''
   const ring = (f: 'from' | 'to' | 'dateFrom' | 'dateTo') =>
     nextField === f
       ? { border: `1.5px solid ${ORange}`, background: '#FFF7EC', boxShadow: '0 0 0 3px rgba(245,166,35,0.12)' }
