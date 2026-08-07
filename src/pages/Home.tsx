@@ -145,6 +145,30 @@ function Calendar_({ value, onChange, minDate, onConfirm, departureSel, isOpen, 
 }
 
 // ─── Passengers Sheet ─────────────────────────────────────────────────────────
+// Фіксований порядок і склад категорій у вікні вибору пасажирів (Кеп, 07.08) — незалежно
+// від того, у якому порядку чи складі їх реально віддає бекенд для конкретного маршруту.
+// "Група від 6 осіб" і будь-які дублікати "За повним тарифом" (discount:0, не default) —
+// повністю приховані, в застосунку не потрібні.
+const CATEGORY_ORDER: { match: RegExp; priority: number }[] = [
+  { match: /старш/i, priority: 1 },        // Особи, старші за 60
+  { match: /інвалідн/i, priority: 2 },     // Особи з інвалідністю (I-II група)
+  { match: /до 1 року/i, priority: 3 },    // Діти до 1 року
+  { match: /1\s*-\s*10/i, priority: 4 },   // Діти 1-10 років
+  { match: /10\s*-\s*15/i, priority: 5 },  // Діти 10-15 років
+  { match: /убд/i, priority: 6 },          // Військовослужбовці з УБД
+  { match: /доп\.?\s*м(і|е)ст/i, priority: 7 }, // доп. місце/место
+  { match: /тварин/i, priority: 8 },       // Тварина
+]
+
+function sortAndFilterCategories(list: any[]): any[] {
+  return list
+    .filter(d => !/^груп/i.test(d.name || ''))       // "Група від 6 осіб" — прибрано повністю
+    .filter(d => Number(d.value ?? d.discount ?? 0) !== 0) // дублікати "За повним тарифом" (0%)
+    .map(d => ({ d, priority: CATEGORY_ORDER.find(r => r.match.test(d.name || ''))?.priority ?? 999 }))
+    .sort((a, b) => a.priority - b.priority)
+    .map(x => x.d)
+}
+
 function PassengersSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useT()
   const { passengerCategories, setPassengerCategories } = useSearchStore()
@@ -165,7 +189,7 @@ function PassengersSheet({ open, onClose }: { open: boolean; onClose: () => void
       const isFull = (d: any) => d.default === 1 || d.default === '1' || String(d.id) === '0'
       const fullFare = clean.find(isFull) || { id: 0, default: 1, name: 'Повний тариф' }
       const rest = clean.filter((d: any) => !isFull(d))
-      setCats([fullFare, ...rest])
+      setCats([fullFare, ...sortAndFilterCategories(rest)])
     }).catch(() => setCats([{ id: 0, default: 1, name: 'Повний тариф' }]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
