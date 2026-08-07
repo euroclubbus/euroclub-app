@@ -7,6 +7,14 @@
 
 export interface DiscountOpt { id: string | number; default?: number | string; price?: number; name?: string }
 
+// Бекенд віддає назву категорії двомовно через " / " (напр. "Особи, старші за 60 / Senior ab
+// 60") — в інтерфейсі показуємо лише українську/російську частину до роздільника, англо-
+///німецькомовний хвіст прибираємо. Якщо роздільника нема — повертаємо назву як є.
+export function localizedDiscountName(name: string | undefined | null): string {
+  if (!name) return ''
+  return name.split(' / ')[0].trim()
+}
+
 // Знижка пасажира: ручний вибір (якщо є) → категорія зі складу пошуку (якщо діє на рейсі) → дефолтна/повна
 export function resolveDiscountId(
   catId: string | undefined,
