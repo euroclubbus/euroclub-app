@@ -495,8 +495,8 @@ export default function Results() {
                   <div style={{ background: '#FFF3DC', border: `1px solid ${ORange}`, borderRadius: 16, padding: 14, marginBottom: 14, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                     <AlertTriangle size={16} color={ORange} style={{ flexShrink: 0, marginTop: 1 }} />
                     <div style={{ fontSize: 13, color: '#7A5A00', lineHeight: 1.4 }}>
-                      Ціна вже враховує поїздку в два боки. Конкретну дату повернення ви
-                      зафіксуєте пізніше — на екрані свого квитка.
+                      Ціна вже враховує поїздку в два боки. Конкретну дату зворотного
+                      квитка ви зафіксуєте пізніше — на екрані свого квитка.
                     </div>
                   </div>
                 )}
