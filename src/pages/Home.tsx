@@ -145,26 +145,29 @@ function Calendar_({ value, onChange, minDate, onConfirm, departureSel, isOpen, 
 }
 
 // ─── Passengers Sheet ─────────────────────────────────────────────────────────
-// Фіксований порядок і склад категорій у вікні вибору пасажирів (Кеп, 07.08) — незалежно
-// від того, у якому порядку чи складі їх реально віддає бекенд для конкретного маршруту.
-// "Група від 6 осіб" і будь-які дублікати "За повним тарифом" (discount:0, не default) —
-// повністю приховані, в застосунку не потрібні.
-const CATEGORY_ORDER: { match: RegExp; priority: number }[] = [
-  { match: /старш/i, priority: 1 },        // Особи, старші за 60
-  { match: /інвалідн/i, priority: 2 },     // Особи з інвалідністю (I-II група)
-  { match: /до 1 року/i, priority: 3 },    // Діти до 1 року
-  { match: /1\s*-\s*10/i, priority: 4 },   // Діти 1-10 років
-  { match: /10\s*-\s*15/i, priority: 5 },  // Діти 10-15 років
-  { match: /убд/i, priority: 6 },          // Військовослужбовці з УБД
-  { match: /доп\.?\s*м(і|е)ст/i, priority: 7 }, // доп. місце/место
-  { match: /тварин/i, priority: 8 },       // Тварина
+// Фіксований порядок, склад і ТЕКСТ категорій у вікні вибору пасажирів (Кеп, 07.08) —
+// показуємо саме ці формулювання, не сирі назви з бекенду. "Група від 6 осіб" і будь-які
+// дублікати "За повним тарифом" (0%, не default) — повністю приховані.
+const CATEGORY_ORDER: { match: RegExp; priority: number; label: string }[] = [
+  { match: /старш/i, priority: 1, label: '10% знижка для осіб старші за 60-ти років' },
+  { match: /інвалідн/i, priority: 2, label: '10% знижка для осіб з інвалідністю (I-II група)' },
+  { match: /до 1 року/i, priority: 3, label: '50% знижка для дітей до 1-го року' },
+  { match: /1\s*-\s*10/i, priority: 4, label: '30% знижка для дітей від 1-го до 10-ти років' },
+  { match: /10\s*-\s*15/i, priority: 5, label: '10% знижка для дітей 10-15 років' },
+  { match: /убд/i, priority: 6, label: '20% знижка по посвідченню УБД' },
+  { match: /доп\.?\s*м(і|е)ст/i, priority: 7, label: '20% знижка на додаткове місце' },
+  { match: /тварин/i, priority: 8, label: '20% знижка на місце для тварини' },
 ]
+const FULL_FARE_LABEL = 'Квиток за повним тарифом'
 
 function sortAndFilterCategories(list: any[]): any[] {
   return list
     .filter(d => !/^груп/i.test(d.name || ''))       // "Група від 6 осіб" — прибрано повністю
     .filter(d => Number(d.value ?? d.discount ?? 0) !== 0) // дублікати "За повним тарифом" (0%)
-    .map(d => ({ d, priority: CATEGORY_ORDER.find(r => r.match.test(d.name || ''))?.priority ?? 999 }))
+    .map(d => {
+      const rule = CATEGORY_ORDER.find(r => r.match.test(d.name || ''))
+      return { d: { ...d, displayLabel: rule?.label }, priority: rule?.priority ?? 999 }
+    })
     .sort((a, b) => a.priority - b.priority)
     .map(x => x.d)
 }
@@ -187,10 +190,11 @@ function PassengersSheet({ open, onClose }: { open: boolean; onClose: () => void
       const arr = Array.isArray(raw) ? raw : Object.values(raw)
       const clean = arr.filter((d: any) => d && d.id !== undefined && d.name)
       const isFull = (d: any) => d.default === 1 || d.default === '1' || String(d.id) === '0'
-      const fullFare = clean.find(isFull) || { id: 0, default: 1, name: 'Повний тариф' }
+      const fullFareRaw = clean.find(isFull) || { id: 0, default: 1, name: 'Повний тариф' }
+      const fullFare = { ...fullFareRaw, displayLabel: FULL_FARE_LABEL }
       const rest = clean.filter((d: any) => !isFull(d))
       setCats([fullFare, ...sortAndFilterCategories(rest)])
-    }).catch(() => setCats([{ id: 0, default: 1, name: 'Повний тариф' }]))
+    }).catch(() => setCats([{ id: 0, default: 1, name: 'Повний тариф', displayLabel: FULL_FARE_LABEL }]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
@@ -226,7 +230,7 @@ function PassengersSheet({ open, onClose }: { open: boolean; onClose: () => void
           const n = counts[id] || 0
           return (
             <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F2F2F2' }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A' }}>{localizedDiscountName(d.name)}</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A' }}>{d.displayLabel ?? localizedDiscountName(d.name)}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <button onClick={() => change(id, -1)} disabled={n === 0} style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid #DDD', background: 'none', cursor: n === 0 ? 'default' : 'pointer', fontSize: 17, color: n === 0 ? '#DDD' : '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>−</button>
                 <span style={{ width: 16, textAlign: 'center', fontWeight: 700, fontSize: 15 }}>{n}</span>
