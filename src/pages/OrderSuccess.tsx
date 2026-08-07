@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useBookingStore, useSearchStore } from '../store'
 import { getCities, getRoutes, saveOrderLocally } from '../api/euroclub'
-import BankTransferBox from '../components/BankTransferBox'
-import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, isCancelled, legInfo, hasFixedReturnLeg, surchargeInfo } from '../orderStatus'
+import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, isCancelled, legInfo, hasFixedReturnLeg } from '../orderStatus'
 import { ensureCitiesLoaded, getCityNameSync } from '../cityNames'
 import { useOrderRegistry } from '../orderRegistryRead'
 import { useOrderPolling } from '../useOrderPolling'
@@ -12,6 +11,7 @@ import { useDisplayPrice } from '../currency'
 import SeatMap from './SeatMap'
 import { addBonusPayment, getUserOrders, findUserOrder, cancelOrderApi, restoreOrderApi } from '../api/auth'
 import { useT } from '../i18n'
+import { isNativePlatform } from '../platform'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -119,6 +119,14 @@ export default function OrderSuccess() {
   const [bonusError, setBonusError] = useState('')
   const [bonusApplied, setBonusApplied] = useState(false)
   const [wantsBonus, setWantsBonus] = useState(false)
+  // "Бали" ще НЕ готові до продакшену на бекенді (див. HANDOVER.md) — показуємо UI ТІЛЬКИ
+  // на PWA/веб (для тестування), приховано на опублікованих Android/iOS білдах. За
+  // замовчуванням false (приховано), поки не підтвердили, що це веб — без "спалаху" на
+  // нативному застосунку.
+  const [isWebOnly, setIsWebOnly] = useState(false)
+  useEffect(() => {
+    isNativePlatform().then(native => setIsWebOnly(!native))
+  }, [])
 
   // Довантажуємо мапу міст (id -> назва) один раз на сесію, для fromCity/toCity
   // fallback через getCityNameSync (from1/to1/from2/to2)
@@ -205,10 +213,7 @@ export default function OrderSuccess() {
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  // ВИМКНЕНО, коли активна доплата (paid_uah від'ємний): живе опитування підміняло
-  // правильну суму новими даними, що вело до неправильної ціни на екрані (той самий баг,
-  // що виправлений на Payment.tsx).
-  useOrderPolling(hash, needsPolling({ ...data, summ }) && !surchargeInfo({ ...data, summ }).active, (o) => {
+  useOrderPolling(hash, needsPolling({ ...data, summ }), (o) => {
     const merged = keepOurPrice(data, o)
     setOrderResult(hash, merged)
     saveOrderLocally(hash, merged)
@@ -359,24 +364,18 @@ export default function OrderSuccess() {
 
         {(() => {
           const st = statusLabel(data)
-          // Пряма буквальна формула доплати (без ticketReady/status): paid<0 && summ>0 &&
-          // needpay>0 → показуємо БЕЗУМОВНО. summ тут — та сама, що вже фіксована на цій
-          // сторінці для round-trip (реєстрова/жива), не сирий data.summ.
-          const si = surchargeInfo({ ...data, summ })
+          // payInfo рахуємо з нашої (реєстрової для round-trip, живої для one-way) суми —
+          // не з сирого data.summ, інакше доплата на двобічних порахується неправильно.
+          const pi = payInfo({ ...data, summ })
           const latestSurcharge = registry?.surcharges?.length ? registry.surcharges[registry.surcharges.length - 1] : null
           return (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 14 }}>
               <span style={{ fontSize: 13, fontWeight: 700, padding: '5px 14px', borderRadius: 20, background: st.bg, color: st.color }}>{st.text}</span>
-              {si.active && (
+              {pi.ticketReady && pi.remainder > 0 && (
                 <span style={{ fontSize: 13, color: '#E07B00', fontWeight: 600, textAlign: 'center' }}>
-                  Оплачено: {format(si.paidLabel, currencyCode)} · Доплата: {format(si.needpay, currencyCode)} — при посадці в автобус або на рахунок
+                  Доплата: {format(pi.remainder, currencyCode)}
                   {latestSurcharge && <span style={{ display: 'block', fontSize: 12, fontWeight: 400, color: Gray }}>Причина: {latestSurcharge.reason}</span>}
                 </span>
-              )}
-              {si.active && (
-                <div style={{ width: '100%', maxWidth: 340 }}>
-                  <BankTransferBox oid={data?.oid || hash} amount={si.needpay} currencyLabel={currencyCode} />
-                </div>
               )}
             </div>
           )
@@ -486,6 +485,36 @@ export default function OrderSuccess() {
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {/* Бали (Cashback Club) — ЛИШЕ PWA, поки не готово до продакшену в Android/iOS
+            білдах (див. HANDOVER.md). Показуємо тільки коли є баланс і замовлення ще не
+            повністю оплачене — списання зменшує needpay перед оплатою. */}
+        {isWebOnly && status === 'active' && !ticketAvailable({ ...data, summ }, hash) && !!cabBonus && cabBonus > 0 && (
+          <div style={{ background: '#F5F5F5', borderRadius: 14, padding: 14, marginBottom: 16 }}>
+            {!wantsBonus ? (
+              <button onClick={() => setWantsBonus(true)} style={{ background: 'none', border: 'none', color: ORange, fontWeight: 700, fontSize: 14, cursor: 'pointer', padding: 0 }}>
+                Списати бали ({cabBonus} на балансі)
+              </button>
+            ) : bonusApplied ? (
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: '#2E7D32' }}>Бали списано ✓</div>
+            ) : (
+              <>
+                <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 8 }}>Списати бали (доступно: {cabBonus})</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    type="number" value={bonusInput} onChange={e => setBonusInput(e.target.value)}
+                    placeholder="Сума" min={0} max={cabBonus}
+                    style={{ flex: 1, padding: '10px 12px', border: '1px solid #E0E0E0', borderRadius: 10, fontSize: 14 }}
+                  />
+                  <button onClick={applyBonus} disabled={bonusApplying || !bonusInput} style={{ padding: '10px 18px', background: ORange, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: bonusApplying || !bonusInput ? 0.6 : 1 }}>
+                    {bonusApplying ? '...' : 'Застосувати'}
+                  </button>
+                </div>
+                {bonusError && <div style={{ fontSize: 12.5, color: '#E53935', marginTop: 6 }}>{bonusError}</div>}
+              </>
+            )}
           </div>
         )}
 
