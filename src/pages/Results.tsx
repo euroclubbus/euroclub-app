@@ -8,6 +8,8 @@ import { perPassengerOneWayPrices, fullFareOneWayPrice } from '../passengerPrici
 import { useDisplayPrice } from '../currency'
 import CurrencyToggle from '../components/CurrencyToggle'
 import SideMenu from '../components/SideMenu'
+import BottomSheet from '../components/BottomSheet'
+import SimpleCalendar from '../components/SimpleCalendar'
 import { useT } from '../i18n'
 
 const ORange = '#F5A623'
@@ -255,6 +257,11 @@ type LegSearchResult = LegState & { setAgreed: (v: boolean) => void }
 
 // Блок "на цю дату немає рейсу, пропонуємо найближчу" — чекбокс явного погодження.
 function DateFallbackCard({ label, requestedISO, leg, onPickDate }: { label: string; requestedISO: string; leg: LegSearchResult; onPickDate: (iso: string) => void }) {
+  const [showCalendar, setShowCalendar] = useState(false)
+  const todayISO = new Date().toISOString().split('T')[0]
+  // Далекий, але скінченний горизонт вибору — тут це "інша дата в межах розумного",
+  // не прив'язано до якогось конкретного дедлайну як у фіксації відкритої дати.
+  const maxISO = (() => { const d = new Date(); d.setDate(d.getDate() + 365); return d.toISOString().split('T')[0] })()
   return (
     <div style={{ background: '#fff', borderRadius: 20, padding: 20, marginBottom: 14 }}>
       <div style={{ fontSize: 15, fontWeight: 700, color: '#1A1A1A', marginBottom: 6 }}>
@@ -290,14 +297,23 @@ function DateFallbackCard({ label, requestedISO, leg, onPickDate }: { label: str
       </div>
       <label style={{ display: 'block', marginTop: 12, position: 'relative' }}>
         <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 6 }}>Обрати іншу дату в календарі</span>
-        <input
-          type="date"
-          defaultValue=""
-          min={new Date().toISOString().split('T')[0]}
-          onChange={e => e.target.value && onPickDate(e.target.value)}
-          style={{ width: '100%', padding: '12px 14px', border: '1px solid #EEE', borderRadius: 14, fontSize: 14, color: '#1A1A1A' }}
-        />
+        <button
+          type="button"
+          onClick={() => setShowCalendar(true)}
+          style={{ width: '100%', padding: '12px 14px', border: '1px solid #EEE', borderRadius: 14, fontSize: 14, color: '#1A1A1A', background: '#fff', textAlign: 'left', cursor: 'pointer' }}
+        >
+          Обрати дату
+        </button>
       </label>
+      <BottomSheet open={showCalendar} onClose={() => setShowCalendar(false)} title="Оберіть дату">
+        <div style={{ padding: '0 20px 12px' }}>
+          <SimpleCalendar
+            minDateISO={todayISO}
+            maxDateISO={maxISO}
+            onSelect={(iso) => { setShowCalendar(false); onPickDate(iso) }}
+          />
+        </div>
+      </BottomSheet>
     </div>
   )
 }
