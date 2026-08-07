@@ -5,7 +5,7 @@ import { useSearchStore, useBookingStore } from '../store'
 import { useAuthStore } from '../authStore'
 import { saveOrderLocally } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
-import { resolveDiscountId, resolvePassengerPrice, fullFareOneWayPrice } from '../passengerPricing'
+import { resolveDiscountId, resolvePassengerPrice, fullFareOneWayPrice, localizedDiscountName } from '../passengerPricing'
 import { keepOurPrice } from '../orderStatus'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
@@ -74,7 +74,7 @@ export default function Booking() {
   const isFull = (d: any) => d && (d.default === 1 || d.default === '1' || String(d.id) === '0')
   const fullFare: any = discountOptions.find(isFull) || { id: 0, default: 1, name: t('booking.fullFare'), discount: 0, price: Number(trip?.price ?? 0) }
   const orderedDiscounts = [ fullFare, ...discountOptions.filter(d => !isFull(d)) ]
-  const catName = (d: any) => d.name && d.name.trim() ? d.name : t('booking.fullFare')
+  const catName = (d: any) => d.name && d.name.trim() ? localizedDiscountName(d.name) : t('booking.fullFare')
   const [showDiscountFor, setShowDiscountFor] = useState<number | null>(null)
   const [draftDiscountId, setDraftDiscountId] = useState<string | null>(null)
   const [showAddPicker, setShowAddPicker] = useState(false)
