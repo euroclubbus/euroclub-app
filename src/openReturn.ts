@@ -110,7 +110,7 @@ export function buildFixationMailto(marker: OpenReturnMarker, chosenDateISO: str
     `Пасажири: ${marker.passengers.filter(Boolean).join(', ') || '—'}`,
     `Email замовника: ${marker.contactEmail || '—'}`,
     `Дата поїздки "туди": ${fmtUA(marker.firstTripDateISO)}`,
-    `Обрана дата повернення: ${fmtUA(chosenDateISO)}`,
+    `Обрана дата зворотного квитка: ${fmtUA(chosenDateISO)}`,
   ]
   const body = bodyLines.join('\n')
   return `mailto:euroclubbus@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
