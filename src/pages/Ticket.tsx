@@ -3,8 +3,7 @@ import { useRef, useState, useEffect } from 'react'
 import { ArrowLeft, Download, ChevronRight, X, CalendarCheck, AlertTriangle } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBookingStore } from '../store'
-import BankTransferBox from '../components/BankTransferBox'
-import { ticketAvailable, payInfo, needsPolling, keepOurPrice, passengerDisplayPrices, ensureRoundTripSync, legInfo, hasFixedReturnLeg, surchargeInfo } from '../orderStatus'
+import { ticketAvailable, payInfo, needsPolling, keepOurPrice, passengerDisplayPrices, ensureRoundTripSync, legInfo, hasFixedReturnLeg } from '../orderStatus'
 import { useDisplayPrice } from '../currency'
 import { useOrderPolling } from '../useOrderPolling'
 import { findUserOrder } from '../api/auth'
@@ -106,9 +105,7 @@ export default function Ticket() {
   // умовних `return` нижче. Раніше вони йшли після early return-ів (loading/
   // priceReady), через що React ламав рендер щоразу як умова змінювалась
   // між рендерами ("Показати квиток" відкривав чистий екран/креш).
-  // ВИМКНЕНО, коли активна доплата (paid_uah від'ємний) — той самий захист, що на
-  // Payment.tsx/OrderSuccess.tsx: живе опитування підміняло правильну суму невірною.
-  useOrderPolling(hash, needsPolling(data) && !surchargeInfo(data).active, (o) => {
+  useOrderPolling(hash, needsPolling(data), (o) => {
     const merged = keepOurPrice(data, o)
     setBackendData((prev: any) => prev ? keepOurPrice(prev, o) : o)
     setOrderResult(hash, merged)
@@ -140,10 +137,7 @@ export default function Ticket() {
     )
   }
 
-  {/* Якщо є активна доплата (paid_uah від'ємний, summ>0, needpay>0) — квиток вже
-      фактично існує (це доплата ЗА вже сформований квиток), пропускаємо блокування,
-      незалежно від того, що каже ticketAvailable(). */}
-  if (data && !ticketAvailable(data, hash) && !surchargeInfo(data).active) {
+  if (data && !ticketAvailable(data, hash)) {
     return (
       <div style={{ minHeight: '100vh', background: Navy, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
         <div style={{ fontSize: 44, marginBottom: 16 }}>🔒</div>
@@ -372,30 +366,7 @@ export default function Ticket() {
       <div className="no-print" style={{ padding: '24px 16px 16px', background: Navy }}>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>Ціна квитка</div>
         <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: 16 }}>{format(passengers[activeIdx]?.price || 0)} {currency}</div>
-
-        {(() => {
-          const si = surchargeInfo(data)
-          if (!si.active) return null
-          return (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-                <div style={{ flex: 1, background: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: '10px 12px' }}>
-                  <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase' }}>Оплачено</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, marginTop: 2, color: '#7CD992' }}>{format(si.paidLabel)} {currency}</div>
-                </div>
-                <div style={{ flex: 1, background: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: '10px 12px' }}>
-                  <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase' }}>Доплата</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, marginTop: 2, color: '#F5C463' }}>{format(si.needpay)} {currency}</div>
-                </div>
-              </div>
-              <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.75)', marginBottom: 8 }}>
-                {format(si.needpay)} {currency} — при посадці в автобус або на рахунок
-              </div>
-              <BankTransferBox oid={orderNo} amount={si.needpay} currencyLabel={currency} />
-            </div>
-          )
-        })()}
-
+        
         {ticketPdf && (
           <button onClick={() => window.open(ticketPdf)} style={{ width: '100%', padding: '12px', background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <Download size={18} /> Завантажити PDF
@@ -413,19 +384,19 @@ export default function Ticket() {
           <div style={{ marginTop: 12 }}>
             {!openReturnMarker.requested && !deadlinePassed && (
               <button onClick={() => { setPickedDateISO(''); setShowFixSheet(true) }} style={{ width: '100%', padding: '12px', background: 'transparent', color: ORange, border: `1.5px solid ${ORange}`, borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <CalendarCheck size={17} /> Зафіксувати дату повернення
+                <CalendarCheck size={17} /> Зафіксувати дату зворотного квитка
               </button>
             )}
             {openReturnMarker.requested && (
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 12px', background: 'rgba(245,166,35,0.12)', borderRadius: 12, fontSize: 12.5, color: 'rgba(255,255,255,0.85)' }}>
                 <CalendarCheck size={15} color={ORange} style={{ flexShrink: 0, marginTop: 1 }} />
-                <span>Запит на фіксацію надіслано. Дата повернення з'явиться тут, щойно менеджер підтвердить.</span>
+                <span>Запит на фіксацію надіслано. Дата зворотного квитка з'явиться тут, щойно менеджер підтвердить.</span>
               </div>
             )}
             {!openReturnMarker.requested && deadlinePassed && (
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 12px', background: 'rgba(229,57,53,0.12)', borderRadius: 12, fontSize: 12.5, color: 'rgba(255,255,255,0.85)' }}>
                 <AlertTriangle size={15} color="#E53935" style={{ flexShrink: 0, marginTop: 1 }} />
-                <span>Термін фіксації дати повернення (180 днів) минув.</span>
+                <span>Термін фіксації дати зворотного квитка (180 днів) минув.</span>
               </div>
             )}
           </div>
@@ -434,7 +405,7 @@ export default function Ticket() {
 
       {/* Вибір дати для фіксації зворотного квитка */}
       {openReturnMarker && (
-        <BottomSheet open={showFixSheet} onClose={() => setShowFixSheet(false)} title="Дата повернення">
+        <BottomSheet open={showFixSheet} onClose={() => setShowFixSheet(false)} title="Дата зворотного квитка">
           <div style={{ padding: '0 20px 12px' }}>
             <SimpleCalendar
               minDateISO={todayISO > openReturnMarker.firstTripDateISO ? todayISO : openReturnMarker.firstTripDateISO}
