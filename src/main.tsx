@@ -28,7 +28,6 @@ import StaticPage from './pages/StaticPage'
 import Feedback from './pages/Feedback'
 import AdminTransferCities from './pages/AdminTransferCities'
 import ErrorBoundary from './components/ErrorBoundary'
-import CookieBanner from './components/CookieBanner'
 import { useAuthStore } from './authStore'
 import { useState, useEffect } from 'react'
 import { registerPushToken } from './push'
@@ -134,7 +133,6 @@ function Root() {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <Root />
-    <CookieBanner />
   </React.StrictMode>
 )
 
