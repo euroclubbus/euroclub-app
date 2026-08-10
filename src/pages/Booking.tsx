@@ -11,6 +11,7 @@ import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
 import { validatePromo, redeemPromo } from '../game/gameApi'
 import { applyPromoCode, createOrderNew, NewOrderPassenger, findUserOrder, getUserOrders } from '../api/auth'
+import { isNativePlatform } from '../platform'
 import { reportTrip } from '../reporting'
 import { writeOrderRegistry } from '../orderRegistry'
 import BottomSheet from '../components/BottomSheet'
@@ -321,10 +322,14 @@ export default function Booking() {
                 console.error('[Booking] fetch user-orders for registry stat failed', e)
               }
             }
+            // Booking.tsx однаковий і для нативного застосунку, і для PWA/сайту в браузері —
+            // без цієї позначки "з додатку" в адмінці рахувало б і сайт теж (Кеп, 10.08).
+            const viaApp = await isNativePlatform()
             writeOrderRegistry({
               orderNo: oid,
               userEmail: contactEmail.trim().toLowerCase(),
               totalOrdersCount,
+              viaApp,
               fromCity: order.from_city || from?.name || '',
               toCity: order.to_city || to?.name || '',
               tripDate: String(order.ftime || '').split(' ')[0],
