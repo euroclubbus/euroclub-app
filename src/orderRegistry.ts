@@ -16,6 +16,9 @@ export interface OrderRegistryPassenger {
 export interface OrderRegistryData {
   orderNo: string
   userEmail?: string // для аналітики в адмінці — скільки замовлень цього юзера через застосунок
+  userId?: string // = device_tokens/{userId} — потрібен для адресної розсилки сповіщень
+  // по конкретному замовленню з адмінки (userEmail самого по собі не досить, токени
+  // прив'язані до userId, не email)
   totalOrdersCount?: number // повна історія юзера (всі канали) на момент цього бронювання —
   // забирається одразу тут, поки жива сесія юзера (він щойно залогінений), бо окремого
   // адмін-методу для довільного email на бекенді нема
