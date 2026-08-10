@@ -329,6 +329,7 @@ export default function Booking() {
               orderNo: oid,
               userEmail: contactEmail.trim().toLowerCase(),
               userId: user?.id ? String(user.id) : undefined,
+              route1: String(trip.id).split('-')[0],
               totalOrdersCount,
               viaApp,
               fromCity: order.from_city || from?.name || '',
