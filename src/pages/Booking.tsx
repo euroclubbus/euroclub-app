@@ -303,6 +303,7 @@ export default function Booking() {
           // API-метод для передачі правок назад на бекенд).
           writeOrderRegistry({
             orderNo: oid,
+            userEmail: contactEmail.trim().toLowerCase(),
             fromCity: order.from_city || from?.name || '',
             toCity: order.to_city || to?.name || '',
             tripDate: String(order.ftime || '').split(' ')[0],
