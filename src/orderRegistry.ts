@@ -19,6 +19,9 @@ export interface OrderRegistryData {
   totalOrdersCount?: number // повна історія юзера (всі канали) на момент цього бронювання —
   // забирається одразу тут, поки жива сесія юзера (він щойно залогінений), бо окремого
   // адмін-методу для довільного email на бекенді нема
+  viaApp?: boolean // true = нативний Android/iOS застосунок, false = PWA/сайт у браузері —
+  // Booking.tsx однаковий для обох, тому без цього поля "з додатку" в адмінці рахувало б і
+  // сайт теж
   fromCity: string
   toCity: string
   tripDate: string // dd.mm.yyyy — рейс туди
