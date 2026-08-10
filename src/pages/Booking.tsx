@@ -328,6 +328,7 @@ export default function Booking() {
             writeOrderRegistry({
               orderNo: oid,
               userEmail: contactEmail.trim().toLowerCase(),
+              userId: user?.id ? String(user.id) : undefined,
               totalOrdersCount,
               viaApp,
               fromCity: order.from_city || from?.name || '',
