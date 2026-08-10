@@ -10,7 +10,7 @@ import { keepOurPrice } from '../orderStatus'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
 import { validatePromo, redeemPromo } from '../game/gameApi'
-import { applyPromoCode, createOrderNew, NewOrderPassenger, findUserOrder } from '../api/auth'
+import { applyPromoCode, createOrderNew, NewOrderPassenger, findUserOrder, getUserOrders } from '../api/auth'
 import { reportTrip } from '../reporting'
 import { writeOrderRegistry } from '../orderRegistry'
 import BottomSheet from '../components/BottomSheet'
@@ -301,15 +301,36 @@ export default function Booking() {
           // Реєстр замовлень для панелі керування — окремий, редагований документ (знижка/
           // тариф пасажира можна буде правити в адмінці, поки прогер не додасть офіційний
           // API-метод для передачі правок назад на бекенд).
-          writeOrderRegistry({
-            orderNo: oid,
-            userEmail: contactEmail.trim().toLowerCase(),
-            fromCity: order.from_city || from?.name || '',
-            toCity: order.to_city || to?.name || '',
-            tripDate: String(order.ftime || '').split(' ')[0],
-            tripDate2: isRoundTrip ? String(order.ftime2 || '').split(' ')[0] : undefined,
-            roundTrip: pricedAsRoundTrip,
-            createdAt: bookingDate,
+          // Кеп (10.08): юзер вже залогінений у момент бронювання — саме тут, поки жива
+          // його сесія (uidkey), забираємо ЙОГО ПОВНУ історію замовлень (усі канали, не
+          // тільки застосунок) і зберігаємо кількість разом із записом. Окремий адмін-метод
+          // для цього на бекенді не потрібен — ми просто користуємось тим, що самі щойно
+          // залогінені як цей юзер. Для гостя (user відсутній) — totalOrdersCount не пишемо.
+          ;(async () => {
+            let totalOrdersCount: number | undefined
+            if (user) {
+              try {
+                const res: any = await getUserOrders()
+                const remote = Array.isArray(res?.data) ? res.data
+                  : Array.isArray(res) ? res
+                  : Array.isArray(res?.orders) ? res.orders
+                  : Array.isArray(res?.list) ? res.list
+                  : []
+                totalOrdersCount = remote.length
+              } catch (e) {
+                console.error('[Booking] fetch user-orders for registry stat failed', e)
+              }
+            }
+            writeOrderRegistry({
+              orderNo: oid,
+              userEmail: contactEmail.trim().toLowerCase(),
+              totalOrdersCount,
+              fromCity: order.from_city || from?.name || '',
+              toCity: order.to_city || to?.name || '',
+              tripDate: String(order.ftime || '').split(' ')[0],
+              tripDate2: isRoundTrip ? String(order.ftime2 || '').split(' ')[0] : undefined,
+              roundTrip: pricedAsRoundTrip,
+              createdAt: bookingDate,
             passengers: order.passangers.map((p: any, i: number) => {
               const discountOpt = orderedDiscounts.find(d => String(d.id) === discountIds[i])
               const discountName = discountOpt ? catName(discountOpt) : 'Повний тариф'
@@ -326,7 +347,8 @@ export default function Booking() {
                 price: ownPrice,
               }
             }),
-          })
+            })
+          })()
         }
       } else {
         // Помилки конкретного відрізка (1 = туди, 2 = назад): зайняті місця / маршрут не
