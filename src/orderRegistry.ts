@@ -15,6 +15,7 @@ export interface OrderRegistryPassenger {
 
 export interface OrderRegistryData {
   orderNo: string
+  userEmail?: string // для аналітики в адмінці — скільки замовлень цього юзера через застосунок
   fromCity: string
   toCity: string
   tripDate: string // dd.mm.yyyy — рейс туди
