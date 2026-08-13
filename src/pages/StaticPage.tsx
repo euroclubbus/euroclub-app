@@ -56,7 +56,10 @@ export default function StaticPage() {
             return <video key={block.id} src={block.url} controls autoPlay muted playsInline style={{ width: '100%', borderRadius: 16, marginBottom: 14, display: 'block' }} />
           }
           if (block.type === 'text' && block.html) {
-            return <div key={block.id} style={{ background: '#fff', borderRadius: 16, padding: 16, marginBottom: 14, fontSize: 14, lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: block.html }} />
+            // Захист від переповнення по горизонталі (Кеп, 13.08) — довгі слова/посилання
+            // чи стилі з rich-text редактора адмінки можуть не переноситись за замовчуванням
+            // і текст обрізається за межу екрана замість переносу на новий рядок.
+            return <div key={block.id} style={{ background: '#fff', borderRadius: 16, padding: 16, marginBottom: 14, fontSize: 14, lineHeight: 1.6, wordBreak: 'break-word', overflowWrap: 'break-word', maxWidth: '100%' }} dangerouslySetInnerHTML={{ __html: block.html }} />
           }
           return null
         })}
