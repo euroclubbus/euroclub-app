@@ -4,13 +4,16 @@ import NotifPrompt from '../components/NotifPrompt'
 import SideMenu from '../components/SideMenu'
 import { useT, MONTHS, WEEKDAYS_MON, WEEKDAYS_SUN } from '../i18n'
 import { useLangStore } from '../langStore'
-import { Menu } from 'lucide-react'
+import { Menu, AlertTriangle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowUpDown, MapPin, Navigation, Calendar, Users } from 'lucide-react'
 import { useSearchStore } from '../store'
+import { useAuthStore } from '../authStore'
+import { useBookingStore } from '../store'
 import { getCities, getDiscounts } from '../api/euroclub'
 import { getAllowedCities } from '../cityRules'
 import { localizedDiscountName } from '../passengerPricing'
+import { useUnpaidOrdersStore, findMatchingUnpaidOrders } from '../unpaidOrders'
 import BottomSheet from '../components/BottomSheet'
 
 const ORange = '#F5A623'
@@ -421,6 +424,21 @@ export default function Home() {
   const [showDateTo, setShowDateTo] = useState(false)
   const [showPass, setShowPass] = useState(false)
 
+  // Неоплачені замовлення (Кеп, 12.08) — банер на Головній + основа для перевірки дубля
+  // перед новим пошуком. Бейдж на іконці "Мої замовлення" в BottomNav читає той самий стор.
+  const authUser = useAuthStore(s => s.user)
+  const unpaidOrders = useUnpaidOrdersStore(s => s.orders)
+  const refreshUnpaid = useUnpaidOrdersStore(s => s.refresh)
+  const { setOrderResult } = useBookingStore()
+  useEffect(() => {
+    if (authUser) refreshUnpaid()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser])
+
+  // Попередження про дубль замовлення — показується замість переходу до результатів, коли
+  // на обраний маршрут+дату вже є неоплачене замовлення.
+  const [dupeMatches, setDupeMatches] = useState<any[] | null>(null)
+
   const fmtDate = (iso: string) => {
     if (!iso) return ''
     const d = new Date(iso)
@@ -447,6 +465,15 @@ export default function Home() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#F0F0F0', paddingBottom: 80 }}>
+      {/* Неоплачене бронювання — банер (Кеп, 12.08). Цифра-лічильник живе на іконці "Мої
+          замовлення" в BottomNav, тут лише текст-попередження, того самого кольору. */}
+      {unpaidOrders.length > 0 && (
+        <button onClick={() => nav('/tickets')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: ORange, border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+          <AlertTriangle size={18} color="#fff" style={{ flexShrink: 0 }} />
+          <span style={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>У вас є неоплачене бронювання</span>
+        </button>
+      )}
+
       {/* Hero */}
       <div style={{ width: '100%', position: 'relative', lineHeight: 0 }}>
         <img src="/bus-hero.png" alt="EuroClub — автобусні квитки Україна — Європа" style={{ width: '100%', height: 'auto', display: 'block' }} onError={e => { (e.target as HTMLImageElement).style.background = '#1B4F8A' }} />
@@ -557,7 +584,12 @@ export default function Home() {
         </button>
 
         {/* Search button */}
-        <button onClick={() => { if (canSearch) nav('/results'); else setTried(true) }} style={{
+        <button onClick={() => {
+          if (!canSearch) { setTried(true); return }
+          const matches = findMatchingUnpaidOrders(unpaidOrders, from?.id, to?.id, dateFrom)
+          if (matches.length > 0) { setDupeMatches(matches); return }
+          nav('/results')
+        }} style={{
           width: '100%', padding: 18, background: canSearch ? ORange : '#FFD89B',
           color: '#fff', border: 'none', borderRadius: 14, fontWeight: 800,
           fontSize: 17, cursor: 'pointer', letterSpacing: 0.3
@@ -569,7 +601,7 @@ export default function Home() {
         )}
       </div>
 
-      <button onClick={() => setMenuOpen(true)} aria-label="Меню" style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top) + 12px)', left: 14, zIndex: 20, width: 40, height: 40, borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Menu size={22} color="#fff" /></button>
+      <button onClick={() => setMenuOpen(true)} aria-label="Меню" style={{ position: 'absolute', top: `calc(env(safe-area-inset-top) + 12px + ${unpaidOrders.length > 0 ? 46 : 0}px)`, left: 14, zIndex: 20, width: 40, height: 40, borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Menu size={22} color="#fff" /></button>
       <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
 
       <NotifPrompt />
@@ -594,6 +626,38 @@ export default function Home() {
       </BottomSheet>
 
       <PassengersSheet open={showPass} onClose={() => setShowPass(false)} />
+
+      {/* Попередження про дубль замовлення (Кеп, 12.08) — обраний маршрут+дата вже мають
+          неоплачене замовлення. */}
+      <BottomSheet open={!!dupeMatches} onClose={() => setDupeMatches(null)} title="Замовлення вже є">
+        <div style={{ padding: '0 20px 20px' }}>
+          <p style={{ fontSize: 14, color: '#555', lineHeight: 1.5, marginBottom: 20 }}>
+            У вас вже є сформоване замовлення на цю дату — {dupeMatches?.length === 1 ? 'воно ще не оплачене.' : `таких замовлень ${dupeMatches?.length}, і вони ще не оплачені.`}
+          </p>
+          <button
+            onClick={() => {
+              if (!dupeMatches) return
+              if (dupeMatches.length === 1) {
+                setOrderResult(dupeMatches[0].hash, dupeMatches[0])
+                setDupeMatches(null)
+                nav('/order-success')
+              } else {
+                setDupeMatches(null)
+                nav('/tickets')
+              }
+            }}
+            style={{ width: '100%', padding: '14px 0', background: ORange, border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', marginBottom: 10 }}
+          >
+            {dupeMatches && dupeMatches.length > 1 ? `Переглянути замовлення (${dupeMatches.length})` : 'Перейти до оплати'}
+          </button>
+          <button
+            onClick={() => { setDupeMatches(null); nav('/results') }}
+            style={{ width: '100%', padding: '14px 0', background: 'transparent', border: `1.5px solid ${ORange}`, borderRadius: 12, color: ORange, fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
+          >
+            Зробити нове замовлення
+          </button>
+        </div>
+      </BottomSheet>
     </div>
   )
 }
