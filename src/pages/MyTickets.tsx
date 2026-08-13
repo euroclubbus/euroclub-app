@@ -295,9 +295,16 @@ export default function MyTickets() {
                 <button onClick={e => { e.stopPropagation(); openOrder(o) }} style={{ flex: 1, padding: '11px 0', background: 'none', border: `2px solid ${ORange}`, borderRadius: 12, color: ORange, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
                   {t('orders.order')}
                 </button>
-                {paid && (
+                {paid ? (
                   <button onClick={e => { e.stopPropagation(); openTicket(o) }} style={{ flex: 1, padding: '11px 0', background: ORange, border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
                     {t('orders.ticket')}
+                  </button>
+                ) : (
+                  // Кеп (12.08): для неоплаченого замовлення — друга кнопка "Оплатити" поруч
+                  // з "Замовлення", обидві ведуть в те саме місце (openOrder) — просто явна
+                  // друга точка входу, щоб не змушувати шукати кнопку оплати всередині.
+                  <button onClick={e => { e.stopPropagation(); openOrder(o) }} style={{ flex: 1, padding: '11px 0', background: ORange, border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                    Оплатити
                   </button>
                 )}
               </div>
