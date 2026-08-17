@@ -19,11 +19,11 @@ const Navy = '#0A4684'
 // для ВСІХ ~125 замовлень користувача одночасно, незалежно від того, чи там
 // щось змінилось — саме це і було "юрбою запитів" на бекенд/Firebase.
 const lastKnownStatus = new Map<string, string>()
-function syncOrderRegistryStatusIfChanged(orderNo: string, status: any, paidUah: number, paidEur: number, backendApp?: string | number) {
-  const key = `${status}|${paidUah}|${paidEur}|${backendApp ?? ''}`
+function syncOrderRegistryStatusIfChanged(orderNo: string, status: any, paidUah: number, paidEur: number, backendApp?: string | number, backendUserId?: string | number) {
+  const key = `${status}|${paidUah}|${paidEur}|${backendApp ?? ''}|${backendUserId ?? ''}`
   if (lastKnownStatus.get(orderNo) === key) return
   lastKnownStatus.set(orderNo, key)
-  syncOrderRegistryStatus(orderNo, status, paidUah, paidEur, backendApp)
+  syncOrderRegistryStatus(orderNo, status, paidUah, paidEur, backendApp, backendUserId)
 }
 
 export default function MyTickets() {
@@ -98,7 +98,7 @@ export default function MyTickets() {
           // (ціна/статус/оплата); локальні службові поля (bookingDate тощо), яких
           // бекенд не повертає, лишаються з кешу.
           byId[key] = { ...byId[key], ...normalized }
-          syncOrderRegistryStatusIfChanged(key, o.status, Number(o.paid_uah) || 0, Number(o.paid_eur) || 0, o.app)
+          syncOrderRegistryStatusIfChanged(key, o.status, Number(o.paid_uah) || 0, Number(o.paid_eur) || 0, o.app, o.user_id)
         }
         finish(Object.values(byId))
       })
