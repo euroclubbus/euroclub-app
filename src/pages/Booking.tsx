@@ -10,7 +10,7 @@ import { keepOurPrice } from '../orderStatus'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
 import { validatePromo, redeemPromo } from '../game/gameApi'
-import { applyPromoCode, createOrderNew, NewOrderPassenger, findUserOrder, getUserOrders } from '../api/auth'
+import { applyPromoCode, createOrderNew, NewOrderPassenger, findUserOrder, getUserOrders, APP_PLATFORM } from '../api/auth'
 import { isNativePlatform } from '../platform'
 import { reportTrip } from '../reporting'
 import { writeOrderRegistry } from '../orderRegistry'
@@ -329,6 +329,7 @@ export default function Booking() {
               orderNo: oid,
               userEmail: contactEmail.trim().toLowerCase(),
               userId: user?.id ? String(user.id) : undefined,
+              appPlatform: APP_PLATFORM,
               sessionKey: currentUidKey() && currentUidKey() !== '0' ? currentUidKey() : undefined,
               route1: String(trip.id).split('-')[0],
               totalOrdersCount,
