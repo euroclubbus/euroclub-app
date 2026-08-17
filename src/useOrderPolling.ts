@@ -30,7 +30,7 @@ export function useOrderPolling(oid: string, active: boolean, onUpdate: (order: 
           const key = `${o.status}|${o.paid_uah}|${o.paid_eur}`
           if (key !== lastSynced.current) {
             lastSynced.current = key
-            syncOrderRegistryStatus(oid, o.status, Number(o.paid_uah) || 0, Number(o.paid_eur) || 0)
+            syncOrderRegistryStatus(oid, o.status, Number(o.paid_uah) || 0, Number(o.paid_eur) || 0, o.app)
           }
         }
       } catch {}
