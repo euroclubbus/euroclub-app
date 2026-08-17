@@ -236,7 +236,7 @@ export default function OrderSuccess() {
         setRefreshedAt(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`)
         // Кеп (17.08): ручне "Оновити дані" тепер одразу синхронізує реєстр в адмінці,
         // не чекаючи наступного тіка useOrderPolling (15с).
-        syncOrderRegistryStatus(hash, fresh.status, Number(fresh.paid_uah) || 0, Number(fresh.paid_eur) || 0, fresh.app)
+        syncOrderRegistryStatus(hash, fresh.status, Number(fresh.paid_uah) || 0, Number(fresh.paid_eur) || 0, fresh.app, fresh.user_id)
       }
     } catch {
       alert('Не вдалося оновити дані. Спробуйте ще раз.')
