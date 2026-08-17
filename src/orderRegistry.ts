@@ -22,6 +22,10 @@ export interface OrderRegistryData {
   appPlatform?: '1' | '2' // = APP_PLATFORM, той самий "app" параметр, що йде на бекенд у
   // КОЖНОМУ запиті (api/auth.ts). 1 = Android/PWA (не розрізняються бекендом), 2 = iOS.
   // Кеп (17.08): хоче бачити джерело кожного замовлення в реєстрі.
+  backendAppPlatform?: string // те саме, але з ЖИВОЇ відповіді бекенду (user-orders
+  // повертає власне поле "app" по кожному замовленню) — джерело правди, синхронізується
+  // автоматично щоразу, коли юзер відкриває застосунок (навіть для СТАРИХ замовлень,
+  // зроблених до того, як ми взагалі почали щось записувати самі).
   sessionKey?: string // = uidkey юзера в момент бронювання. Кеп (10.08, Варіант C): дозволяє
   // адмінці зробити "Оновити" по конкретному замовленню — бекенд не має адмін-методу для
   // довільного oid без сесії юзера, тому зберігаємо цей токен і використовуємо пізніше.
@@ -71,7 +75,7 @@ export async function writeOrderRegistry(data: OrderRegistryData) {
 // легким апдейтом (не переписуючи весь документ) щоразу, коли застосунок і так отримує
 // свіжі дані під час опитування. Панель показує це як "реальний статус з бекенду",
 // незалежно від нашого власного (ручного) перемикача "Оплачено" в самій панелі.
-export async function syncOrderRegistryStatus(orderNo: string, status: number | string | undefined, paidUah: number, paidEur: number) {
+export async function syncOrderRegistryStatus(orderNo: string, status: number | string | undefined, paidUah: number, paidEur: number, backendApp?: string | number) {
   if (!isFirebaseConfigured() || !orderNo) return
   try {
     const [{ initializeApp, getApps }, { getFirestore, doc, setDoc }] = await Promise.all([
@@ -85,6 +89,12 @@ export async function syncOrderRegistryStatus(orderNo: string, status: number | 
       backendPaidUah: paidUah || 0,
       backendPaidEur: paidEur || 0,
       backendSyncedAt: new Date().toISOString(),
+      // Кеп (17.08): бекенд ТАКИ повертає "app" (1|2) в user-orders — підтверджено живим
+      // прикладом ({"oid":"906727","app":"1",...}). Це джерело правди, на відміну від
+      // нашого власного appPlatform (пишеться тільки в момент бронювання клієнтом). Синк
+      // відбувається щоразу, коли юзер відкриває застосунок — тому це працює НАВІТЬ для
+      // старих замовлень, зроблених до того, як ми взагалі почали щось записувати.
+      ...(backendApp !== undefined && backendApp !== null && backendApp !== '' ? { backendAppPlatform: String(backendApp) } : {}),
     }, { merge: true })
   } catch (e) {
     console.error('[OrderRegistry] status sync failed', e)
