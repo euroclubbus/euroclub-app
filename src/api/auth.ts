@@ -6,7 +6,7 @@ const WORKER = 'https://curly-voice-8a71.eclubbus21.workers.dev'
 // того, PWA це чи нативний білд — визначаємо через navigator.userAgent (простіше й
 // надійніше за Capacitor.getPlatform(), бо ця функція викликається і поза React-деревом,
 // де синхронний імпорт @capacitor/core в усіх контекстах гарантувати важче).
-const APP_PLATFORM: '1' | '2' = /iphone|ipad|ipod/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : '') ? '2' : '1'
+export const APP_PLATFORM: '1' | '2' = /iphone|ipad|ipod/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : '') ? '2' : '1'
 
 async function inputPost(fields: Record<string, string>) {
   const body = new URLSearchParams({
