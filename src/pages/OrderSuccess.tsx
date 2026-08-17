@@ -6,6 +6,7 @@ import { getCities, getRoutes, saveOrderLocally } from '../api/euroclub'
 import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, isCancelled, legInfo, hasFixedReturnLeg } from '../orderStatus'
 import { ensureCitiesLoaded, getCityNameSync } from '../cityNames'
 import { useOrderRegistry } from '../orderRegistryRead'
+import { syncOrderRegistryStatus } from '../orderRegistry'
 import { useOrderPolling } from '../useOrderPolling'
 import { useDisplayPrice } from '../currency'
 import SeatMap from './SeatMap'
@@ -233,6 +234,9 @@ export default function OrderSuccess() {
         setStatus(isCancelled(merged) ? 'cancelled' : 'active')
         const d = new Date()
         setRefreshedAt(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`)
+        // Кеп (17.08): ручне "Оновити дані" тепер одразу синхронізує реєстр в адмінці,
+        // не чекаючи наступного тіка useOrderPolling (15с).
+        syncOrderRegistryStatus(hash, fresh.status, Number(fresh.paid_uah) || 0, Number(fresh.paid_eur) || 0)
       }
     } catch {
       alert('Не вдалося оновити дані. Спробуйте ще раз.')
