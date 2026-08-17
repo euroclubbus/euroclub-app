@@ -26,6 +26,9 @@ export interface OrderRegistryData {
   // повертає власне поле "app" по кожному замовленню) — джерело правди, синхронізується
   // автоматично щоразу, коли юзер відкриває застосунок (навіть для СТАРИХ замовлень,
   // зроблених до того, як ми взагалі почали щось записувати самі).
+  backendUserId?: string // те саме, але бекенд повертає "user_id" напряму в user-orders
+  // ({"oid":"992176","app":"0","user_id":"331124",...}) — джерело правди для ідентифікації
+  // юзера, синхронізується тим самим механізмом, ретроактивно для старих замовлень теж.
   sessionKey?: string // = uidkey юзера в момент бронювання. Кеп (10.08, Варіант C): дозволяє
   // адмінці зробити "Оновити" по конкретному замовленню — бекенд не має адмін-методу для
   // довільного oid без сесії юзера, тому зберігаємо цей токен і використовуємо пізніше.
@@ -75,7 +78,7 @@ export async function writeOrderRegistry(data: OrderRegistryData) {
 // легким апдейтом (не переписуючи весь документ) щоразу, коли застосунок і так отримує
 // свіжі дані під час опитування. Панель показує це як "реальний статус з бекенду",
 // незалежно від нашого власного (ручного) перемикача "Оплачено" в самій панелі.
-export async function syncOrderRegistryStatus(orderNo: string, status: number | string | undefined, paidUah: number, paidEur: number, backendApp?: string | number) {
+export async function syncOrderRegistryStatus(orderNo: string, status: number | string | undefined, paidUah: number, paidEur: number, backendApp?: string | number, backendUserId?: string | number) {
   if (!isFirebaseConfigured() || !orderNo) return
   try {
     const [{ initializeApp, getApps }, { getFirestore, doc, setDoc }] = await Promise.all([
@@ -95,6 +98,10 @@ export async function syncOrderRegistryStatus(orderNo: string, status: number | 
       // відбувається щоразу, коли юзер відкриває застосунок — тому це працює НАВІТЬ для
       // старих замовлень, зроблених до того, як ми взагалі почали щось записувати.
       ...(backendApp !== undefined && backendApp !== null && backendApp !== '' ? { backendAppPlatform: String(backendApp) } : {}),
+      // Кеп (17.08, той самий вечір): бекенд ТАКОЖ повертає "user_id" в user-orders
+      // ({"oid":"992176","app":"0","user_id":"331124",...}) — той самий механізм, той
+      // самий ретроактивний ефект для старих замовлень.
+      ...(backendUserId !== undefined && backendUserId !== null && backendUserId !== '' ? { backendUserId: String(backendUserId) } : {}),
     }, { merge: true })
   } catch (e) {
     console.error('[OrderRegistry] status sync failed', e)
