@@ -35,7 +35,9 @@ export default function Auth({ onAuthed, message, initialMode = 'login' }: { onA
     try {
       const r: any = await authLogin(email.trim(), pass)
       if (r.db && r.db.id) {
-        setUser({ id: r.db.id, header: r.db.header || '', email: r.db.email || email, phone: r.db.phone || '', key: r.db.key || '' })
+        // Прогер (18.08): поле тепер зветься uidkey (раніше було просто key, значення
+        // зараз дублюються для сумісності) — читаємо новe з фолбеком на старе.
+        setUser({ id: r.db.id, header: r.db.header || '', email: r.db.email || email, phone: r.db.phone || '', key: r.db.uidkey || r.db.key || '' })
         onAuthed?.()
       } else {
         setErr(r.err || t('auth.errWrongCreds'))
@@ -52,7 +54,7 @@ export default function Auth({ onAuthed, message, initialMode = 'login' }: { onA
       if (r.ok === 'reg_complete') {
         // одразу входимо
         const l: any = await authLogin(email.trim(), pass)
-        if (l.db?.id) { setUser({ id: l.db.id, header: l.db.header || header, email: l.db.email || email, phone: l.db.phone || '', key: l.db.key || '' }); onAuthed?.() }
+        if (l.db?.id) { setUser({ id: l.db.id, header: l.db.header || header, email: l.db.email || email, phone: l.db.phone || '', key: l.db.uidkey || l.db.key || '' }); onAuthed?.() }
         else { setOk(t('auth.accountCreated')); reset('login'); setEmail(email) }
       } else {
         setErr(r.err || t('auth.errRegisterFailed'))
