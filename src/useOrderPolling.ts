@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { findUserOrder } from './api/auth'
-import { syncOrderRegistryStatus } from './orderRegistry'
+import { syncOrderRegistryStatus, syncUserSession } from './orderRegistry'
+import { currentUidKey } from './authStore'
 
 // Опитує user-orders кожні 15с (було 0.5с — за домовленістю з Кепом зменшуємо навантаження
 // на бекенд) — лише коли active && додаток на передньому плані, і лише поки відкритий
@@ -16,6 +17,7 @@ import { syncOrderRegistryStatus } from './orderRegistry'
 export function useOrderPolling(oid: string, active: boolean, onUpdate: (order: any) => void) {
   const cb = useRef(onUpdate); cb.current = onUpdate
   const lastSynced = useRef<string>('')
+  const lastSessionSynced = useRef<string>('')
   useEffect(() => {
     if (!oid || !active) return
     let stopped = false
@@ -31,6 +33,13 @@ export function useOrderPolling(oid: string, active: boolean, onUpdate: (order: 
           if (key !== lastSynced.current) {
             lastSynced.current = key
             syncOrderRegistryStatus(oid, o.status, Number(o.paid_uah) || 0, Number(o.paid_eur) || 0, o.app, o.user_id)
+          }
+          // Кеп (18.08): живий uidkey — окремо, на рівні юзера, не лише прив'язаний до
+          // цього одного замовлення. Дедуп по значенню ключа, щоб не писати щотік.
+          const uidkey = currentUidKey()
+          if (o.user_id && uidkey && uidkey !== '0' && uidkey !== lastSessionSynced.current) {
+            lastSessionSynced.current = uidkey
+            syncUserSession(o.user_id, uidkey)
           }
         }
       } catch {}
