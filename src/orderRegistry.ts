@@ -107,3 +107,30 @@ export async function syncOrderRegistryStatus(orderNo: string, status: number | 
     console.error('[OrderRegistry] status sync failed', e)
   }
 }
+
+// Кеп (18.08): uidkey видно в КОЖНОМУ запиті застосунку (не лише при бронюванні) — а не
+// тільки в момент створення замовлення. Прогер підтвердив: uidkey ОБОВ'ЯЗКОВИЙ для будь-
+// якого запиту про замовлення (немає способу обійти це загальним API-ключем — той працює
+// лише для пошуку рейсів). Тому зберігаємо ЖИВИЙ uidkey ОКРЕМО, на рівні юзера (а не лише
+// прикріплений до одного замовлення в момент його створення) — щоразу, коли юзер щось
+// відкриває в застосунку (Мої замовлення, опитування статусу, "Оновити дані"). Адмінка
+// потім може підтягнути цей "свіжий" ключ і застосувати його заднім числом до ВСІХ
+// замовлень цього юзера (через backendUserId), навіть тих, що були створені задовго до
+// того, як ми взагалі почали зберігати sessionKey per-order.
+export async function syncUserSession(userId: string | number | undefined, sessionKey: string | undefined) {
+  if (!isFirebaseConfigured() || !userId || !sessionKey || sessionKey === '0') return
+  try {
+    const [{ initializeApp, getApps }, { getFirestore, doc, setDoc }] = await Promise.all([
+      import('firebase/app'),
+      import('firebase/firestore'),
+    ])
+    const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig)
+    const db = getFirestore(app)
+    await setDoc(doc(db, 'user_sessions', String(userId)), {
+      sessionKey,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true })
+  } catch (e) {
+    console.error('[OrderRegistry] user session sync failed', e)
+  }
+}
