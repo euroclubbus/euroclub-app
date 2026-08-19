@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { findUserOrder } from './api/auth'
-import { syncOrderRegistryStatus, syncUserSession } from './orderRegistry'
+import { getUserOrders } from './api/auth'
+import { syncOrderRegistryStatus, syncUserSession, syncAllOrdersInList } from './orderRegistry'
 import { currentUidKey } from './authStore'
 
 // Опитує user-orders кожні 15с (було 0.5с — за домовленістю з Кепом зменшуємо навантаження
@@ -12,11 +12,15 @@ import { currentUidKey } from './authStore'
 // ВАЖЛИВО (пояснено прогеру): order_info (перевірка ОДНОГО замовлення) — застарілий метод,
 // підтверджено самим прогером. Єдиний доступний зараз — user-orders, який завжди повертає
 // ПОВНИЙ список замовлень користувача; фільтрація на потрібне oid відбувається вже на
-// клієнті. Це не наш вибір архітектури — так влаштований бекенд зараз. Якщо навантаження
-// критичне, потрібен легкий метод "статус одного замовлення за oid" з боку бекенду.
+// клієнті. Це не наш вибір архітектури — так влаштований бекенд зараз.
+//
+// Кеп (19.08): раніше тут викликався findUserOrder(oid), який діставав ПОВНИЙ масив і одразу
+// викидав усе, крім одного замовлення — хоча кожен елемент масиву вже містить
+// status/paid_uah/paid_eur/app/user_id для СВОГО замовлення. Тепер синхронізуємо ВЕСЬ масив
+// (syncAllOrdersInList) за кожен тік — це "прогріває" реєстр для ВСІХ замовлень юзера, не
+// лише того, що зараз на екрані, і не коштує жодного додаткового запиту до бекенду.
 export function useOrderPolling(oid: string, active: boolean, onUpdate: (order: any) => void) {
   const cb = useRef(onUpdate); cb.current = onUpdate
-  const lastSynced = useRef<string>('')
   const lastSessionSynced = useRef<string>('')
   useEffect(() => {
     if (!oid || !active) return
@@ -24,23 +28,20 @@ export function useOrderPolling(oid: string, active: boolean, onUpdate: (order: 
     const tick = async () => {
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
       try {
-        const o = await findUserOrder(oid)
-        if (!stopped && o) {
-          cb.current(o)
-          // Реальний статус/оплата з бекенду — в реєстр панелі керування, але тільки коли
-          // значення дійсно змінилось, щоб не смітити зайвими записами щопів'ятсот мс.
-          const key = `${o.status}|${o.paid_uah}|${o.paid_eur}`
-          if (key !== lastSynced.current) {
-            lastSynced.current = key
-            syncOrderRegistryStatus(oid, o.status, Number(o.paid_uah) || 0, Number(o.paid_eur) || 0, o.app, o.user_id)
-          }
-          // Кеп (18.08): живий uidkey — окремо, на рівні юзера, не лише прив'язаний до
-          // цього одного замовлення. Дедуп по значенню ключа, щоб не писати щотік.
-          const uidkey = currentUidKey()
-          if (o.user_id && uidkey && uidkey !== '0' && uidkey !== lastSessionSynced.current) {
-            lastSessionSynced.current = uidkey
-            syncUserSession(o.user_id, uidkey)
-          }
+        const res: any = await getUserOrders()
+        const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+        if (stopped) return
+        const o = list.find((x: any) => String(x.oid ?? x.hash) === String(oid))
+        if (o) cb.current(o)
+        // Синхронізуємо ВЕСЬ список одразу, не тільки поточне замовлення.
+        syncAllOrdersInList(list)
+        // Живий uidkey — окремо, на рівні юзера, не лише прив'язаний до цього одного
+        // замовлення. Дедуп по значенню ключа, щоб не писати щотік.
+        const uidkey = currentUidKey()
+        const userId = o?.user_id ?? list[0]?.user_id
+        if (userId && uidkey && uidkey !== '0' && uidkey !== lastSessionSynced.current) {
+          lastSessionSynced.current = uidkey
+          syncUserSession(userId, uidkey)
         }
       } catch {}
     }
