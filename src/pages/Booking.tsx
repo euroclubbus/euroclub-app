@@ -325,11 +325,18 @@ export default function Booking() {
             // Booking.tsx однаковий і для нативного застосунку, і для PWA/сайту в браузері —
             // без цієї позначки "з додатку" в адмінці рахувало б і сайт теж (Кеп, 10.08).
             const viaApp = await isNativePlatform()
+            // Кеп (19.08): result (відповідь на СТВОРЕННЯ замовлення) — це "повний об'єкт
+            // замовлення, як запис user-orders" (наш же коментар вище) — тобто result.app і
+            // result.user_id вже є ТУТ, у ЦЕЙ САМИЙ момент, без потреби чекати пізнішого
+            // синку через MyTickets/опитування. Пишемо одразу як backendAppPlatform/
+            // backendUserId (джерело правди), а не тільки клієнтські appPlatform/userId.
             writeOrderRegistry({
               orderNo: oid,
               userEmail: contactEmail.trim().toLowerCase(),
               userId: user?.id ? String(user.id) : undefined,
               appPlatform: APP_PLATFORM,
+              ...(result?.app !== undefined && result?.app !== null && result?.app !== '' ? { backendAppPlatform: String(result.app) } : {}),
+              ...(result?.user_id !== undefined && result?.user_id !== null && result?.user_id !== '' ? { backendUserId: String(result.user_id) } : {}),
               sessionKey: currentUidKey() && currentUidKey() !== '0' ? currentUidKey() : undefined,
               route1: String(trip.id).split('-')[0],
               totalOrdersCount,
