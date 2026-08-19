@@ -134,3 +134,25 @@ export async function syncUserSession(userId: string | number | undefined, sessi
     console.error('[OrderRegistry] user session sync failed', e)
   }
 }
+
+// Кеп (19.08): user-orders ЗАВЖДИ повертає ПОВНИЙ масив усіх замовлень юзера — не тільки
+// те, за яким ми зараз слідкуємо. Досі ми (useOrderPolling/findUserOrder) брали з цього
+// масиву ОДНЕ замовлення і викидали решту — хоча кожен елемент масиву вже має
+// status/paid_uah/paid_eur/app/user_id, тобто МОЖНА синхронізувати ВЕСЬ список за один
+// прохід, без жодного додаткового запиту до бекенду. Той самий підхід уже був у
+// MyTickets.tsx (по колу) — тут виносимо його в спільну функцію, щоб не дублювати логіку,
+// і починаємо застосовувати її й на useOrderPolling (Payment/Ticket/OrderSuccess) — це
+// набагато частіше використовуваний шлях, ніж відкриття "Моїх замовлень", тому реально
+// прискорює "прогрівання" реєстру для ВСІХ замовлень юзера, не лише поточного.
+const lastSyncedPerOrder = new Map<string, string>()
+export function syncAllOrdersInList(list: any[]) {
+  for (const o of list) {
+    const id = o?.oid ?? o?.hash
+    if (!id) continue
+    const orderNo = String(id)
+    const key = `${o.status}|${o.paid_uah}|${o.paid_eur}|${o.app ?? ''}|${o.user_id ?? ''}`
+    if (lastSyncedPerOrder.get(orderNo) === key) continue
+    lastSyncedPerOrder.set(orderNo, key)
+    syncOrderRegistryStatus(orderNo, o.status, Number(o.paid_uah) || 0, Number(o.paid_eur) || 0, o.app, o.user_id)
+  }
+}
