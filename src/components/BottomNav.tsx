@@ -1,17 +1,18 @@
 import { NavLink } from 'react-router-dom'
 import { Search, Ticket, User, Bell } from 'lucide-react'
-import { getUnreadCount } from '../notifications'
+import { useNotificationsStore } from '../notificationsFolder'
 import { useUnpaidOrdersStore } from '../unpaidOrders'
 import { useT } from '../i18n'
 
 export default function BottomNav() {
   const t = useT()
   const unpaidCount = useUnpaidOrdersStore(s => s.orders.length)
+  const unreadNotifCount = useNotificationsStore(s => s.unreadCount)
   const TABS = [
     { to: '/', icon: Search, label: t('nav.search'), end: true, badge: false, count: 0, color: '#E53935' },
     { to: '/tickets', icon: Ticket, label: t('nav.orders'), badge: unpaidCount > 0, count: unpaidCount, color: '#F5A623' },
     { to: '/profile', icon: User, label: t('nav.profile'), badge: false, count: 0, color: '#E53935' },
-    { to: '/notifications', icon: Bell, label: t('nav.notifications'), badge: true, count: getUnreadCount(), color: '#E53935' },
+    { to: '/notifications', icon: Bell, label: t('nav.notifications'), badge: unreadNotifCount > 0, count: unreadNotifCount, color: '#E53935' },
   ]
   return (
     <nav style={{
