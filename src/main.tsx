@@ -31,6 +31,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import { useAuthStore } from './authStore'
 import { useState, useEffect } from 'react'
 import { registerPushToken } from './push'
+import { useNotificationsStore } from './notificationsFolder'
 import { useLocation } from 'react-router-dom'
 import { useForceUpdate } from './forceUpdate'
 import ForceUpdateScreen from './components/ForceUpdateScreen'
@@ -96,6 +97,18 @@ function PushTokenSync() {
   return null
 }
 
+function NotificationsFolderSync() {
+  const user = useAuthStore(s => s.user)
+  const start = useNotificationsStore(s => s.start)
+  const stop = useNotificationsStore(s => s.stop)
+  useEffect(() => {
+    if (user) start()
+    else stop()
+    return () => stop()
+  }, [user])
+  return null
+}
+
 const WELCOME_SEEN_KEY = 'eclub_welcome_seen'
 
 function Root() {
@@ -124,6 +137,7 @@ function Root() {
     <BrowserRouter>
       <ErrorBoundary>
         <PushTokenSync />
+        <NotificationsFolderSync />
         <AppRoutes />
       </ErrorBoundary>
     </BrowserRouter>
