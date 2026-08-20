@@ -12,7 +12,7 @@ export default function BottomNav() {
     { to: '/', icon: Search, label: t('nav.search'), end: true, badge: false, count: 0, color: '#E53935' },
     { to: '/tickets', icon: Ticket, label: t('nav.orders'), badge: unpaidCount > 0, count: unpaidCount, color: '#F5A623' },
     { to: '/profile', icon: User, label: t('nav.profile'), badge: false, count: 0, color: '#E53935' },
-    { to: '/notifications', icon: Bell, label: t('nav.notifications'), badge: unreadNotifCount > 0, count: unreadNotifCount, color: '#E53935' },
+    { to: '/notifications', icon: Bell, label: t('nav.notifications'), badge: true, count: unreadNotifCount || 3, color: '#E53935' }, // Кеп (19.08): тимчасово || 3 — тільки щоб побачити вигляд бейджа наживо, поки папка ще порожня. Прибрати, щойно з'явиться реальний потік записів.
   ]
   return (
     <nav style={{
