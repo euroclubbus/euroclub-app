@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Bell, Menu } from 'lucide-react'
-import { getNotifs, getReadIds, markAllRead, formatNotifDate } from '../notifications'
+import { useNotificationsStore, markNotifRead, formatNotifDate } from '../notificationsFolder'
 import SideMenu from '../components/SideMenu'
 import { useT } from '../i18n'
 
@@ -10,13 +10,20 @@ const Gray = '#9E9E9E'
 export default function Notifications() {
   const t = useT()
   const [menuOpen, setMenuOpen] = useState(false)
+  const items = useNotificationsStore(s => s.items)
   // Фіксуємо, які були непрочитані ДО того, як позначимо все прочитаним —
-  // щоб користувач встиг побачити, що саме було новим.
-  const [readBefore] = useState<string[]>(() => getReadIds())
-  const [notifs] = useState(() => getNotifs())
+  // щоб користувач встиг побачити, що саме було новим (той самий підхід, що й раніше).
+  const unreadIdsBefore = useRef<Set<string> | null>(null)
+  if (unreadIdsBefore.current === null) {
+    unreadIdsBefore.current = new Set(items.filter(n => !n.read).map(n => n.id))
+  }
 
   useEffect(() => {
-    markAllRead()
+    // Позначаємо прочитаним кожен запис, який на момент відкриття екрана був непрочитаним.
+    const ids = unreadIdsBefore.current
+    if (!ids) return
+    ids.forEach(id => markNotifRead(id))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
@@ -33,7 +40,7 @@ export default function Notifications() {
       </div>
 
       <div style={{ padding: 16 }}>
-        {notifs.length === 0 && (
+        {items.length === 0 && (
           <div style={{ textAlign: 'center', paddingTop: 60 }}>
             <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <Bell size={30} color={Gray} />
@@ -42,8 +49,8 @@ export default function Notifications() {
           </div>
         )}
 
-        {notifs.map(n => {
-          const isNew = !readBefore.includes(n.id)
+        {items.map(n => {
+          const isNew = unreadIdsBefore.current?.has(n.id) ?? false
           return (
             <div key={n.id} style={{ background: '#fff', borderRadius: 20, padding: 16, marginBottom: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', position: 'relative' }}>
               {isNew && (
@@ -56,7 +63,7 @@ export default function Notifications() {
                 <span style={{ fontWeight: 700, fontSize: 15, color: '#1A1A1A' }}>{n.title}</span>
               </div>
               <p style={{ color: '#555', fontSize: 14, lineHeight: 1.4, margin: '0 0 8px', paddingLeft: 44 }}>{n.body}</p>
-              <div style={{ color: Gray, fontSize: 12, paddingLeft: 44 }}>{formatNotifDate(n.date)}</div>
+              <div style={{ color: Gray, fontSize: 12, paddingLeft: 44 }}>{formatNotifDate(n.createdAt)}</div>
             </div>
           )
         })}
