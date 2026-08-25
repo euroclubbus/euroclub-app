@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { getUserOrders } from './api/auth'
-import { syncOrderRegistryStatus, syncUserSession, syncAllOrdersInList } from './orderRegistry'
-import { currentUidKey } from './authStore'
+import { syncAllOrdersInList } from './orderRegistry'
 
 // Опитує user-orders кожні 15с (було 0.5с — за домовленістю з Кепом зменшуємо навантаження
 // на бекенд) — лише коли active && додаток на передньому плані, і лише поки відкритий
@@ -19,9 +18,11 @@ import { currentUidKey } from './authStore'
 // status/paid_uah/paid_eur/app/user_id для СВОГО замовлення. Тепер синхронізуємо ВЕСЬ масив
 // (syncAllOrdersInList) за кожен тік — це "прогріває" реєстр для ВСІХ замовлень юзера, не
 // лише того, що зараз на екрані, і не коштує жодного додаткового запиту до бекенду.
+//
+// Кеп (25.08): sessionKey/user_sessions ПРИБРАНО — прогер дав справжній адмін-метод
+// (oid2user-orders), адмінка більше не залежить від живої сесії юзера взагалі.
 export function useOrderPolling(oid: string, active: boolean, onUpdate: (order: any) => void) {
   const cb = useRef(onUpdate); cb.current = onUpdate
-  const lastSessionSynced = useRef<string>('')
   useEffect(() => {
     if (!oid || !active) return
     let stopped = false
@@ -35,14 +36,6 @@ export function useOrderPolling(oid: string, active: boolean, onUpdate: (order: 
         if (o) cb.current(o)
         // Синхронізуємо ВЕСЬ список одразу, не тільки поточне замовлення.
         syncAllOrdersInList(list)
-        // Живий uidkey — окремо, на рівні юзера, не лише прив'язаний до цього одного
-        // замовлення. Дедуп по значенню ключа, щоб не писати щотік.
-        const uidkey = currentUidKey()
-        const userId = o?.user_id ?? list[0]?.user_id
-        if (userId && uidkey && uidkey !== '0' && uidkey !== lastSessionSynced.current) {
-          lastSessionSynced.current = uidkey
-          syncUserSession(userId, uidkey)
-        }
       } catch {}
     }
     tick()
