@@ -57,8 +57,13 @@ export default function Notifications() {
                 <span style={{ position: 'absolute', top: 16, right: 16, width: 9, height: 9, borderRadius: '50%', background: ORange }} />
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, paddingRight: 20 }}>
-                <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#FFF3E0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#FFF3E0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative' }}>
                   <Bell size={16} color={ORange} />
+                  {n.type === 'service' && (
+                    // Кеп (20.08): червона мітка для сервісних (транзакційних, по замовленню/
+                    // рейсу) сповіщень — окремо від оранжевого "непрочитано" в кутку картки.
+                    <span style={{ position: 'absolute', bottom: -1, right: -1, width: 10, height: 10, borderRadius: '50%', background: '#E53935', border: '2px solid #fff' }} title="Сервісне сповіщення" />
+                  )}
                 </div>
                 <span style={{ fontWeight: 700, fontSize: 15, color: '#1A1A1A' }}>{n.title}</span>
               </div>
