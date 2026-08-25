@@ -5,8 +5,7 @@ import { getLocalOrders, saveOrderLocally } from '../api/euroclub'
 import { getUserOrders } from '../api/auth'
 import { useBookingStore } from '../store'
 import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted, isPaidCancellation, keepOurPrice} from '../orderStatus'
-import { syncOrderRegistryStatus, syncUserSession } from '../orderRegistry'
-import { currentUidKey } from '../authStore'
+import { syncOrderRegistryStatus } from '../orderRegistry'
 import { ensureCitiesLoaded, getCityNameSync } from '../cityNames'
 import SideMenu from '../components/SideMenu'
 import { useT } from '../i18n'
@@ -20,7 +19,6 @@ const Navy = '#0A4684'
 // для ВСІХ ~125 замовлень користувача одночасно, незалежно від того, чи там
 // щось змінилось — саме це і було "юрбою запитів" на бекенд/Firebase.
 const lastKnownStatus = new Map<string, string>()
-let lastSessionSynced = ''
 function syncOrderRegistryStatusIfChanged(orderNo: string, status: any, paidUah: number, paidEur: number, backendApp?: string | number, backendUserId?: string | number) {
   const key = `${status}|${paidUah}|${paidEur}|${backendApp ?? ''}|${backendUserId ?? ''}`
   if (lastKnownStatus.get(orderNo) === key) return
@@ -101,16 +99,6 @@ export default function MyTickets() {
           // бекенд не повертає, лишаються з кешу.
           byId[key] = { ...byId[key], ...normalized }
           syncOrderRegistryStatusIfChanged(key, o.status, Number(o.paid_uah) || 0, Number(o.paid_eur) || 0, o.app, o.user_id)
-          // Кеп (18.08): живий uidkey на рівні юзера — той самий, що застосунок і так шле
-          // з кожним запитом. Дедуп раз на сесію вкладки, юзер тут завжди той самий для
-          // всього цього списку.
-          if (o.user_id) {
-            const uidkey = currentUidKey()
-            if (uidkey && uidkey !== '0' && uidkey !== lastSessionSynced) {
-              lastSessionSynced = uidkey
-              syncUserSession(o.user_id, uidkey)
-            }
-          }
         }
         finish(Object.values(byId))
       })
