@@ -6,8 +6,7 @@ import { getCities, getRoutes, saveOrderLocally } from '../api/euroclub'
 import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, restoreEligibility, passengerDisplayPrices, formatSeat, isCancelled, legInfo, hasFixedReturnLeg } from '../orderStatus'
 import { ensureCitiesLoaded, getCityNameSync } from '../cityNames'
 import { useOrderRegistry } from '../orderRegistryRead'
-import { syncOrderRegistryStatus, syncUserSession } from '../orderRegistry'
-import { currentUidKey } from '../authStore'
+import { syncOrderRegistryStatus } from '../orderRegistry'
 import { useOrderPolling } from '../useOrderPolling'
 import { useDisplayPrice } from '../currency'
 import SeatMap from './SeatMap'
@@ -238,7 +237,6 @@ export default function OrderSuccess() {
         // Кеп (17.08): ручне "Оновити дані" тепер одразу синхронізує реєстр в адмінці,
         // не чекаючи наступного тіка useOrderPolling (15с).
         syncOrderRegistryStatus(hash, fresh.status, Number(fresh.paid_uah) || 0, Number(fresh.paid_eur) || 0, fresh.app, fresh.user_id)
-        if (fresh.user_id) syncUserSession(fresh.user_id, currentUidKey())
       }
     } catch {
       alert('Не вдалося оновити дані. Спробуйте ще раз.')
