@@ -13,6 +13,7 @@ export interface FolderNotif {
   body: string
   read: boolean
   createdAt: string // ISO
+  type: 'marketing' | 'service' // service = транзакційне (по замовленню/рейсу), червона мітка
 }
 
 interface NotificationsState {
@@ -45,7 +46,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       const unsub = onSnapshot(q, (snap) => {
         const items: FolderNotif[] = snap.docs.map((d) => {
           const data = d.data() as any
-          return { id: d.id, title: data.title || '', body: data.body || '', read: !!data.read, createdAt: data.createdAt || '' }
+          return { id: d.id, title: data.title || '', body: data.body || '', read: !!data.read, createdAt: data.createdAt || '', type: data.type === 'service' ? 'service' : 'marketing' }
         })
         set({ items, unreadCount: items.filter((n) => !n.read).length, loading: false })
       }, () => set({ loading: false }))
