@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Pencil, X, Plus, Trash2 } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
-import { useAuthStore, currentUidKey } from '../authStore'
+import { useAuthStore } from '../authStore'
 import { saveOrderLocally } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
 import { resolveDiscountId, resolvePassengerPrice, fullFareOneWayPrice, localizedDiscountName } from '../passengerPricing'
@@ -337,7 +337,6 @@ export default function Booking() {
               appPlatform: APP_PLATFORM,
               ...(result?.app !== undefined && result?.app !== null && result?.app !== '' ? { backendAppPlatform: String(result.app) } : {}),
               ...(result?.user_id !== undefined && result?.user_id !== null && result?.user_id !== '' ? { backendUserId: String(result.user_id) } : {}),
-              sessionKey: currentUidKey() && currentUidKey() !== '0' ? currentUidKey() : undefined,
               route1: String(trip.id).split('-')[0],
               totalOrdersCount,
               viaApp,
