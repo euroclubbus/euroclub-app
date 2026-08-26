@@ -619,7 +619,9 @@ export default function Booking() {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, padding: '0 2px' }}>
           <span style={{ fontSize: 14, color: Gray }}>{t('booking.total')}{pricedAsRoundTrip ? t('booking.totalRoundTrip') : ''}</span>
-          <span style={{ fontSize: 20, fontWeight: 800 }}>{format(promoApplied ? finalTotal : total, trip?.currency)}</span>
+          {/* Кеп (26.08): twoWayGroup.total (нова формула) — сума двох ніг, уже
+              нормалізована в UAH (leg2 з Європи часто в EUR) — не валюта trip (leg1). */}
+          <span style={{ fontSize: 20, fontWeight: 800 }}>{format(promoApplied ? finalTotal : total, (pricedAsRoundTrip && USE_NEW_PRICING && twoWayGroup) ? 'uah' : trip?.currency)}</span>
         </div>
 
         <button onClick={handleBook} disabled={loading} style={{
