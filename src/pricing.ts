@@ -7,6 +7,8 @@
 // true  = нова логіка за специфікацією
 export const USE_NEW_PRICING = true
 
+import { toUAH } from './currency'
+
 export interface LegPricing {
   базовийТариф: number
   знижкаПроц: number
@@ -17,6 +19,11 @@ export interface LegPricing {
 // price_alt (якщо не 0) завжди заміщує price_old як базовий тариф — незалежно від
 // напрямку різниці. Знижка (price_mob_dsc пріоритетно, інакше price_dsc) застосовується
 // ПОВЕРХ результату заміщення.
+//
+// ВАЖЛИВО: результат у ВЛАСНІЙ валюті рейсу (trip.currency) — не нормалізований. Це
+// правильно для one-way (де далі йде format(x, trip.currency)). Для round-trip, де
+// leg1 і leg2 МОЖУТЬ бути в різних валютах (виїзд з України — uah, виїзд з Німеччини —
+// частіше eur), напряму сумувати результати НЕ можна — див. computeLegPricingUAH нижче.
 export function computeLegPricing(trip: any): LegPricing {
   const priceOld = Number(trip?.price_old ?? trip?.price ?? 0)
   const priceAlt = Number(trip?.price_alt ?? 0)
@@ -28,6 +35,22 @@ export function computeLegPricing(trip: any): LegPricing {
   const актуальнаЦіна = базовийТариф * (1 - знижкаПроц / 100)
 
   return { базовийТариф, знижкаПроц, актуальнаЦіна }
+}
+
+// Кеп (26.08): знайдено реальний баг — round-trip формула сумувала базовийТариф/
+// актуальнаЦіна двох ніг НАПРЯМУ, без урахування, що leg1 (з України) часто в UAH, а
+// leg2 (з Європи) — в EUR. Booking.tsx вже й так конвертує subtotal2 окремо через
+// trip2.currency (рядок 639) — round-trip формула мала робити те саме, але не робила.
+// Ця функція нормалізує ОБИДВА значення в UAH ПЕРЕД поверненням — саме її мають
+// використовувати всі round-trip формули (розділ 5), не computeLegPricing напряму.
+export function computeLegPricingUAH(trip: any): LegPricing {
+  const raw = computeLegPricing(trip)
+  const currency = trip?.currency || 'uah'
+  return {
+    базовийТариф: toUAH(raw.базовийТариф, currency),
+    знижкаПроц: raw.знижкаПроц,
+    актуальнаЦіна: toUAH(raw.актуальнаЦіна, currency),
+  }
 }
 
 export interface PriceDisplay {
@@ -75,8 +98,8 @@ export const DEFAULT_COEFFICIENTS: RoundTripCoefficients = { fixedDates: 0.95, o
 
 // Розділ 5.2 — фіксовані дати в обидва боки.
 export function roundTripFixedDisplay(leg1: any, leg2: any, coefficient: number = DEFAULT_COEFFICIENTS.fixedDates): PriceDisplay {
-  const p1 = computeLegPricing(leg1)
-  const p2 = computeLegPricing(leg2)
+  const p1 = computeLegPricingUAH(leg1)
+  const p2 = computeLegPricingUAH(leg2)
   const базовийТарифРаундТріп = (p1.базовийТариф + p2.базовийТариф) * coefficient
   const актуальнийТарифРаундТріп = (p1.актуальнаЦіна + p2.актуальнаЦіна) * coefficient
   // Для тексту "знижка на рейсі X%" при round-trip показуємо ефективний % від різниці
@@ -126,13 +149,17 @@ export function findOpenDateReturnTrip(departureDateStr: string, candidates: any
 
 // Розділ 5.4 — фіксована категорія знижки пасажира (не сумується з price_dsc/price_mob_dsc).
 // Замінює знижкаПроц на відсоток обраної категорії, застосований до базовийТариф (leg).
+// legPriceWithFixedCategory — власна валюта рейсу (для one-way використання).
+// roundTripWithFixedCategory — той самий баг, що й вище: нормалізує в UAH перед сумою.
 export function legPriceWithFixedCategory(trip: any, categoryDiscountPct: number): number {
   const { базовийТариф } = computeLegPricing(trip)
   return базовийТариф * (1 - categoryDiscountPct / 100)
 }
 
 export function roundTripWithFixedCategory(leg1: any, leg2: any, categoryDiscountPct: number, coefficient: number): number {
-  const price1 = legPriceWithFixedCategory(leg1, categoryDiscountPct)
-  const price2 = legPriceWithFixedCategory(leg2, categoryDiscountPct)
+  const базовийТариф1УАН = computeLegPricingUAH(leg1).базовийТариф
+  const базовийТариф2УАН = computeLegPricingUAH(leg2).базовийТариф
+  const price1 = базовийТариф1УАН * (1 - categoryDiscountPct / 100)
+  const price2 = базовийТариф2УАН * (1 - categoryDiscountPct / 100)
   return roundPrice((price1 + price2) * coefficient)
 }
