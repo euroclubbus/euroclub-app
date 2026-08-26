@@ -5,6 +5,7 @@ import { useSearchStore, useBookingStore } from '../store'
 import { getRoutes } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
 import { perPassengerOneWayPrices, fullFareOneWayPrice } from '../passengerPricing'
+import { USE_NEW_PRICING, computeLegPricing, roundPrice, roundTripFixedDisplay } from '../pricing'
 import { useDisplayPrice } from '../currency'
 import CurrencyToggle from '../components/CurrencyToggle'
 import SideMenu from '../components/SideMenu'
@@ -62,10 +63,15 @@ function hasSeat(trip: any): boolean {
 
 // Сума за весь склад пасажирів зі знижками конкретного рейсу.
 // Якщо категорії немає в trip.discounts — відкат на повний тариф (default).
+// Кеп (27.08): "повний тариф" (fullPrice) тепер сам обчислюється за новим
+// ціноутворенням (price_old/price_alt/price_dsc/price_mob_dsc, розділ 3-4 специфікації)
+// замість сирого trip.price — категорійні знижки (trip.discounts) застосовуються поверх
+// цього як і раніше, логіка group-суми не змінилась.
 function computeGroupPrice(trip: any, cats: string[]) {
   const opts: any[] = trip?.discounts || []
   const def = opts.find(d => d.default === 1 || d.default === '1') || opts[0]
-  const fullPrice = Number(def?.price ?? trip?.price ?? 0)
+  const legPricing = USE_NEW_PRICING ? computeLegPricing(trip) : null
+  const fullPrice = legPricing ? legPricing.актуальнаЦіна : Number(def?.price ?? trip?.price ?? 0)
   const list = cats.length ? cats : ['__one__']
   let total = 0, original = 0, anyFallback = false
   for (const catId of list) {
@@ -78,7 +84,13 @@ function computeGroupPrice(trip: any, cats: string[]) {
       if (catId !== '__one__') anyFallback = true
     }
   }
-  return { total, original, anyFallback, discounted: total < original }
+  // "Знижка рейсу/додатку" (price_dsc/price_mob_dsc) показується окремою міткою лише
+  // якщо немає ВЖЕ активної категорійної знижки (щоб не показувати два одночасно) —
+  // на екрані результатів категорія ще не обрана вручну, тому в звичайному випадку це
+  // не конфліктує.
+  const legDiscountPct = legPricing && !(total < original) ? legPricing.знижкаПроц : 0
+  const legStrikePrice = legPricing && legPricing.базовийТариф > roundPrice(fullPrice) ? roundPrice(legPricing.базовийТариф) * list.length : 0
+  return { total, original: legStrikePrice > 0 ? legStrikePrice : original, discounted: total < original || legStrikePrice > 0, anyFallback, legDiscountPct }
 }
 
 // ─── Trip Card (превью рейсу — кнопка бронювання опційна, для комбінованого
@@ -98,7 +110,7 @@ function TripCard({ trip, cats, onBook, roundTripPrice, hidePrice, bookLabel, hi
   const duration = calcDuration(dep?.time, arr?.time)
   const depCity = dep?.city_ua || dep?.city || ''
   const arrCity = arr?.city_ua || arr?.city || ''
-  const { total, original, discounted, anyFallback } = computeGroupPrice(trip, cats)
+  const { total, original, discounted, anyFallback, legDiscountPct } = computeGroupPrice(trip, cats)
   const displayTotal = roundTripPrice ?? total
 
   return (
@@ -155,6 +167,7 @@ function TripCard({ trip, cats, onBook, roundTripPrice, hidePrice, bookLabel, hi
               <div>
                 {discounted && !roundTripPrice && <div style={{ fontSize: 12, color: Gray, textDecoration: 'line-through' }}>{format(original, trip.currency)}</div>}
                 <div style={{ fontSize: 21, fontWeight: 800 }}>{format(displayTotal, trip.currency)}</div>
+                {legDiscountPct > 0 && !roundTripPrice && <div style={{ fontSize: 11, color: '#E53935', fontWeight: 700 }}>{t('results.discountOnTrip', { pct: legDiscountPct })}</div>}
                 {roundTripPrice != null && <div style={{ fontSize: 11, color: ORange, fontWeight: 700 }}>{t('results.roundTripLabel')}</div>}
               </div>
             )}
@@ -419,11 +432,22 @@ export default function Results() {
   const anyError = outLeg.error || retLeg.error
   const ready = !!outTrip && (!hasFixedReturn || !!retTrip)
 
-  // Напрямок для підбору шаблону ціни: відправлення з України -> UAH, з Європи -> EUR
+  // Напрямок для підбору шаблону ціни (стара таблиця, лише для USE_NEW_PRICING=false):
+  // відправлення з України -> UAH, з Європи -> EUR
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
-  const twoWay = (wantsTwoWay && ready && from && to)
-    ? findTwoWayGroupPrice(perPassengerOneWayPrices(outTrip, passengerCategories), fullFareOneWayPrice(outTrip), from.id, to.id, direction)
-    : null
+  // Кеп (27.08): фіксовані дати в обидва боки — нова формула (базовийТариф+базовийТариф)×коефіцієнт,
+  // замість пошуку в статичній таблиці priceEngine. Стара таблиця лишається як fallback,
+  // якщо USE_NEW_PRICING=false (миттєвий відкат).
+  const twoWay = (wantsTwoWay && ready && from && to && hasFixedReturn && retTrip)
+    ? (USE_NEW_PRICING
+        ? (() => {
+            const p = roundTripFixedDisplay(outTrip, retTrip)
+            return { tariff: p.price, total: p.price, perPassenger: [p.price], anyFallback: false }
+          })()
+        : findTwoWayGroupPrice(perPassengerOneWayPrices(outTrip, passengerCategories), fullFareOneWayPrice(outTrip), from.id, to.id, direction))
+    : (wantsTwoWay && ready && from && to && !hasFixedReturn
+        ? findTwoWayGroupPrice(perPassengerOneWayPrices(outTrip, passengerCategories), fullFareOneWayPrice(outTrip), from.id, to.id, direction)
+        : null)
 
   const handleSelect = () => {
     if (!outTrip) return
