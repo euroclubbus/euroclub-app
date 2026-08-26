@@ -166,7 +166,11 @@ function TripCard({ trip, cats, onBook, roundTripPrice, hidePrice, bookLabel, hi
             ) : (
               <div>
                 {discounted && !roundTripPrice && <div style={{ fontSize: 12, color: Gray, textDecoration: 'line-through' }}>{format(original, trip.currency)}</div>}
-                <div style={{ fontSize: 21, fontWeight: 800 }}>{format(displayTotal, trip.currency)}</div>
+                {/* Кеп (26.08): roundTripPrice — сума ДВОХ ніг, уже нормалізована в UAH
+                    (leg2 з Європи часто в EUR, leg1 з України — в UAH; formatUAH() конвертує
+                    з UAH у вибрану валюту показу, не бере валюту ЦЬОГО leg-у, яка тут може
+                    бути будь-якою). */}
+                <div style={{ fontSize: 21, fontWeight: 800 }}>{roundTripPrice != null ? format(displayTotal, 'uah') : format(displayTotal, trip.currency)}</div>
                 {legDiscountPct > 0 && !roundTripPrice && <div style={{ fontSize: 11, color: '#E53935', fontWeight: 700 }}>{t('results.discountOnTrip', { pct: legDiscountPct })}</div>}
                 {roundTripPrice != null && <div style={{ fontSize: 11, color: ORange, fontWeight: 700 }}>{t('results.roundTripLabel')}</div>}
               </div>
@@ -570,5 +574,7 @@ function TotalPrice({ trip, twoWayTotal, cats }: { trip: any; twoWayTotal: numbe
   const { format } = useDisplayPrice()
   const { total } = computeGroupPrice(trip, cats)
   const shown = twoWayTotal ?? total
-  return <div style={{ fontSize: 26, fontWeight: 800 }}>{format(shown, trip.currency)}</div>
+  // Кеп (26.08): twoWayTotal — сума двох ніг, уже нормалізована в UAH (див. computeLegPricingUAH
+  // у pricing.ts) — не валюта trip (leg1), бо leg2 може бути в EUR.
+  return <div style={{ fontSize: 26, fontWeight: 800 }}>{format(shown, twoWayTotal != null ? 'uah' : trip.currency)}</div>
 }
