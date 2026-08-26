@@ -6,6 +6,7 @@ import { useAuthStore } from '../authStore'
 import { saveOrderLocally } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
 import { resolveDiscountId, resolvePassengerPrice, fullFareOneWayPrice, localizedDiscountName } from '../passengerPricing'
+import { USE_NEW_PRICING, computeLegPricing, roundTripFixedDisplay } from '../pricing'
 import { keepOurPrice } from '../orderStatus'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
@@ -101,8 +102,12 @@ export default function Booking() {
   const effectiveDiscountId = (idx: number) =>
     resolveDiscountId(passengerCategories[idx], discountOptions, passengerDiscounts[idx])
 
+  // Кеп (27.08): базова ціна (коли катерогія не обрана вручну) тепер рахується за новим
+  // ціноутворенням (price_old/price_alt/price_dsc/price_mob_dsc) замість сирого trip.price.
+  // Категорійні знижки (trip.discounts[].price) лишаються без змін — окрема логіка.
+  const defaultLegPrice = USE_NEW_PRICING ? computeLegPricing(trip).актуальнаЦіна : Number(trip?.price ?? 0)
   const getPassengerPrice = (idx: number) =>
-    resolvePassengerPrice(passengerCategories[idx], discountOptions, trip?.price, passengerDiscounts[idx])
+    resolvePassengerPrice(passengerCategories[idx], discountOptions, defaultLegPrice, passengerDiscounts[idx])
 
   const subtotal = Array.from({ length: totalPax }, (_, i) => getPassengerPrice(i)).reduce((s, p) => s + p, 0)
   // Ціна другого напрямку (для фолбеку, якщо шаблон не знайдено) — рахуємо по його власних знижках
@@ -119,8 +124,17 @@ export default function Booking() {
   // рейсу 1), підсумок — сума цих тарифів. Показуємо юзеру лише один фінальний тариф, без розбивки.
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
   const perPassengerOneWay = Array.from({ length: totalPax }, (_, i) => getPassengerPrice(i))
+  // Кеп (27.08): фіксовані дати в обидва боки (trip2 відомий) — нова формула. Відкрита
+  // дата повернення (trip2 = null, openReturnPending) — поки на старій таблиці, потребує
+  // окремого пошуку зворотного рейсу 30+ днів вперед (findOpenDateReturnTrip у pricing.ts
+  // вже готовий, підключення сюди — наступний крок).
   const twoWayGroup = pricedAsRoundTrip && from && to
-    ? findTwoWayGroupPrice(perPassengerOneWay, fullFareOneWayPrice(trip), from.id, to.id, direction)
+    ? (USE_NEW_PRICING && trip2
+        ? (() => {
+            const p = roundTripFixedDisplay(trip, trip2)
+            return { tariff: p.price, total: p.price, perPassenger: [p.price], anyFallback: false }
+          })()
+        : findTwoWayGroupPrice(perPassengerOneWay, fullFareOneWayPrice(trip), from.id, to.id, direction))
     : null
   const total = pricedAsRoundTrip ? (twoWayGroup?.total ?? subtotal) : subtotal
   // Тариф — базова ціна ОДНОГО повного квитка в два боки, саме вона йде в бронювання
