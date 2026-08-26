@@ -98,7 +98,10 @@ export default function RoundTripSummary() {
             <div style={{ fontSize: 11, color: Gray, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>
               {t('rts.priceLabel')}
             </div>
-            <div style={{ fontSize: 26, fontWeight: 900 }}>{format(total, trip?.currency)}</div>
+            {/* Кеп (26.08): total тут завжди з нової формули (USE_NEW_PRICING=true за
+                замовч.), уже нормалізований в UAH — не валюта trip (leg1), бо leg2 з
+                Європи часто в EUR. */}
+            <div style={{ fontSize: 26, fontWeight: 900 }}>{format(total, USE_NEW_PRICING ? 'uah' : trip?.currency)}</div>
           </div>
           <CurrencyToggle />
         </div>
