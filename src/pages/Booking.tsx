@@ -6,7 +6,7 @@ import { useAuthStore } from '../authStore'
 import { saveOrderLocally } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
 import { resolveDiscountId, resolvePassengerPrice, fullFareOneWayPrice, localizedDiscountName } from '../passengerPricing'
-import { USE_NEW_PRICING, computeLegPricing, roundTripFixedDisplay } from '../pricing'
+import { USE_NEW_PRICING, computeLegPricing, roundTripFixedDisplay, roundTripWithFixedCategory, legPriceWithFixedCategory, DEFAULT_COEFFICIENTS } from '../pricing'
 import { keepOurPrice } from '../orderStatus'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
@@ -143,14 +143,27 @@ export default function Booking() {
   // завжди показуємо `total` (нашу ціну), а не тариф.
   const tariff = pricedAsRoundTrip ? (twoWayGroup?.tariff ?? subtotal) : subtotal
 
-  // Ціна конкретної категорії знижки для показу в пікерах вибору — якщо це рейс в два боки,
-  // категорія має показувати ціну В ДВА БОКИ (тариф, масштабований за співвідношенням
-  // знижки цієї категорії до повної one-way ціни), а не саму one-way ціну зі знижкою.
-  // Раніше пікер завжди показував d.price напряму (one-way) — тому "Повний тариф" показував
-  // 5500 замість 9500+ для рейсу в два боки.
+  // Ціна конкретної категорії знижки для показу в пікерах вибору.
+  // ЗАДАЧА 3 (27.08, Кеп): "Фіксовані знижки що передаються — вони всі рахуються від
+  // повного тарифу". Раніше categoryPrice масштабував ВЖЕ здешевлений (price_dsc-знижений)
+  // tariff за пропорцією — тому "За повним тарифом" показував здешевлену суму. Тепер, коли
+  // trip2 конкретно відомий (isRoundTrip), рахуємо категорію НЕЗАЛЕЖНО через
+  // roundTripWithFixedCategory — від справжнього базовийТариф (price_old/price_alt), не
+  // від актуальнаЦіна. Для відкритої дати (trip2 ще невідомий) — лишається наближення
+  // пропорцією, бо конкретної другої ноги ще нема.
   const fullOneWay = fullFareOneWayPrice(trip)
-  const categoryPrice = (oneWayPrice: number) =>
-    pricedAsRoundTrip && fullOneWay > 0 ? Math.round(tariff * (oneWayPrice / fullOneWay)) : oneWayPrice
+  const categoryPrice = (d: { price: number; discount: number }) => {
+    if (!pricedAsRoundTrip) return legPriceWithFixedCategory(trip, d.discount)
+    if (USE_NEW_PRICING && trip2) {
+      const coefficient = DEFAULT_COEFFICIENTS.fixedDates
+      return roundTripWithFixedCategory(trip, trip2, d.discount, coefficient)
+    }
+    return fullOneWay > 0 ? Math.round(tariff * (d.price / fullOneWay)) : d.price
+  }
+  // Кеп (26.08, той самий фікс, що для twoWayGroup.total): результат categoryPrice для
+  // round-trip через нову формулу (roundTripWithFixedCategory) — вже нормалізований в
+  // UAH, не валюта trip (leg1), бо leg2 може бути в EUR.
+  const categoryPriceCurrency = (pricedAsRoundTrip && USE_NEW_PRICING && trip2) ? 'uah' : trip?.currency
 
   // Промокод (наприклад, приз за гру EuroClub Racer) — знижка застосовується лише в застосунку,
   // на боці eclub.com.ua не існує (поки прогер не додасть офіційне поле для промокодів).
@@ -449,7 +462,7 @@ export default function Booking() {
                 {/* Поточна знижка */}
                 {currentDiscount && !isEditing && (
                   <div style={{ fontSize: 13, color: Gray, marginBottom: 4 }}>
-                    {currentDiscount.name} — <strong>{format(categoryPrice(currentDiscount.price), trip?.currency)}</strong>
+                    {currentDiscount.name} — <strong>{format(categoryPrice(currentDiscount), categoryPriceCurrency)}</strong>
                   </div>
                 )}
                 {/* Редагування знижки — вибір лише підсвічує (чернетка), застосовується по OK */}
@@ -464,7 +477,7 @@ export default function Booking() {
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                       }}>
                         <span style={{ fontSize: 13, fontWeight: String(d.id) === draftDiscountId ? 700 : 400 }}>{catName(d)}</span>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(categoryPrice(d.price), trip?.currency)}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(categoryPrice(d), categoryPriceCurrency)}</span>
                       </button>
                     ))}
                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
@@ -510,7 +523,7 @@ export default function Booking() {
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                 }}>
                   <span style={{ fontSize: 13 }}>{catName(d)}</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(categoryPrice(d.price), trip?.currency)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(categoryPrice(d), categoryPriceCurrency)}</span>
                 </button>
               ))}
             </div>
