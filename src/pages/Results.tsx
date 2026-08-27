@@ -625,7 +625,7 @@ export default function Results() {
                       <div style={{ fontSize: 14, color: Gray }}>Шукаємо зворотний рейс…</div>
                     ) : (
                       <>
-                        <TotalPrice trip={outTrip} twoWayTotal={twoWay?.total ?? null} twoWayStrike={(twoWay as any)?.strikePrice ?? null} twoWayDiscountPct={(twoWay as any)?.discountPct ?? null} cats={passengerCategories} />
+                        <TotalPrice trip={outTrip} twoWayTotal={twoWay?.total ?? null} twoWayStrike={(twoWay as any)?.strikePrice ?? null} twoWayDiscountPct={(twoWay as any)?.discountPct ?? null} twoWayMode={hasFixedReturn ? 'fixed' : (openReturnActive ? 'open' : null)} cats={passengerCategories} />
                         {twoWay?.anyFallback && (
                           <div style={{ marginTop: 8, fontSize: 11, color: ORange, display: 'flex', alignItems: 'center', gap: 5 }}>
                             <AlertTriangle size={12} /> Точна ціна в два боки буде уточнена на кроці бронювання
@@ -648,15 +648,19 @@ export default function Results() {
   )
 }
 
-function TotalPrice({ trip, twoWayTotal, twoWayStrike, twoWayDiscountPct, cats }: { trip: any; twoWayTotal: number | null; twoWayStrike?: number | null; twoWayDiscountPct?: number | null; cats: string[] }) {
+function TotalPrice({ trip, twoWayTotal, twoWayStrike, twoWayDiscountPct, twoWayMode, cats }: { trip: any; twoWayTotal: number | null; twoWayStrike?: number | null; twoWayDiscountPct?: number | null; twoWayMode?: 'fixed' | 'open' | null; cats: string[] }) {
   const { format } = useDisplayPrice()
   const { total } = computeGroupPrice(trip, cats)
   const shown = twoWayTotal ?? total
   // Кеп (26.08): twoWayTotal — сума двох ніг, уже нормалізована в UAH (див. computeLegPricingUAH
   // у pricing.ts) — не валюта trip (leg1), бо leg2 може бути в EUR.
   const currency = twoWayTotal != null ? 'uah' : trip.currency
+  // Кеп (27.08): заголовок над ціною — окремий підпис, не пов'язаний із внутрішньою
+  // термінологією специфікації (базовий/актуальний тариф) — просто розрізняє тип квитка.
+  const headerLabel = twoWayMode === 'open' ? 'Актуальний тариф квитка з відкритою датою' : twoWayMode === 'fixed' ? 'Актуальний тариф квитка в 2 сторони' : null
   return (
     <>
+      {headerLabel && <div style={{ fontSize: 12, color: Gray, marginBottom: 4 }}>{headerLabel}</div>}
       {twoWayStrike != null && (
         <div style={{ fontSize: 14, color: Gray, textDecoration: 'line-through' }}>{format(twoWayStrike, currency)}</div>
       )}
