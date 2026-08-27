@@ -446,7 +446,7 @@ export default function Results() {
     ? (USE_NEW_PRICING
         ? (() => {
             const p = roundTripFixedDisplay(outTrip, retTrip)
-            return { tariff: p.price, total: p.price, perPassenger: [p.price], anyFallback: false }
+            return { tariff: p.price, total: p.price, perPassenger: [p.price], anyFallback: false, strikePrice: p.strikePrice, discountPct: p.discountPct }
           })()
         : findTwoWayGroupPrice(perPassengerOneWayPrices(outTrip, passengerCategories), fullFareOneWayPrice(outTrip), from.id, to.id, direction))
     : (wantsTwoWay && ready && from && to && !hasFixedReturn
@@ -550,7 +550,7 @@ export default function Results() {
                     <span style={{ fontSize: 14, color: Gray }}>{wantsTwoWay ? 'Разом за поїздку в два боки' : 'Разом за поїздку'}</span>
                     <CurrencyToggle />
                   </div>
-                  <TotalPrice trip={outTrip} twoWayTotal={twoWay?.total ?? null} cats={passengerCategories} />
+                  <TotalPrice trip={outTrip} twoWayTotal={twoWay?.total ?? null} twoWayStrike={(twoWay as any)?.strikePrice ?? null} twoWayDiscountPct={(twoWay as any)?.discountPct ?? null} cats={passengerCategories} />
                   {twoWay?.anyFallback && (
                     <div style={{ marginTop: 8, fontSize: 11, color: ORange, display: 'flex', alignItems: 'center', gap: 5 }}>
                       <AlertTriangle size={12} /> Точна ціна в два боки буде уточнена на кроці бронювання
@@ -570,11 +570,22 @@ export default function Results() {
   )
 }
 
-function TotalPrice({ trip, twoWayTotal, cats }: { trip: any; twoWayTotal: number | null; cats: string[] }) {
+function TotalPrice({ trip, twoWayTotal, twoWayStrike, twoWayDiscountPct, cats }: { trip: any; twoWayTotal: number | null; twoWayStrike?: number | null; twoWayDiscountPct?: number | null; cats: string[] }) {
   const { format } = useDisplayPrice()
   const { total } = computeGroupPrice(trip, cats)
   const shown = twoWayTotal ?? total
   // Кеп (26.08): twoWayTotal — сума двох ніг, уже нормалізована в UAH (див. computeLegPricingUAH
   // у pricing.ts) — не валюта trip (leg1), бо leg2 може бути в EUR.
-  return <div style={{ fontSize: 26, fontWeight: 800 }}>{format(shown, twoWayTotal != null ? 'uah' : trip.currency)}</div>
+  const currency = twoWayTotal != null ? 'uah' : trip.currency
+  return (
+    <>
+      {twoWayStrike != null && (
+        <div style={{ fontSize: 14, color: Gray, textDecoration: 'line-through' }}>{format(twoWayStrike, currency)}</div>
+      )}
+      <div style={{ fontSize: 26, fontWeight: 800 }}>{format(shown, currency)}</div>
+      {twoWayDiscountPct != null && twoWayDiscountPct > 0 && (
+        <div style={{ fontSize: 12, color: '#E53935', fontWeight: 700, marginTop: 2 }}>Знижка на рейсі {twoWayDiscountPct}%</div>
+      )}
+    </>
+  )
 }
