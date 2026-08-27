@@ -453,7 +453,7 @@ export default function Results() {
   const nav = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const { from, to, dateFrom, dateTo, isOpenReturn, passengerCategories, setDateFrom, setDateTo, setOpenReturn } = useSearchStore()
-  const { setTrip, setTrip2, setOpenReturnPending } = useBookingStore()
+  const { setTrip, setTrip2, setOpenReturnPending, setPricingTrip2 } = useBookingStore()
 
   // "Відкрита дата повернення" (Кеп, 05.08): бекенд ВСЕ Ж підтримує такий тип замовлення —
   // передається route2=-1 (див. Booking.tsx), і рахується/оплачується як round-trip. Тому
@@ -515,8 +515,16 @@ export default function Results() {
     if (hasFixedReturn) {
       if (!retTrip) return
       setTrip2(retTrip)
-    } else {
+      setPricingTrip2(retTrip, 'fixed')
+    } else if (openReturnActive) {
       setTrip2(null) // прибираємо стару обрану дату назад, якщо юзер повернувся й переключився на відкриту
+      // ЄДИНА АРХІТЕКТУРА: pricingTrip2 заповнюється завжди для round-trip — навіть коли
+      // конкретного забронованого другого рейсу нема (відкрита дата). Booking.tsx читає
+      // саме це поле для ціни, а не selectedTrip2 (яке лишається null тут навмисно).
+      setPricingTrip2(openReturnSearch.trip ?? null, 'open')
+    } else {
+      setTrip2(null)
+      setPricingTrip2(null, null)
     }
     setOpenReturnPending(isOpenReturn && !hasFixedReturn)
     nav('/booking')
