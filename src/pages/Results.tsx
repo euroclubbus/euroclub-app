@@ -5,7 +5,7 @@ import { useSearchStore, useBookingStore } from '../store'
 import { getRoutes } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
 import { perPassengerOneWayPrices, fullFareOneWayPrice } from '../passengerPricing'
-import { USE_NEW_PRICING, computeLegPricing, roundPrice, roundTripFixedDisplay } from '../pricing'
+import { USE_NEW_PRICING, computeLegPricing, roundPrice, roundTripFixedDisplay, roundTripOpenDateDisplay } from '../pricing'
 import { useDisplayPrice } from '../currency'
 import CurrencyToggle from '../components/CurrencyToggle'
 import SideMenu from '../components/SideMenu'
@@ -212,6 +212,47 @@ async function findNearestAvailable(fromId: string, toId: string, startISO: stri
     } catch { /* пропускаємо день */ }
   }
   return null
+}
+
+// ЗАДАЧА 1 (27.08, Кеп): пошук зворотного рейсу для round-trip з ВІДКРИТОЮ датою
+// повернення. Діапазон +30..+60 днів від дати виїзду (той самий маршрут навпаки),
+// послідовно по днях, перший рейс з вільними місцями І ціною > 0 — саме він і є
+// "найближчий наступний" за специфікацією (розділ 5.3 PRICING_SPEC_V2).
+// Правило Кепа: якщо в діапазоні +30..+60 нічого підходящого — зворотного рейсу немає
+// (і це показуємо юзеру явно, не 0 і не мовчки).
+async function findOpenDateReturnTripInRange(fromId: string, toId: string, departureISO: string) {
+  for (let i = 30; i <= 60; i++) {
+    const d = new Date(departureISO); d.setDate(d.getDate() + i)
+    const iso = d.toISOString().split('T')[0]
+    const [y, m, dd] = iso.split('-')
+    try {
+      const data: any = await getRoutes(fromId, toId, `${dd}-${m}-${y}`)
+      const code = String(data.error ?? '0')
+      if (code === '102' || code === '103') continue // немає рейсів на цей день — пробуємо далі
+      const rts = data.routes || []
+      const withSeats = rts.filter(hasSeat)
+      for (const trip of withSeats) {
+        const priceCheck = Number(trip?.price_old ?? trip?.price ?? 0)
+        if (priceCheck > 0) return trip // перший придатний — і є "найближчий"
+      }
+    } catch { /* пропускаємо день, пробуємо наступний */ }
+  }
+  return null // нічого не знайдено за 30-60 днів — зворотного рейсу немає
+}
+
+// Хук: той самий стан-машина патерн, що useLegSearch, спеціально для відкритої дати.
+function useOpenReturnSearch(fromId: string | undefined, toId: string | undefined, departureISO: string | undefined, active: boolean) {
+  const [state, setState] = useState<{ loading: boolean; trip: any | null; searched: boolean }>({ loading: false, trip: null, searched: false })
+  useEffect(() => {
+    if (!active || !fromId || !toId || !departureISO) { setState({ loading: false, trip: null, searched: false }); return }
+    let cancelled = false
+    setState({ loading: true, trip: null, searched: false })
+    findOpenDateReturnTripInRange(fromId, toId, departureISO).then(trip => {
+      if (!cancelled) setState({ loading: false, trip, searched: true })
+    })
+    return () => { cancelled = true }
+  }, [active, fromId, toId, departureISO])
+  return state
 }
 
 // ─── Пошук на один відрізок (туди АБО назад) ────────────────────────────────
@@ -423,6 +464,10 @@ export default function Results() {
 
   const outLeg = useLegSearch(from?.id, to?.id, dateFrom, true)
   const retLeg = useLegSearch(to?.id, from?.id, returnDateISO, hasFixedReturn)
+  // ЗАДАЧА 1 (27.08): реальний пошук зворотного рейсу для ВІДКРИТОЇ дати — активний
+  // тільки коли isOpenReturn і НЕ hasFixedReturn (взаємовиключні режими).
+  const openReturnActive = isOpenReturn && !hasFixedReturn
+  const openReturnSearch = useOpenReturnSearch(to?.id, from?.id, dateFrom, openReturnActive)
 
   const outTrip = legResolvedTrip(outLeg)
   const retTrip = hasFixedReturn ? legResolvedTrip(retLeg) : null
@@ -432,7 +477,7 @@ export default function Results() {
   const outNeedsConfirm = legNeedsConfirm(outLeg)
   const retNeedsConfirm = hasFixedReturn && legNeedsConfirm(retLeg)
 
-  const anyLoading = outLeg.loading || (hasFixedReturn && retLeg.loading)
+  const anyLoading = outLeg.loading || (hasFixedReturn && retLeg.loading) || (openReturnActive && openReturnSearch.loading)
   const anyError = outLeg.error || retLeg.error
   const ready = !!outTrip && (!hasFixedReturn || !!retTrip)
 
@@ -449,9 +494,18 @@ export default function Results() {
             return { tariff: p.price, total: p.price, perPassenger: [p.price], anyFallback: false, strikePrice: p.strikePrice, discountPct: p.discountPct }
           })()
         : findTwoWayGroupPrice(perPassengerOneWayPrices(outTrip, passengerCategories), fullFareOneWayPrice(outTrip), from.id, to.id, direction))
-    : (wantsTwoWay && ready && from && to && !hasFixedReturn
-        ? findTwoWayGroupPrice(perPassengerOneWayPrices(outTrip, passengerCategories), fullFareOneWayPrice(outTrip), from.id, to.id, direction)
-        : null)
+    : (openReturnActive && ready && from && to && USE_NEW_PRICING && openReturnSearch.searched && openReturnSearch.trip)
+      ? (() => {
+          const p = roundTripOpenDateDisplay(outTrip, openReturnSearch.trip)
+          return { tariff: p.price, total: p.price, perPassenger: [p.price], anyFallback: false, strikePrice: p.strikePrice, discountPct: p.discountPct }
+        })()
+      : (wantsTwoWay && ready && from && to && !hasFixedReturn && !USE_NEW_PRICING
+          ? findTwoWayGroupPrice(perPassengerOneWayPrices(outTrip, passengerCategories), fullFareOneWayPrice(outTrip), from.id, to.id, direction)
+          : null)
+  // Кеп (27.08): якщо пошук зворотного рейсу завершився і НІЧОГО не знайдено (немає рейсу
+  // в діапазоні +30..+60, чи знайдений рейс має ціну 0) — явно кажемо юзеру "немає",
+  // а не мовчки показуємо 0.
+  const openReturnNotFound = openReturnActive && USE_NEW_PRICING && openReturnSearch.searched && !openReturnSearch.trip
 
   const handleSelect = () => {
     if (!outTrip) return
@@ -535,7 +589,7 @@ export default function Results() {
                     round-trip (route2=-1, ціна/оплата рахуються як за два боки), просто
                     конкретного зворотного рейсу поки нема — його фіксують пізніше на
                     екрані вже оплаченого квитка. */}
-                {isOpenReturn && !hasFixedReturn && (
+                {isOpenReturn && !hasFixedReturn && !openReturnNotFound && (
                   <div style={{ background: '#FFF3DC', border: `1px solid ${ORange}`, borderRadius: 16, padding: 14, marginBottom: 14, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                     <AlertTriangle size={16} color={ORange} style={{ flexShrink: 0, marginTop: 1 }} />
                     <div style={{ fontSize: 13, color: '#7A5A00', lineHeight: 1.4 }}>
@@ -545,21 +599,43 @@ export default function Results() {
                   </div>
                 )}
 
-                <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 14 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                    <span style={{ fontSize: 14, color: Gray }}>{wantsTwoWay ? 'Разом за поїздку в два боки' : 'Разом за поїздку'}</span>
-                    <CurrencyToggle />
-                  </div>
-                  <TotalPrice trip={outTrip} twoWayTotal={twoWay?.total ?? null} twoWayStrike={(twoWay as any)?.strikePrice ?? null} twoWayDiscountPct={(twoWay as any)?.discountPct ?? null} cats={passengerCategories} />
-                  {twoWay?.anyFallback && (
-                    <div style={{ marginTop: 8, fontSize: 11, color: ORange, display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <AlertTriangle size={12} /> Точна ціна в два боки буде уточнена на кроці бронювання
+                {/* ЗАДАЧА 1 (27.08, Кеп): якщо в діапазоні +30..+60 днів немає жодного
+                    придатного зворотного рейсу (чи знайдений має ціну 0) — прямо кажемо
+                    про це, замість мовчазного 0 чи неправильної ціни. */}
+                {openReturnNotFound && (
+                  <div style={{ background: '#FDECEC', border: '1px solid #E53935', borderRadius: 16, padding: 14, marginBottom: 14, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <AlertTriangle size={16} color="#E53935" style={{ flexShrink: 0, marginTop: 1 }} />
+                    <div style={{ fontSize: 13, color: '#8C1D1D', lineHeight: 1.4 }}>
+                      Зворотного рейсу немає — на цьому маршруті не знайдено рейсів у
+                      найближчі 30–60 днів після виїзду. Спробуйте обрати конкретну дату
+                      повернення замість відкритої.
                     </div>
-                  )}
-                  <button onClick={handleSelect} style={{ width: '100%', marginTop: 16, padding: '14px 0', background: ORange, border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
-                    Обрати
-                  </button>
-                </div>
+                  </div>
+                )}
+
+                {!openReturnNotFound && (
+                  <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                      <span style={{ fontSize: 14, color: Gray }}>{wantsTwoWay ? 'Разом за поїздку в два боки' : 'Разом за поїздку'}</span>
+                      <CurrencyToggle />
+                    </div>
+                    {openReturnActive && openReturnSearch.loading ? (
+                      <div style={{ fontSize: 14, color: Gray }}>Шукаємо зворотний рейс…</div>
+                    ) : (
+                      <>
+                        <TotalPrice trip={outTrip} twoWayTotal={twoWay?.total ?? null} twoWayStrike={(twoWay as any)?.strikePrice ?? null} twoWayDiscountPct={(twoWay as any)?.discountPct ?? null} cats={passengerCategories} />
+                        {twoWay?.anyFallback && (
+                          <div style={{ marginTop: 8, fontSize: 11, color: ORange, display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <AlertTriangle size={12} /> Точна ціна в два боки буде уточнена на кроці бронювання
+                          </div>
+                        )}
+                        <button onClick={handleSelect} style={{ width: '100%', marginTop: 16, padding: '14px 0', background: ORange, border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
+                          Обрати
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </>
