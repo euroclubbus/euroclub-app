@@ -641,7 +641,7 @@ export default function Booking() {
             )}
             <span style={{ fontSize: 20, fontWeight: 800 }}>{format(promoApplied ? finalTotal : total, (pricedAsRoundTrip && USE_NEW_PRICING && twoWayGroup) ? 'uah' : trip?.currency)}</span>
             {!promoApplied && (twoWayGroup as any)?.discountPct > 0 && (
-              <div style={{ fontSize: 11, color: '#E53935', fontWeight: 700 }}>Sale online {(twoWayGroup as any).discountPct}%</div>
+              <div style={{ fontSize: 11, color: '#E53935', fontWeight: 700 }}>Діє знижка, кількість акційних квитків — обмежена</div>
             )}
           </div>
         </div>
