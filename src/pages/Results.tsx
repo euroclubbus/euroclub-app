@@ -661,8 +661,9 @@ function TotalPrice({ trip, twoWayTotal, twoWayStrike, twoWayDiscountPct, cats }
         <div style={{ fontSize: 14, color: Gray, textDecoration: 'line-through' }}>{format(twoWayStrike, currency)}</div>
       )}
       <div style={{ fontSize: 26, fontWeight: 800 }}>{format(shown, currency)}</div>
+      {/* Кеп (27.08): для round-trip/відкритої дати НЕ показуємо номінал знижки — фіксований підпис. */}
       {twoWayDiscountPct != null && twoWayDiscountPct > 0 && (
-        <div style={{ fontSize: 12, color: '#E53935', fontWeight: 700, marginTop: 2 }}>Sale online {twoWayDiscountPct}%</div>
+        <div style={{ fontSize: 12, color: '#E53935', fontWeight: 700, marginTop: 2 }}>Діє знижка, кількість акційних квитків — обмежена</div>
       )}
     </>
   )
