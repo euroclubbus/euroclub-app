@@ -5,7 +5,7 @@ import { useSearchStore, useBookingStore } from '../store'
 import { getRoutes } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
 import { perPassengerOneWayPrices, fullFareOneWayPrice } from '../passengerPricing'
-import { USE_NEW_PRICING, computeLegPricing, roundPrice, roundTripFixedDisplay, roundTripOpenDateDisplay, legPriceWithFixedCategory } from '../pricing'
+import { USE_NEW_PRICING, computeLegPricing, roundPrice, roundTripFixedDisplay, roundTripOpenDateDisplay, legPriceWithFixedCategory, roundTripGroupPrice, getCoefficient } from '../pricing'
 import { useDisplayPrice } from '../currency'
 import CurrencyToggle from '../components/CurrencyToggle'
 import SideMenu from '../components/SideMenu'
@@ -486,20 +486,24 @@ export default function Results() {
   // Напрямок для підбору шаблону ціни (стара таблиця, лише для USE_NEW_PRICING=false):
   // відправлення з України -> UAH, з Європи -> EUR
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
-  // Кеп (27.08): фіксовані дати в обидва боки — нова формула (базовийТариф+базовийТариф)×коефіцієнт,
-  // замість пошуку в статичній таблиці priceEngine. Стара таблиця лишається як fallback,
-  // якщо USE_NEW_PRICING=false (миттєвий відкат).
+  // Кеп (27.08): фіксовані дати в обидва боки — рахуємо КОЖНОГО пасажира окремо (за його
+  // категорією, roundTripGroupPrice), не тільки одного. Стара таблиця лишається як
+  // fallback, якщо USE_NEW_PRICING=false (миттєвий відкат).
   const twoWay = (wantsTwoWay && ready && from && to && hasFixedReturn && retTrip)
     ? (USE_NEW_PRICING
         ? (() => {
-            const p = roundTripFixedDisplay(outTrip, retTrip)
-            return { tariff: p.price, total: p.price, perPassenger: [p.price], anyFallback: false, strikePrice: p.strikePrice, discountPct: p.discountPct }
+            const coefficient = getCoefficient(from.id, 'fixedDates')
+            const g = roundTripGroupPrice(outTrip, retTrip, passengerCategories, 'fixed', coefficient)
+            const discountPct = g.base > 0 ? Math.round((1 - g.total / g.base) * 100) : 0
+            return { tariff: g.total, total: g.total, perPassenger: [g.total], anyFallback: false, strikePrice: g.total < g.base ? g.base : undefined, discountPct }
           })()
         : findTwoWayGroupPrice(perPassengerOneWayPrices(outTrip, passengerCategories), fullFareOneWayPrice(outTrip), from.id, to.id, direction))
     : (openReturnActive && ready && from && to && USE_NEW_PRICING && openReturnSearch.searched && openReturnSearch.trip)
       ? (() => {
-          const p = roundTripOpenDateDisplay(outTrip, openReturnSearch.trip)
-          return { tariff: p.price, total: p.price, perPassenger: [p.price], anyFallback: false, strikePrice: p.strikePrice, discountPct: p.discountPct }
+          const coefficient = getCoefficient(from.id, 'openDate')
+          const g = roundTripGroupPrice(outTrip, openReturnSearch.trip, passengerCategories, 'open', coefficient)
+          const discountPct = g.base > 0 ? Math.round((1 - g.total / g.base) * 100) : 0
+          return { tariff: g.total, total: g.total, perPassenger: [g.total], anyFallback: false, strikePrice: g.total < g.base ? g.base : undefined, discountPct }
         })()
       : (wantsTwoWay && ready && from && to && !hasFixedReturn && !USE_NEW_PRICING
           ? findTwoWayGroupPrice(perPassengerOneWayPrices(outTrip, passengerCategories), fullFareOneWayPrice(outTrip), from.id, to.id, direction)
