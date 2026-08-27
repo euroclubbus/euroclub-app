@@ -72,11 +72,16 @@ export default function Booking() {
   const arr2 = trip2?.arrival?.[0]
   const totalPax = passengerCount
   // Real discounts come from the selected trip itself (trip.discounts), e.g. id 0 = full fare, 4 = senior, etc.
-  const discountOptions: Array<{ id: number; default: number; name: string; discount: number; price: number }> = trip?.discounts || []
+  // Кеп (27.08): id=43 ("Знижка при предоплаті") повністю ігнорується — бекенд-теговане
+  // поле, не використовуємо ніде, замінене синтетичною категорією "Sale online" нижче.
+  const discountOptions: Array<{ id: number; default: number; name: string; discount: number; price: number }> =
+    (trip?.discounts || []).filter((d: any) => String(d.id) !== '43')
   // Повний тариф — першим у списку вибору категорії
   const isFull = (d: any) => d && (d.default === 1 || d.default === '1' || String(d.id) === '0')
   const fullFare: any = discountOptions.find(isFull) || { id: 0, default: 1, name: t('booking.fullFare'), discount: 0, price: Number(trip?.price ?? 0) }
-  const orderedDiscounts = [ fullFare, ...discountOptions.filter(d => !isFull(d)) ]
+  // Кеп (27.08): дублікати "За повним тарифом" (напр. id=55, той самий 0% з іншим id) —
+  // прибираємо, лишаємо тільки канонічний fullFare.
+  const isDuplicateFullFare = (d: any) => !isFull(d) && Number(d.discount) === 0 && (d.name || '').includes('повним тарифом')
   const catName = (d: any) => d.name && d.name.trim() ? localizedDiscountName(d.name, d.id) : t('booking.fullFare')
   const [showDiscountFor, setShowDiscountFor] = useState<number | null>(null)
   const [draftDiscountId, setDraftDiscountId] = useState<string | null>(null)
@@ -154,7 +159,9 @@ export default function Booking() {
   // повного тарифу". Тепер, через pricingTrip2 (уніфіковано для обох типів round-trip),
   // рахуємо категорію НЕЗАЛЕЖНО через roundTripWithFixedCategory — від справжнього
   // базовийТариф (price_old/price_alt), не від opt.price чи актуальнаЦіна.
-  const categoryPrice = (d: { price: number; discount: number }) => {
+  const categoryPrice = (d: { id?: string | number; price: number; discount: number }) => {
+    // "Sale online" — синтетична, ціна вже точно порахована вище (та сама, що фінальна).
+    if (String(d.id) === 'sale-online') return d.price
     if (!pricedAsRoundTrip) return legPriceWithFixedCategory(trip, d.discount)
     if (USE_NEW_PRICING && pricingTrip2) {
       const coefficient = getCoefficient(from?.id, pricingCoefficientMode)
@@ -167,6 +174,19 @@ export default function Booking() {
   // Кеп (26.08): результат categoryPrice для round-trip через нову формулу — вже
   // нормалізований в UAH, не валюта trip (leg1), бо leg2 може бути в EUR.
   const categoryPriceCurrency = (pricedAsRoundTrip && USE_NEW_PRICING && pricingTrip2) ? 'uah' : trip?.currency
+
+  // Кеп (27.08): "Sale online" — СИНТЕТИЧНА категорія, не з trip.discounts. Відсоток —
+  // price_mob_dsc (пріоритет) або price_dsc, точно той самий двигун, що рахує "актуальну"
+  // ціну всюди. Показуємо ЗАВЖДИ ПЕРШОЮ в списку, лише якщо знижка > 0. Ціна — та сама, що
+  // вже показана як фінальна (total) — без перерахунку, щоб гарантовано збігалась.
+  const legPct = USE_NEW_PRICING ? computeLegPricing(trip).знижкаПроц : 0
+  const saleOnlinePrice = pricedAsRoundTrip ? (twoWayGroup?.total ?? total) : defaultLegPrice
+  const saleOnlineEntry = legPct > 0 ? [{ id: 'sale-online', default: 0, name: 'Sale online', discount: legPct, price: saleOnlinePrice }] : []
+  const orderedDiscounts = [
+    ...saleOnlineEntry,
+    fullFare,
+    ...discountOptions.filter(d => !isFull(d) && !isDuplicateFullFare(d)),
+  ]
 
   // Промокод (наприклад, приз за гру EuroClub Racer) — знижка застосовується лише в застосунку,
   // на боці eclub.com.ua не існує (поки прогер не додасть офіційне поле для промокодів).
@@ -483,6 +503,7 @@ export default function Booking() {
                         <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(categoryPrice(d), categoryPriceCurrency)}</span>
                       </button>
                     ))}
+                    <div style={{ fontSize: 11, color: Gray, marginTop: 2, marginBottom: 6 }}>Знижки рахуються від повного тарифу</div>
                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                       <button onClick={() => setShowDiscountFor(null)} aria-label="Закрити без збереження" style={{
                         width: 44, flexShrink: 0, padding: 10, background: '#fff', border: '1.5px solid #EEE',
@@ -529,6 +550,7 @@ export default function Booking() {
                   <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(categoryPrice(d), categoryPriceCurrency)}</span>
                 </button>
               ))}
+              {orderedDiscounts.length > 0 && <div style={{ fontSize: 11, color: Gray, marginTop: 4 }}>Знижки рахуються від повного тарифу</div>}
             </div>
           )}
         </div>
