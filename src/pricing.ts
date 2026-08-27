@@ -114,8 +114,20 @@ export function roundTripFixedDisplay(leg1: any, leg2: any, coefficient: number 
 // Розділ 5.3 — відкрита дата повернення. returnTrip — рейс, знайдений на 30+ днів
 // вперед від дати виїзду leg1 (пошук цього рейсу — відповідальність викликаючого коду,
 // див. findOpenDateReturnTrip нижче).
+// Кеп (27.08): АСИМЕТРИЧНА логіка — знижка ЗВОРОТНЬОГО рейсу (той, що знайшли автоматично)
+// ІГНОРУЄТЬСЯ, беремо тільки його базовийТариф. leg1 (обраний вручну) — з ЙОГО власною
+// знижкою, як завжди. Це відрізняється від фіксованих дат, де знижки враховуються на
+// ОБОХ ногах — тому НЕ можна перевикористати roundTripFixedDisplay напряму.
 export function roundTripOpenDateDisplay(leg1: any, returnTrip: any, coefficient: number = DEFAULT_COEFFICIENTS.openDate): PriceDisplay {
-  return roundTripFixedDisplay(leg1, returnTrip, coefficient)
+  const p1 = computeLegPricingUAH(leg1)
+  const p2 = computeLegPricingUAH(returnTrip)
+  const базовийТарифРаундТріп = (p1.базовийТариф + p2.базовийТариф) * coefficient
+  // Актуальна ціна: leg1 зі знижкою, зворотний рейс — БЕЗ знижки (тільки базовийТариф).
+  const актуальнийТарифРаундТріп = (p1.актуальнаЦіна + p2.базовийТариф) * coefficient
+  const effectivePct = базовийТарифРаундТріп > 0
+    ? (1 - актуальнийТарифРаундТріп / базовийТарифРаундТріп) * 100
+    : 0
+  return buildDisplay(актуальнийТарифРаундТріп, базовийТарифРаундТріп, effectivePct)
 }
 
 // Розділ 5.3 — знайти зворотний рейс: 30+ днів вперед від дати виїзду leg1, той самий
