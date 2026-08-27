@@ -164,17 +164,29 @@ export function findOpenDateReturnTrip(departureDateStr: string, candidates: any
 // Замінює знижкаПроц на відсоток обраної категорії, застосований до базовийТариф (leg).
 // legPriceWithFixedCategory — власна валюта рейсу (для one-way використання).
 // roundTripWithFixedCategory — той самий баг, що й вище: нормалізує в UAH перед сумою.
-export function legPriceWithFixedCategory(trip: any, categoryDiscountPct: number): number {
-  const { базовийТариф } = computeLegPricing(trip)
-  return базовийТариф * (1 - categoryDiscountPct / 100)
+// Кеп (27.08): якщо знижка рейсу/застосунку (price_mob_dsc/price_dsc) на цій нозі
+// БІЛЬША за знижку обраної фіксованої категорії — застосовуємо знижку рейсу замість
+// категорійної (клієнту вигідніше). Порівнюється й застосовується ОКРЕМО на кожній нозі
+// (leg1/leg2 можуть мати різні price_dsc/price_mob_dsc) — не одне спільне значення.
+export function legPriceWithFixedCategory(trip: any, categoryDiscountPct: number): { price: number; usedTripDiscount: boolean } {
+  const { базовийТариф, знижкаПроц: tripDiscountPct } = computeLegPricing(trip)
+  const usedTripDiscount = tripDiscountPct > categoryDiscountPct
+  const effectivePct = usedTripDiscount ? tripDiscountPct : categoryDiscountPct
+  return { price: базовийТариф * (1 - effectivePct / 100), usedTripDiscount }
 }
 
-export function roundTripWithFixedCategory(leg1: any, leg2: any, categoryDiscountPct: number, coefficient: number): number {
-  const базовийТариф1УАН = computeLegPricingUAH(leg1).базовийТариф
-  const базовийТариф2УАН = computeLegPricingUAH(leg2).базовийТариф
-  const price1 = базовийТариф1УАН * (1 - categoryDiscountPct / 100)
-  const price2 = базовийТариф2УАН * (1 - categoryDiscountPct / 100)
-  return roundPrice((price1 + price2) * coefficient)
+export function roundTripWithFixedCategory(leg1: any, leg2: any, categoryDiscountPct: number, coefficient: number): { total: number; usedTripDiscountLeg1: boolean; usedTripDiscountLeg2: boolean } {
+  const p1 = computeLegPricingUAH(leg1)
+  const p2 = computeLegPricingUAH(leg2)
+  const tripPct1 = computeLegPricing(leg1).знижкаПроц
+  const tripPct2 = computeLegPricing(leg2).знижкаПроц
+  const usedTripDiscountLeg1 = tripPct1 > categoryDiscountPct
+  const usedTripDiscountLeg2 = tripPct2 > categoryDiscountPct
+  const effectivePct1 = usedTripDiscountLeg1 ? tripPct1 : categoryDiscountPct
+  const effectivePct2 = usedTripDiscountLeg2 ? tripPct2 : categoryDiscountPct
+  const price1 = p1.базовийТариф * (1 - effectivePct1 / 100)
+  const price2 = p2.базовийТариф * (1 - effectivePct2 / 100)
+  return { total: roundPrice((price1 + price2) * coefficient), usedTripDiscountLeg1, usedTripDiscountLeg2 }
 }
 
 // ЗАДАЧА 5 (27.08, Кеп): коефіцієнт read з Firestore settings/pricingCoefficients (адмінка
@@ -228,26 +240,31 @@ export function roundTripGroupPrice(
   cats: string[],
   mode: 'fixed' | 'open',
   coefficient: number
-): { total: number; base: number; perPassenger: number[] } {
+): { total: number; base: number; perPassenger: number[]; usedTripDiscount: boolean[] } {
   const list = cats.length ? cats : ['__default__']
   const discountOptions: any[] = leg1?.discounts || []
   let total = 0
   let base = 0
   const perPassenger: number[] = []
+  const usedTripDiscount: boolean[] = []
   for (const catId of list) {
     // Базовий (0%, однаковий для всіх пасажирів незалежно від категорії) — для перекресленої суми.
-    base += roundTripWithFixedCategory(leg1, leg2, 0, coefficient)
+    base += roundTripWithFixedCategory(leg1, leg2, 0, coefficient).total
     let passengerPrice: number
+    let usedTrip = false
     if (catId === '__default__') {
       const p = mode === 'open' ? roundTripOpenDateDisplay(leg1, leg2, coefficient) : roundTripFixedDisplay(leg1, leg2, coefficient)
       passengerPrice = p.price
     } else {
       const opt = discountOptions.find(d => String(d.id) === catId)
       const pct = opt ? Number(opt.discount) : 0
-      passengerPrice = roundTripWithFixedCategory(leg1, leg2, pct, coefficient)
+      const r = roundTripWithFixedCategory(leg1, leg2, pct, coefficient)
+      passengerPrice = r.total
+      usedTrip = r.usedTripDiscountLeg1 || r.usedTripDiscountLeg2
     }
     total += passengerPrice
     perPassenger.push(roundPrice(passengerPrice))
+    usedTripDiscount.push(usedTrip)
   }
-  return { total: roundPrice(total), base: roundPrice(base), perPassenger }
+  return { total: roundPrice(total), base: roundPrice(base), perPassenger, usedTripDiscount }
 }
