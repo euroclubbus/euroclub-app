@@ -633,6 +633,13 @@ export default function Booking() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, padding: '0 2px' }}>
           <span style={{ fontSize: 14, color: Gray }}>{t('booking.total')}{pricedAsRoundTrip ? t('booking.totalRoundTrip') : ''}</span>
           <div style={{ textAlign: 'right' }}>
+            {/* Кеп (27.08): заголовок над ціною — розрізняє тип квитка (не пов'язано з
+                внутрішньою термінологією специфікації). */}
+            {!promoApplied && pricedAsRoundTrip && (
+              <div style={{ fontSize: 11, color: Gray, marginBottom: 2 }}>
+                {isRoundTrip ? 'Актуальний тариф квитка в 2 сторони' : 'Актуальний тариф квитка з відкритою датою'}
+              </div>
+            )}
             {/* Кеп (26.08): базовий тариф (twoWayGroup.strikePrice) перекреслений, якщо є
                 знижка рейсу/застосунку — не показуємо разом з промо-балами, щоб не плутати
                 два різних перекреслення. */}
