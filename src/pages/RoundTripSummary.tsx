@@ -3,7 +3,7 @@ import { ArrowLeft } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { findTwoWayGroupPrice } from '../priceEngine'
 import { perPassengerOneWayPrices, fullFareOneWayPrice } from '../passengerPricing'
-import { USE_NEW_PRICING, roundTripFixedDisplay } from '../pricing'
+import { USE_NEW_PRICING, roundTripFixedDisplay, getCoefficient } from '../pricing'
 import { useDisplayPrice } from '../currency'
 import CurrencyToggle from '../components/CurrencyToggle'
 import { useT } from '../i18n'
@@ -72,7 +72,7 @@ export default function RoundTripSummary() {
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
   // Кеп (27.08): обидва рейси відомі (trip, trip2 — фіксовані дати) — нова формула.
   const twoWay = USE_NEW_PRICING
-    ? { total: roundTripFixedDisplay(trip, trip2).price }
+    ? { total: roundTripFixedDisplay(trip, trip2, getCoefficient(from?.id, 'fixedDates')).price }
     : (from && to ? findTwoWayGroupPrice(perPassengerOneWayPrices(trip, passengerCategories), fullFareOneWayPrice(trip), from.id, to.id, direction) : null)
   const total = twoWay?.total ?? 0
 
