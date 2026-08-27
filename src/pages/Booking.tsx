@@ -5,7 +5,7 @@ import { useSearchStore, useBookingStore } from '../store'
 import { useAuthStore } from '../authStore'
 import { saveOrderLocally } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
-import { resolveDiscountId, resolvePassengerPrice, fullFareOneWayPrice, localizedDiscountName } from '../passengerPricing'
+import { fullFareOneWayPrice, localizedDiscountName } from '../passengerPricing'
 import { USE_NEW_PRICING, computeLegPricing, roundTripFixedDisplay, roundTripOpenDateDisplay, roundTripWithFixedCategory, legPriceWithFixedCategory, DEFAULT_COEFFICIENTS, getCoefficient } from '../pricing'
 import { keepOurPrice } from '../orderStatus'
 import { convert, useDisplayPrice } from '../currency'
@@ -102,18 +102,30 @@ export default function Booking() {
 
   const { format, displayCurrency } = useDisplayPrice()
 
-  // Знижка пасажира: ручний вибір → категорія зі складу пошуку (якщо діє на рейсі) → повний тариф.
-  // Спільна функція з passengerPricing.ts — та сама, що рахує прев'ю ціни на екрані результатів,
-  // щоб ціна не розходилась між прев'ю і фактичним бронюванням.
-  const effectiveDiscountId = (idx: number) =>
-    resolveDiscountId(passengerCategories[idx], discountOptions, passengerDiscounts[idx])
-
+  // Знижка пасажира: ручний вибір → категорія зі складу пошуку (якщо діє на рейсі) →
+  // "Sale online" за замовчуванням (не "повний тариф" — той лише для внутрішніх розрахунків).
   // Кеп (27.08): базова ціна (коли катерогія не обрана вручну) тепер рахується за новим
   // ціноутворенням (price_old/price_alt/price_dsc/price_mob_dsc) замість сирого trip.price.
   // Категорійні знижки (trip.discounts[].price) лишаються без змін — окрема логіка.
   const defaultLegPrice = USE_NEW_PRICING ? computeLegPricing(trip).актуальнаЦіна : Number(trip?.price ?? 0)
-  const getPassengerPrice = (idx: number) =>
-    resolvePassengerPrice(passengerCategories[idx], discountOptions, defaultLegPrice, passengerDiscounts[idx])
+  const legPct = USE_NEW_PRICING ? computeLegPricing(trip).знижкаПроц : 0
+  // Кеп (27.08): "За повним тарифом" — ЛИШЕ для наших розрахунків, ніколи не пропонується
+  // пасажиру як вибір і ніколи не є замовчуванням. Якщо є автоматична знижка (legPct>0) —
+  // замовчування "sale-online". Якщо знижки нема взагалі — тоді справді нема іншого
+  // варіанту, тож showFullFareInList=true (виняток, рідкісний випадок).
+  const defaultDiscountId = legPct > 0 ? 'sale-online' : String(fullFare.id)
+  const showFullFareInList = legPct === 0 // тільки коли немає жодної автоматичної знижки
+  const effectiveDiscountId = (idx: number) => {
+    if (passengerDiscounts[idx] != null) return String(passengerDiscounts[idx])
+    if (passengerCategories[idx] && discountOptions.some(d => String(d.id) === String(passengerCategories[idx]))) return String(passengerCategories[idx])
+    return defaultDiscountId
+  }
+  const getPassengerPrice = (idx: number) => {
+    const discountId = effectiveDiscountId(idx)
+    if (discountId === 'sale-online') return defaultLegPrice
+    const opt = discountOptions.find(d => String(d.id) === discountId)
+    return Number(opt?.price ?? defaultLegPrice)
+  }
 
   const subtotal = Array.from({ length: totalPax }, (_, i) => getPassengerPrice(i)).reduce((s, p) => s + p, 0)
   // Ціна другого напрямку (для фолбеку, якщо шаблон не знайдено) — рахуємо по його власних знижках
@@ -179,12 +191,14 @@ export default function Booking() {
   // price_mob_dsc (пріоритет) або price_dsc, точно той самий двигун, що рахує "актуальну"
   // ціну всюди. Показуємо ЗАВЖДИ ПЕРШОЮ в списку, лише якщо знижка > 0. Ціна — та сама, що
   // вже показана як фінальна (total) — без перерахунку, щоб гарантовано збігалась.
-  const legPct = USE_NEW_PRICING ? computeLegPricing(trip).знижкаПроц : 0
   const saleOnlinePrice = pricedAsRoundTrip ? (twoWayGroup?.total ?? total) : defaultLegPrice
   const saleOnlineEntry = legPct > 0 ? [{ id: 'sale-online', default: 0, name: 'Sale online', discount: legPct, price: saleOnlinePrice }] : []
+  // Кеп (27.08): "За повним тарифом" — лише для наших розрахунків, ніколи не пропонується
+  // пасажиру як вибір. Показуємо в списку ЛИШЕ якщо немає жодної автоматичної знижки
+  // (showFullFareInList) — тоді це справді єдиний доступний варіант.
   const orderedDiscounts = [
     ...saleOnlineEntry,
-    fullFare,
+    ...(showFullFareInList ? [fullFare] : []),
     ...discountOptions.filter(d => !isFull(d) && !isDuplicateFullFare(d)),
   ]
 
@@ -482,16 +496,18 @@ export default function Booking() {
                     ))}
                   </div>
                 )}
-                {/* Поточна знижка */}
+                {/* Поточна знижка — категорія дрібним шрифтом, ціна виразно (Кеп, 27.08) */}
                 {currentDiscount && !isEditing && (
-                  <div style={{ fontSize: 13, color: Gray, marginBottom: 4 }}>
-                    {currentDiscount.name} — <strong>{format(categoryPrice(currentDiscount), categoryPriceCurrency)}</strong>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                    <span style={{ fontSize: 11.5, color: Gray }}>{catName(currentDiscount)}</span>
+                    <strong style={{ fontSize: 14 }}>{format(categoryPrice(currentDiscount), categoryPriceCurrency)}</strong>
                   </div>
                 )}
                 {/* Редагування знижки — вибір лише підсвічує (чернетка), застосовується по OK */}
                 {isEditing && orderedDiscounts.length > 0 && (
                   <div style={{ background: '#F9F9F9', borderRadius: 12, padding: 12, marginBottom: 8 }}>
-                    <div style={{ fontSize: 12, color: Gray, marginBottom: 8, fontWeight: 600 }}>Оберіть категорію:</div>
+                    <div style={{ fontSize: 12, color: Gray, marginBottom: 4, fontWeight: 600 }}>Оберіть категорію:</div>
+                    <div style={{ fontSize: 11, color: Gray, marginBottom: 8 }}>Знижки рахуються від повного тарифу</div>
                     {orderedDiscounts.map(d => (
                       <button key={d.id} onClick={() => setDraftDiscountId(String(d.id))} style={{
                         width: '100%', padding: '10px 14px', background: String(d.id) === draftDiscountId ? '#FFF3DC' : '#fff',
@@ -503,7 +519,6 @@ export default function Booking() {
                         <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(categoryPrice(d), categoryPriceCurrency)}</span>
                       </button>
                     ))}
-                    <div style={{ fontSize: 11, color: Gray, marginTop: 2, marginBottom: 6 }}>Знижки рахуються від повного тарифу</div>
                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                       <button onClick={() => setShowDiscountFor(null)} aria-label="Закрити без збереження" style={{
                         width: 44, flexShrink: 0, padding: 10, background: '#fff', border: '1.5px solid #EEE',
@@ -535,10 +550,11 @@ export default function Booking() {
             </button>
           ) : (
             <div style={{ background: '#F9F9F9', borderRadius: 12, padding: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                 <span style={{ fontSize: 12, color: Gray, fontWeight: 600 }}>Оберіть категорію пасажира:</span>
                 <button onClick={() => setShowAddPicker(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={16} color={Gray} /></button>
               </div>
+              {orderedDiscounts.length > 0 && <div style={{ fontSize: 11, color: Gray, marginBottom: 8 }}>Знижки рахуються від повного тарифу</div>}
               {orderedDiscounts.length === 0 && <div style={{ fontSize: 13, color: Gray, padding: 8 }}>Немає доступних категорій для цього рейсу</div>}
               {orderedDiscounts.map(d => (
                 <button key={d.id} onClick={() => addPassenger(String(d.id))} style={{
@@ -550,7 +566,6 @@ export default function Booking() {
                   <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(categoryPrice(d), categoryPriceCurrency)}</span>
                 </button>
               ))}
-              {orderedDiscounts.length > 0 && <div style={{ fontSize: 11, color: Gray, marginTop: 4 }}>Знижки рахуються від повного тарифу</div>}
             </div>
           )}
         </div>
@@ -642,14 +657,15 @@ export default function Booking() {
 
         <div style={{ marginBottom: 14 }}>
           {Array.from({ length: totalPax }, (_, i) => {
-            const catId = resolveDiscountId(passengerCategories[i], discountOptions, passengerDiscounts[i])
+            const catId = effectiveDiscountId(i)
             const cat = orderedDiscounts.find(d => String(d.id) === catId)
             const typeName = cat ? catName(cat) : ''
             const ownPrice = pricedAsRoundTrip ? (twoWayGroup?.perPassenger?.[i] ?? getPassengerPrice(i)) : getPassengerPrice(i)
+            const ownPriceCurrency = pricedAsRoundTrip && USE_NEW_PRICING && pricingTrip2 ? 'uah' : trip?.currency
             return (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4, padding: '0 2px' }}>
-                <span style={{ fontSize: 13.5, fontWeight: 600 }}>{(passengerNames[i] || `Пасажир ${i + 1}`)}{typeName && <span style={{ fontWeight: 400, color: Gray }}> ({typeName})</span>}</span>
-                <span style={{ fontSize: 14, fontWeight: 700 }}>{format(ownPrice, trip?.currency)}</span>
+                <span style={{ fontSize: 13.5, fontWeight: 600 }}>{(passengerNames[i] || `Пасажир ${i + 1}`)}{typeName && <span style={{ fontWeight: 400, fontSize: 11.5, color: Gray }}> ({typeName})</span>}</span>
+                <span style={{ fontSize: 14, fontWeight: 700 }}>{format(ownPrice, ownPriceCurrency)}</span>
               </div>
             )
           })}
