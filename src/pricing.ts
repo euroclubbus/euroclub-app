@@ -216,3 +216,38 @@ export function getCoefficient(departureCityId: string | number | undefined, mod
   }
   return cachedCoefficients[mode]
 }
+
+// Кеп (27.08): КРИТИЧНИЙ баг — round-trip формули (roundTripFixedDisplay/OpenDateDisplay)
+// рахували ЦІНУ ОДНОГО пасажира, повністю ігноруючи, що на пошуку могло бути обрано
+// кілька пасажирів РІЗНИХ категорій (напр. повний + інвалідність + УБД). Ця функція
+// рахує суму по КОЖНОМУ пасажиру окремо, з ЙОГО власною категорією — так само, як уже
+// давно робить one-way (computeGroupPrice в Results.tsx).
+export function roundTripGroupPrice(
+  leg1: any,
+  leg2: any,
+  cats: string[],
+  mode: 'fixed' | 'open',
+  coefficient: number
+): { total: number; base: number; perPassenger: number[] } {
+  const list = cats.length ? cats : ['__default__']
+  const discountOptions: any[] = leg1?.discounts || []
+  let total = 0
+  let base = 0
+  const perPassenger: number[] = []
+  for (const catId of list) {
+    // Базовий (0%, однаковий для всіх пасажирів незалежно від категорії) — для перекресленої суми.
+    base += roundTripWithFixedCategory(leg1, leg2, 0, coefficient)
+    let passengerPrice: number
+    if (catId === '__default__') {
+      const p = mode === 'open' ? roundTripOpenDateDisplay(leg1, leg2, coefficient) : roundTripFixedDisplay(leg1, leg2, coefficient)
+      passengerPrice = p.price
+    } else {
+      const opt = discountOptions.find(d => String(d.id) === catId)
+      const pct = opt ? Number(opt.discount) : 0
+      passengerPrice = roundTripWithFixedCategory(leg1, leg2, pct, coefficient)
+    }
+    total += passengerPrice
+    perPassenger.push(roundPrice(passengerPrice))
+  }
+  return { total: roundPrice(total), base: roundPrice(base), perPassenger }
+}
