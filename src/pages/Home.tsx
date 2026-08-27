@@ -233,7 +233,7 @@ function PassengersSheet({ open, onClose }: { open: boolean; onClose: () => void
           const n = counts[id] || 0
           return (
             <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F2F2F2' }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A' }}>{d.displayLabel ?? localizedDiscountName(d.name)}</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A' }}>{d.displayLabel ?? localizedDiscountName(d.name, d.id)}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <button onClick={() => change(id, -1)} disabled={n === 0} style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid #DDD', background: 'none', cursor: n === 0 ? 'default' : 'pointer', fontSize: 17, color: n === 0 ? '#DDD' : '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>−</button>
                 <span style={{ width: 16, textAlign: 'center', fontWeight: 700, fontSize: 15 }}>{n}</span>
