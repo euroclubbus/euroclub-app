@@ -80,7 +80,7 @@ function computeGroupPrice(trip: any, cats: string[]) {
     if (opt) {
       // ЗАДАЧА 3 (27.08, Кеп): категорійна знижка рахується ВІД базовийТариф (не від
       // opt.price напряму — те поле бекенд рахує сам, не завжди узгоджено з price_alt).
-      total += legPricing ? legPriceWithFixedCategory(trip, Number(opt.discount ?? 0)) : Number(opt.price ?? fullPrice)
+      total += legPricing ? legPriceWithFixedCategory(trip, Number(opt.discount ?? 0)).price : Number(opt.price ?? fullPrice)
     } else {
       total += fullPrice
       if (catId !== '__one__') anyFallback = true
