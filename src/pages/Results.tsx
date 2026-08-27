@@ -5,7 +5,7 @@ import { useSearchStore, useBookingStore } from '../store'
 import { getRoutes } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
 import { perPassengerOneWayPrices, fullFareOneWayPrice } from '../passengerPricing'
-import { USE_NEW_PRICING, computeLegPricing, roundPrice, roundTripFixedDisplay, roundTripOpenDateDisplay } from '../pricing'
+import { USE_NEW_PRICING, computeLegPricing, roundPrice, roundTripFixedDisplay, roundTripOpenDateDisplay, legPriceWithFixedCategory } from '../pricing'
 import { useDisplayPrice } from '../currency'
 import CurrencyToggle from '../components/CurrencyToggle'
 import SideMenu from '../components/SideMenu'
@@ -78,7 +78,9 @@ function computeGroupPrice(trip: any, cats: string[]) {
     original += fullPrice
     const opt = opts.find(d => String(d.id) === String(catId))
     if (opt) {
-      total += Number(opt.price ?? fullPrice)
+      // ЗАДАЧА 3 (27.08, Кеп): категорійна знижка рахується ВІД базовийТариф (не від
+      // opt.price напряму — те поле бекенд рахує сам, не завжди узгоджено з price_alt).
+      total += legPricing ? legPriceWithFixedCategory(trip, Number(opt.discount ?? 0)) : Number(opt.price ?? fullPrice)
     } else {
       total += fullPrice
       if (catId !== '__one__') anyFallback = true
