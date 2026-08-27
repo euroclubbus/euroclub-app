@@ -47,7 +47,7 @@ export const dict: Dict = {
   'results.seatsLeft': { uk: 'Залишилось {n} місць', en: '{n} seats left', de: 'Noch {n} Plätze', ru: 'Осталось {n} мест' },
   'results.priceIncluded': { uk: 'Ціна вже врахована у загальній вартості', en: 'Price already included in the total', de: 'Preis bereits im Gesamtpreis enthalten', ru: 'Цена уже учтена в общей стоимости' },
   'results.roundTripLabel': { uk: 'за квиток у два боки', en: 'for a round-trip ticket', de: 'für ein Hin- und Rückfahrt-Ticket', ru: 'за билет туда-обратно' },
-  'results.discountOnTrip': { uk: 'Знижка на рейсі {pct}%', en: 'Trip discount {pct}%', de: 'Rabatt auf die Fahrt {pct}%', ru: 'Скидка на рейс {pct}%' },
+  'results.discountOnTrip': { uk: 'Sale online {pct}%', en: 'Sale online {pct}%', de: 'Sale online {pct}%', ru: 'Sale online {pct}%' },
   'results.fallbackWarning': { uk: 'На цьому рейсі частина знижок не діє — тариф повний', en: 'Some discounts do not apply on this trip — full fare', de: 'Auf dieser Fahrt gelten einige Rabatte nicht — voller Tarif', ru: 'На этом рейсе часть скидок не действует — полный тариф' },
   'results.roundTripTotalLabel': { uk: 'Загальна ціна за квиток у два боки', en: 'Total price for round-trip ticket', de: 'Gesamtpreis für Hin- und Rückfahrt', ru: 'Общая цена за билет туда-обратно' },
   'results.noRoute': { uk: 'На жаль, рейси за маршрутом', en: 'Unfortunately, trips on route', de: 'Leider gibt es auf der Strecke', ru: 'К сожалению, рейсы по маршруту' },
