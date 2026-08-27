@@ -662,7 +662,7 @@ function TotalPrice({ trip, twoWayTotal, twoWayStrike, twoWayDiscountPct, cats }
       )}
       <div style={{ fontSize: 26, fontWeight: 800 }}>{format(shown, currency)}</div>
       {twoWayDiscountPct != null && twoWayDiscountPct > 0 && (
-        <div style={{ fontSize: 12, color: '#E53935', fontWeight: 700, marginTop: 2 }}>Знижка на рейсі {twoWayDiscountPct}%</div>
+        <div style={{ fontSize: 12, color: '#E53935', fontWeight: 700, marginTop: 2 }}>Sale online {twoWayDiscountPct}%</div>
       )}
     </>
   )
