@@ -6,7 +6,7 @@ import { useAuthStore } from '../authStore'
 import { saveOrderLocally } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
 import { fullFareOneWayPrice, localizedDiscountName } from '../passengerPricing'
-import { USE_NEW_PRICING, computeLegPricing, roundTripFixedDisplay, roundTripOpenDateDisplay, roundTripWithFixedCategory, legPriceWithFixedCategory, DEFAULT_COEFFICIENTS, getCoefficient } from '../pricing'
+import { USE_NEW_PRICING, computeLegPricing, roundTripFixedDisplay, roundTripOpenDateDisplay, roundTripWithFixedCategory, roundTripGroupPrice, legPriceWithFixedCategory, DEFAULT_COEFFICIENTS, getCoefficient } from '../pricing'
 import { keepOurPrice } from '../orderStatus'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
@@ -148,14 +148,19 @@ export default function Booking() {
   // (selectedTrip2) — те поле лишається null для відкритої дати, бо стосується
   // РЕАЛЬНОГО бронювання місць/route2, не ціни.
   const pricingCoefficientMode = pricingMode === 'open' ? 'openDate' : 'fixedDates'
+  // Кеп (27.08): КРИТИЧНО — рахуємо КОЖНОГО пасажира окремо (за його резольвленою
+  // категорією — ручний вибір на цьому екрані АБО категорія з пошуку), не тільки одного.
+  const resolvedCatsForGroup = Array.from({ length: totalPax }, (_, i) => {
+    const id = effectiveDiscountId(i)
+    return id === 'sale-online' ? '__default__' : id
+  })
   const twoWayGroup = pricedAsRoundTrip && from && to
     ? (USE_NEW_PRICING && pricingTrip2
         ? (() => {
             const coefficient = getCoefficient(from.id, pricingCoefficientMode)
-            const p = pricingMode === 'open'
-              ? roundTripOpenDateDisplay(trip, pricingTrip2, coefficient)
-              : roundTripFixedDisplay(trip, pricingTrip2, coefficient)
-            return { tariff: p.price, total: p.price, perPassenger: [p.price], anyFallback: false, strikePrice: p.strikePrice, discountPct: p.discountPct }
+            const g = roundTripGroupPrice(trip, pricingTrip2, resolvedCatsForGroup, pricingMode === 'open' ? 'open' : 'fixed', coefficient)
+            const discountPct = g.base > 0 ? Math.round((1 - g.total / g.base) * 100) : 0
+            return { tariff: g.total, total: g.total, perPassenger: g.perPassenger, anyFallback: false, strikePrice: g.total < g.base ? g.base : undefined, discountPct }
           })()
         : findTwoWayGroupPrice(perPassengerOneWay, fullFareOneWayPrice(trip), from.id, to.id, direction))
     : null
