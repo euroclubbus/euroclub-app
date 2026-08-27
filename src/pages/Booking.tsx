@@ -132,7 +132,7 @@ export default function Booking() {
     ? (USE_NEW_PRICING && trip2
         ? (() => {
             const p = roundTripFixedDisplay(trip, trip2)
-            return { tariff: p.price, total: p.price, perPassenger: [p.price], anyFallback: false }
+            return { tariff: p.price, total: p.price, perPassenger: [p.price], anyFallback: false, strikePrice: p.strikePrice, discountPct: p.discountPct }
           })()
         : findTwoWayGroupPrice(perPassengerOneWay, fullFareOneWayPrice(trip), from.id, to.id, direction))
     : null
@@ -619,9 +619,18 @@ export default function Booking() {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, padding: '0 2px' }}>
           <span style={{ fontSize: 14, color: Gray }}>{t('booking.total')}{pricedAsRoundTrip ? t('booking.totalRoundTrip') : ''}</span>
-          {/* Кеп (26.08): twoWayGroup.total (нова формула) — сума двох ніг, уже
-              нормалізована в UAH (leg2 з Європи часто в EUR) — не валюта trip (leg1). */}
-          <span style={{ fontSize: 20, fontWeight: 800 }}>{format(promoApplied ? finalTotal : total, (pricedAsRoundTrip && USE_NEW_PRICING && twoWayGroup) ? 'uah' : trip?.currency)}</span>
+          <div style={{ textAlign: 'right' }}>
+            {/* Кеп (26.08): базовий тариф (twoWayGroup.strikePrice) перекреслений, якщо є
+                знижка рейсу/застосунку — не показуємо разом з промо-балами, щоб не плутати
+                два різних перекреслення. */}
+            {!promoApplied && (twoWayGroup as any)?.strikePrice != null && (
+              <div style={{ fontSize: 13, color: Gray, textDecoration: 'line-through' }}>{format((twoWayGroup as any).strikePrice, 'uah')}</div>
+            )}
+            <span style={{ fontSize: 20, fontWeight: 800 }}>{format(promoApplied ? finalTotal : total, (pricedAsRoundTrip && USE_NEW_PRICING && twoWayGroup) ? 'uah' : trip?.currency)}</span>
+            {!promoApplied && (twoWayGroup as any)?.discountPct > 0 && (
+              <div style={{ fontSize: 11, color: '#E53935', fontWeight: 700 }}>Знижка на рейсі {(twoWayGroup as any).discountPct}%</div>
+            )}
+          </div>
         </div>
 
         <button onClick={handleBook} disabled={loading} style={{
