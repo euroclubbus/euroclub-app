@@ -6,7 +6,7 @@ import { useAuthStore } from '../authStore'
 import { saveOrderLocally } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
 import { resolveDiscountId, resolvePassengerPrice, fullFareOneWayPrice, localizedDiscountName } from '../passengerPricing'
-import { USE_NEW_PRICING, computeLegPricing, roundTripFixedDisplay, roundTripWithFixedCategory, legPriceWithFixedCategory, DEFAULT_COEFFICIENTS, getCoefficient } from '../pricing'
+import { USE_NEW_PRICING, computeLegPricing, roundTripFixedDisplay, roundTripOpenDateDisplay, roundTripWithFixedCategory, legPriceWithFixedCategory, DEFAULT_COEFFICIENTS, getCoefficient } from '../pricing'
 import { keepOurPrice } from '../orderStatus'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
@@ -47,6 +47,7 @@ export default function Booking() {
   const { from, to, dateFrom, isOpenReturn, passengerCount, passengerCategories, addPassengerCategory, removePassengerCategoryAt } = useSearchStore()
   const {
     selectedTrip, selectedSeats, selectedTrip2, selectedSeats2, openReturnPending,
+    pricingTrip2, pricingMode,
     passengerNames, passengerDiscounts, contactEmail, contactPhone, payerName, setPayerName,
     setSeats, setSeats2, setPassengerName, setPassengerDiscount, removePassengerDataAt, setContact, setOrderResult
   } = useBookingStore()
@@ -124,14 +125,19 @@ export default function Booking() {
   // рейсу 1), підсумок — сума цих тарифів. Показуємо юзеру лише один фінальний тариф, без розбивки.
   const direction: 'ua' | 'eu' = from?.i2 === 'ua' ? 'ua' : 'eu'
   const perPassengerOneWay = Array.from({ length: totalPax }, (_, i) => getPassengerPrice(i))
-  // Кеп (27.08): фіксовані дати в обидва боки (trip2 відомий) — нова формула. Відкрита
-  // дата повернення (trip2 = null, openReturnPending) — поки на старій таблиці, потребує
-  // окремого пошуку зворотного рейсу 30+ днів вперед (findOpenDateReturnTrip у pricing.ts
-  // вже готовий, підключення сюди — наступний крок).
+  // ЄДИНА ЦІНОВА АРХІТЕКТУРА (27.08, Кеп): pricingTrip2/pricingMode — ЄДИНЕ джерело даних
+  // для другої ноги в ціновій логіці, для ОБОХ типів round-trip (фіксована дата й
+  // відкрита) — заповнюється в Results.tsx handleSelect. НЕ плутати з trip2
+  // (selectedTrip2) — те поле лишається null для відкритої дати, бо стосується
+  // РЕАЛЬНОГО бронювання місць/route2, не ціни.
+  const pricingCoefficientMode = pricingMode === 'open' ? 'openDate' : 'fixedDates'
   const twoWayGroup = pricedAsRoundTrip && from && to
-    ? (USE_NEW_PRICING && trip2
+    ? (USE_NEW_PRICING && pricingTrip2
         ? (() => {
-            const p = roundTripFixedDisplay(trip, trip2, getCoefficient(from?.id, 'fixedDates'))
+            const coefficient = getCoefficient(from.id, pricingCoefficientMode)
+            const p = pricingMode === 'open'
+              ? roundTripOpenDateDisplay(trip, pricingTrip2, coefficient)
+              : roundTripFixedDisplay(trip, pricingTrip2, coefficient)
             return { tariff: p.price, total: p.price, perPassenger: [p.price], anyFallback: false, strikePrice: p.strikePrice, discountPct: p.discountPct }
           })()
         : findTwoWayGroupPrice(perPassengerOneWay, fullFareOneWayPrice(trip), from.id, to.id, direction))
@@ -145,25 +151,22 @@ export default function Booking() {
 
   // Ціна конкретної категорії знижки для показу в пікерах вибору.
   // ЗАДАЧА 3 (27.08, Кеп): "Фіксовані знижки що передаються — вони всі рахуються від
-  // повного тарифу". Раніше categoryPrice масштабував ВЖЕ здешевлений (price_dsc-знижений)
-  // tariff за пропорцією — тому "За повним тарифом" показував здешевлену суму. Тепер, коли
-  // trip2 конкретно відомий (isRoundTrip), рахуємо категорію НЕЗАЛЕЖНО через
-  // roundTripWithFixedCategory — від справжнього базовийТариф (price_old/price_alt), не
-  // від актуальнаЦіна. Для відкритої дати (trip2 ще невідомий) — лишається наближення
-  // пропорцією, бо конкретної другої ноги ще нема.
-  const fullOneWay = fullFareOneWayPrice(trip)
+  // повного тарифу". Тепер, через pricingTrip2 (уніфіковано для обох типів round-trip),
+  // рахуємо категорію НЕЗАЛЕЖНО через roundTripWithFixedCategory — від справжнього
+  // базовийТариф (price_old/price_alt), не від opt.price чи актуальнаЦіна.
   const categoryPrice = (d: { price: number; discount: number }) => {
     if (!pricedAsRoundTrip) return legPriceWithFixedCategory(trip, d.discount)
-    if (USE_NEW_PRICING && trip2) {
-      const coefficient = getCoefficient(from?.id, 'fixedDates')
-      return roundTripWithFixedCategory(trip, trip2, d.discount, coefficient)
+    if (USE_NEW_PRICING && pricingTrip2) {
+      const coefficient = getCoefficient(from?.id, pricingCoefficientMode)
+      return roundTripWithFixedCategory(trip, pricingTrip2, d.discount, coefficient)
     }
+    // Fallback (USE_NEW_PRICING=false, миттєвий відкат) — стара пропорція.
+    const fullOneWay = fullFareOneWayPrice(trip)
     return fullOneWay > 0 ? Math.round(tariff * (d.price / fullOneWay)) : d.price
   }
-  // Кеп (26.08, той самий фікс, що для twoWayGroup.total): результат categoryPrice для
-  // round-trip через нову формулу (roundTripWithFixedCategory) — вже нормалізований в
-  // UAH, не валюта trip (leg1), бо leg2 може бути в EUR.
-  const categoryPriceCurrency = (pricedAsRoundTrip && USE_NEW_PRICING && trip2) ? 'uah' : trip?.currency
+  // Кеп (26.08): результат categoryPrice для round-trip через нову формулу — вже
+  // нормалізований в UAH, не валюта trip (leg1), бо leg2 може бути в EUR.
+  const categoryPriceCurrency = (pricedAsRoundTrip && USE_NEW_PRICING && pricingTrip2) ? 'uah' : trip?.currency
 
   // Промокод (наприклад, приз за гру EuroClub Racer) — знижка застосовується лише в застосунку,
   // на боці eclub.com.ua не існує (поки прогер не додасть офіційне поле для промокодів).
