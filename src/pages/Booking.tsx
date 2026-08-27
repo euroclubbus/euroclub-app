@@ -179,14 +179,25 @@ export default function Booking() {
   const categoryPrice = (d: { id?: string | number; price: number; discount: number }) => {
     // "Sale online" — синтетична, ціна вже точно порахована вище (та сама, що фінальна).
     if (String(d.id) === 'sale-online') return d.price
-    if (!pricedAsRoundTrip) return legPriceWithFixedCategory(trip, d.discount)
+    if (!pricedAsRoundTrip) return legPriceWithFixedCategory(trip, d.discount).price
     if (USE_NEW_PRICING && pricingTrip2) {
       const coefficient = getCoefficient(from?.id, pricingCoefficientMode)
-      return roundTripWithFixedCategory(trip, pricingTrip2, d.discount, coefficient)
+      return roundTripWithFixedCategory(trip, pricingTrip2, d.discount, coefficient).total
     }
     // Fallback (USE_NEW_PRICING=false, миттєвий відкат) — стара пропорція.
     const fullOneWay = fullFareOneWayPrice(trip)
     return fullOneWay > 0 ? Math.round(tariff * (d.price / fullOneWay)) : d.price
+  }
+  // Кеп (27.08): чи для цієї категорії застосована знижка РЕЙСУ (price_dsc/price_mob_dsc)
+  // замість власної категорійної — бо вона вигідніша. Показуємо напис, БЕЗ відсотка.
+  const categoryUsesTripDiscount = (d: { id?: string | number; discount: number }): boolean => {
+    if (String(d.id) === 'sale-online' || !USE_NEW_PRICING) return false
+    if (!pricedAsRoundTrip) return legPriceWithFixedCategory(trip, d.discount).usedTripDiscount
+    if (pricingTrip2) {
+      const r = roundTripWithFixedCategory(trip, pricingTrip2, d.discount, 1) // коефіцієнт не впливає на прапорець
+      return r.usedTripDiscountLeg1 || r.usedTripDiscountLeg2
+    }
+    return false
   }
   // Кеп (26.08): результат categoryPrice для round-trip через нову формулу — вже
   // нормалізований в UAH, не валюта trip (leg1), бо leg2 може бути в EUR.
@@ -503,9 +514,14 @@ export default function Booking() {
                 )}
                 {/* Поточна знижка — категорія дрібним шрифтом, ціна виразно (Кеп, 27.08) */}
                 {currentDiscount && !isEditing && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-                    <span style={{ fontSize: 11.5, color: Gray }}>{catName(currentDiscount)}</span>
-                    <strong style={{ fontSize: 14 }}>{format(categoryPrice(currentDiscount), categoryPriceCurrency)}</strong>
+                  <div style={{ marginBottom: 4 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ fontSize: 11.5, color: Gray }}>{catName(currentDiscount)}</span>
+                      <strong style={{ fontSize: 14 }}>{format(categoryPrice(currentDiscount), categoryPriceCurrency)}</strong>
+                    </div>
+                    {categoryUsesTripDiscount(currentDiscount) && (
+                      <div style={{ fontSize: 10.5, color: ORange }}>Застосовано знижку рейсу</div>
+                    )}
                   </div>
                 )}
                 {/* Редагування знижки — вибір лише підсвічує (чернетка), застосовується по OK */}
@@ -518,10 +534,13 @@ export default function Booking() {
                         width: '100%', padding: '10px 14px', background: String(d.id) === draftDiscountId ? '#FFF3DC' : '#fff',
                         border: String(d.id) === draftDiscountId ? `1.5px solid ${ORange}` : '1.5px solid #EEE',
                         borderRadius: 10, cursor: 'pointer', textAlign: 'left', marginBottom: 6,
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                        display: 'flex', flexDirection: 'column', gap: 2
                       }}>
-                        <span style={{ fontSize: 13, fontWeight: String(d.id) === draftDiscountId ? 700 : 400 }}>{catName(d)}</span>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(categoryPrice(d), categoryPriceCurrency)}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                          <span style={{ fontSize: 13, fontWeight: String(d.id) === draftDiscountId ? 700 : 400 }}>{catName(d)}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(categoryPrice(d), categoryPriceCurrency)}</span>
+                        </div>
+                        {categoryUsesTripDiscount(d) && <span style={{ fontSize: 10, color: ORange }}>Застосовано знижку рейсу</span>}
                       </button>
                     ))}
                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
@@ -565,10 +584,13 @@ export default function Booking() {
                 <button key={d.id} onClick={() => addPassenger(String(d.id))} style={{
                   width: '100%', padding: '10px 14px', background: '#fff', border: '1.5px solid #EEE',
                   borderRadius: 10, cursor: 'pointer', textAlign: 'left', marginBottom: 6,
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                  display: 'flex', flexDirection: 'column', gap: 2
                 }}>
-                  <span style={{ fontSize: 13 }}>{catName(d)}</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(categoryPrice(d), categoryPriceCurrency)}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <span style={{ fontSize: 13 }}>{catName(d)}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: ORange }}>{format(categoryPrice(d), categoryPriceCurrency)}</span>
+                  </div>
+                  {categoryUsesTripDiscount(d) && <span style={{ fontSize: 10, color: ORange }}>Застосовано знижку рейсу</span>}
                 </button>
               ))}
             </div>
