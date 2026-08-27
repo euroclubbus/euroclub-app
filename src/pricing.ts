@@ -8,6 +8,7 @@
 export const USE_NEW_PRICING = true
 
 import { toUAH } from './currency'
+import { firebaseConfig, isFirebaseConfigured } from './firebaseConfig'
 
 export interface LegPricing {
   базовийТариф: number
@@ -162,4 +163,44 @@ export function roundTripWithFixedCategory(leg1: any, leg2: any, categoryDiscoun
   const price1 = базовийТариф1УАН * (1 - categoryDiscountPct / 100)
   const price2 = базовийТариф2УАН * (1 - categoryDiscountPct / 100)
   return roundPrice((price1 + price2) * coefficient)
+}
+
+// ЗАДАЧА 5 (27.08, Кеп): коефіцієнт read з Firestore settings/pricingCoefficients (адмінка
+// редагує в PricingCoefficientSettings.tsx) — глобально + правила по містах відправлення.
+// Живий підписник (onSnapshot), кешується в модулі — читається один раз при першому
+// використанні, оновлюється автоматично, коли адмін щось міняє (без перезавантаження).
+interface CityRule { cityId: string; cityName: string; fixedDates: number; openDate: number }
+interface CoefficientsDoc { fixedDates: number; openDate: number; cityRules: CityRule[] }
+
+let cachedCoefficients: CoefficientsDoc = { ...DEFAULT_COEFFICIENTS, cityRules: [] }
+let subscribed = false
+
+function subscribeCoefficientsOnce() {
+  if (subscribed || !isFirebaseConfigured()) return
+  subscribed = true
+  Promise.all([import('firebase/app'), import('firebase/firestore')]).then(([{ initializeApp, getApps }, { getFirestore, doc, onSnapshot }]) => {
+    const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig)
+    const db = getFirestore(app)
+    onSnapshot(doc(db, 'settings', 'pricingCoefficients'), (snap) => {
+      const d = snap.data()
+      if (d) {
+        cachedCoefficients = {
+          fixedDates: Number(d.fixedDates) > 0 ? Number(d.fixedDates) : DEFAULT_COEFFICIENTS.fixedDates,
+          openDate: Number(d.openDate) > 0 ? Number(d.openDate) : DEFAULT_COEFFICIENTS.openDate,
+          cityRules: Array.isArray(d.cityRules) ? d.cityRules : [],
+        }
+      }
+    })
+  }).catch(() => {})
+}
+
+// Отримати актуальний коефіцієнт для конкретного міста відправлення (leg1) — правило по
+// місту, якщо є, інакше глобальне значення.
+export function getCoefficient(departureCityId: string | number | undefined, mode: 'fixedDates' | 'openDate'): number {
+  subscribeCoefficientsOnce()
+  if (departureCityId != null) {
+    const rule = cachedCoefficients.cityRules.find(r => String(r.cityId) === String(departureCityId))
+    if (rule) return rule[mode]
+  }
+  return cachedCoefficients[mode]
 }
