@@ -10,7 +10,12 @@ export interface DiscountOpt { id: string | number; default?: number | string; p
 // Бекенд віддає назву категорії двомовно через " / " (напр. "Особи, старші за 60 / Senior ab
 // 60") — в інтерфейсі показуємо лише українську/російську частину до роздільника, англо-
 ///німецькомовний хвіст прибираємо. Якщо роздільника нема — повертаємо назву як є.
-export function localizedDiscountName(name: string | undefined | null): string {
+// Кеп (27.08, Задача 4): категорія id=43 ("Знижка при предоплаті") — це та сама сутність,
+// що й price_dsc/price_mob_dsc (наш автоматичний двигун ціноутворення), підтверджено.
+// В усіх версіях (сайт+застосунок) її треба називати "Sale online", не "Знижка при
+// передоплаті" — фіксована назва, override незалежно від того, що присилає бекенд.
+export function localizedDiscountName(name: string | undefined | null, id?: string | number): string {
+  if (String(id) === '43') return 'Sale online'
   if (!name) return ''
   return name.split(' / ')[0].trim()
 }
