@@ -210,7 +210,7 @@ export function legPriceWithFixedCategory(trip: any, categoryDiscountPct: number
   const { базовийТариф, знижкаПроц: tripDiscountPct } = computeLegPricing(trip)
   const usedTripDiscount = tripDiscountPct > categoryDiscountPct
   const effectivePct = usedTripDiscount ? tripDiscountPct : categoryDiscountPct
-  return { price: базовийТариф * (1 - effectivePct / 100), usedTripDiscount }
+  return { price: roundPrice(базовийТариф * (1 - effectivePct / 100)), usedTripDiscount }
 }
 
 export function roundTripWithFixedCategory(leg1: any, leg2: any, categoryDiscountPct: number, coefficient: number): { total: number; usedTripDiscountLeg1: boolean; usedTripDiscountLeg2: boolean } {
