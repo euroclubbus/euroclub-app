@@ -6,7 +6,7 @@ import { useAuthStore } from '../authStore'
 import { saveOrderLocally } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
 import { fullFareOneWayPrice, localizedDiscountName } from '../passengerPricing'
-import { USE_NEW_PRICING, computeLegPricing, roundTripFixedDisplay, roundTripOpenDateDisplay, roundTripWithFixedCategory, roundTripGroupPrice, legPriceWithFixedCategory, DEFAULT_COEFFICIENTS, getCoefficient } from '../pricing'
+import { USE_NEW_PRICING, computeLegPricing, roundTripFixedDisplay, roundTripOpenDateDisplay, roundTripWithFixedCategory, roundTripGroupPrice, pureRoundTripBase, legPriceWithFixedCategory, DEFAULT_COEFFICIENTS, getCoefficient } from '../pricing'
 import { keepOurPrice } from '../orderStatus'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
@@ -272,7 +272,7 @@ export default function Booking() {
     ? Number(fullFare.price ?? 0)
     : (!pricedAsRoundTrip
         ? computeLegPricing(trip).базовийТариф
-        : (pricingTrip2 ? roundTripWithFixedCategory(trip, pricingTrip2, 0, getCoefficient(from?.id, pricingCoefficientMode)).total : 0))
+        : (pricingTrip2 ? pureRoundTripBase(trip, pricingTrip2, getCoefficient(from?.id, pricingCoefficientMode)) : 0))
 
   // Кеп (27.08): "Sale online" — СИНТЕТИЧНА категорія, не з trip.discounts. Відсоток —
   // price_mob_dsc (пріоритет) або price_dsc, точно той самий двигун, що рахує "актуальну"
