@@ -14,7 +14,10 @@ export function convert(amount: number, fromCurrency: string, toCurrency: 'UAH' 
   const isEur = /eur/i.test(fromCurrency)
   if (isEur && toCurrency === 'UAH') return Math.round(amount * EUR_UAH_RATE)
   if (!isEur && toCurrency === 'EUR') return Math.round(amount / EUR_UAH_RATE)
-  return amount
+  // Кеп (28.08): навіть без конвертації валют — округлюємо тут теж, як останній
+  // запобіжник. Якщо десь в pricing.ts закралось неокруглене число (як сталось із
+  // legPriceWithFixedCategory) — воно все одно не дійде до екрана як плаваюча кома.
+  return Math.round(amount)
 }
 
 import { useUiStore } from './store'
