@@ -9,15 +9,24 @@ export function toEUR(amount: number, currency: string): number {
   return /eur/i.test(currency) ? amount : Math.round(amount / EUR_UAH_RATE)
 }
 
+// Кеп (28.08): "залишаємо числа як є до сотих" — це стосується показу ВСІХ даних всюди
+// (включно з живими значеннями бекенду, які можуть бути дробовими — напр. тестовий
+// сценарій із tariff=1 давав prc=0.8). Округлення до ЦІЛОГО тут (як було раніше,
+// "запобіжник") ЛОМАЛО живі суми бекенду — прибрано. Округлення до 2 знаків лишається
+// тільки для прибирання артефактів плаваючої коми (3849.9999999999995 і подібне) — не
+// для реального обрізання копійок. Наші ВЛАСНІ розрахунки (pricing.ts) і далі
+// повертають цілі через власний roundPrice() ДО того, як число сюди потрапляє — тут
+// нічого не ламається.
+function round2(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
 // Конвертувати суму з однієї валюти в іншу (за кодом валюти джерела)
 export function convert(amount: number, fromCurrency: string, toCurrency: 'UAH' | 'EUR'): number {
   const isEur = /eur/i.test(fromCurrency)
-  if (isEur && toCurrency === 'UAH') return Math.round(amount * EUR_UAH_RATE)
-  if (!isEur && toCurrency === 'EUR') return Math.round(amount / EUR_UAH_RATE)
-  // Кеп (28.08): навіть без конвертації валют — округлюємо тут теж, як останній
-  // запобіжник. Якщо десь в pricing.ts закралось неокруглене число (як сталось із
-  // legPriceWithFixedCategory) — воно все одно не дійде до екрана як плаваюча кома.
-  return Math.round(amount)
+  if (isEur && toCurrency === 'UAH') return round2(amount * EUR_UAH_RATE)
+  if (!isEur && toCurrency === 'EUR') return round2(amount / EUR_UAH_RATE)
+  return round2(amount)
 }
 
 import { useUiStore } from './store'
