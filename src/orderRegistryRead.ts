@@ -8,6 +8,8 @@ export interface RegistryPassenger {
   discountPercent: number
   tariff: number
   price: number
+  sentDiscountId?: string
+  usedTripDiscount?: boolean
 }
 export interface RegistrySurcharge {
   amount: number
