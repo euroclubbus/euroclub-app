@@ -511,8 +511,11 @@ export default function Booking() {
           : `неочікувана відповідь сервера: ${JSON.stringify(result)}`
         setError(t('booking.bookingError') + ': ' + msg)
       }
-    } catch {
-      setError(t('booking.networkError'))
+    } catch (e) {
+      // Кеп (28.08): тимчасова діагностика — показуємо справжню причину, а не мовчазне
+      // "Помилка мережі", щоб знайти, що саме зламалось після додавання sale_comment.
+      console.error('[Booking] handleBook error:', e)
+      setError(`ДІАГНОСТИКА: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setLoading(false)
     }
