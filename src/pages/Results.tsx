@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, Wifi, Zap, Bus, MessageCircle, AlertTriangle, Menu, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, Clock, Wifi, Zap, Bus, MessageCircle, AlertTriangle, Menu, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { getRoutes } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
@@ -453,7 +453,7 @@ function DateStrip({ dateISO, onChange }: { dateISO: string; onChange: (iso: str
 export default function Results() {
   const nav = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
-  const { from, to, dateFrom, dateTo, isOpenReturn, passengerCategories, setDateFrom, setDateTo, setOpenReturn } = useSearchStore()
+  const { from, to, dateFrom, dateTo, isOpenReturn, passengerCategories, setDateFrom, setDateTo, setOpenReturn, removePassengerCategoryAt } = useSearchStore()
   const { setTrip, setTrip2, setOpenReturnPending, setPricingTrip2 } = useBookingStore()
 
   // "Відкрита дата повернення" (Кеп, 05.08): бекенд ВСЕ Ж підтримує такий тип замовлення —
@@ -638,7 +638,7 @@ export default function Results() {
                       <div style={{ fontSize: 14, color: Gray }}>Шукаємо зворотний рейс…</div>
                     ) : (
                       <>
-                        <TotalPrice trip={outTrip} twoWayTotal={twoWay?.total ?? null} twoWayStrike={(twoWay as any)?.strikePrice ?? null} twoWayDiscountPct={(twoWay as any)?.discountPct ?? null} twoWayMode={hasFixedReturn ? 'fixed' : (openReturnActive ? 'open' : null)} twoWayDetails={(twoWay as any)?.details ?? null} cats={passengerCategories} />
+                        <TotalPrice trip={outTrip} twoWayTotal={twoWay?.total ?? null} twoWayStrike={(twoWay as any)?.strikePrice ?? null} twoWayDiscountPct={(twoWay as any)?.discountPct ?? null} twoWayMode={hasFixedReturn ? 'fixed' : (openReturnActive ? 'open' : null)} twoWayDetails={(twoWay as any)?.details ?? null} cats={passengerCategories} onRemovePassenger={passengerCategories.length > 1 ? removePassengerCategoryAt : undefined} />
                         {twoWay?.anyFallback && (
                           <div style={{ marginTop: 8, fontSize: 11, color: ORange, display: 'flex', alignItems: 'center', gap: 5 }}>
                             <AlertTriangle size={12} /> Точна ціна в два боки буде уточнена на кроці бронювання
@@ -665,8 +665,9 @@ export default function Results() {
 // типів (one-way, round-trip, відкрита дата). У згорнутому вигляді — тільки сума й
 // написи, без номіналу знижки. У розгорнутому — кожен пасажир: категорія, ціна, і якщо
 // спрацювала знижка рейсу (замість категорійної) — "Використовується знижка рейсу X%".
-function PassengerPriceHamburger({ details, currency }: { details: PassengerPriceDetail[]; currency: string }) {
+function PassengerPriceHamburger({ details, currency, onRemove }: { details: PassengerPriceDetail[]; currency: string; onRemove?: (idx: number) => void }) {
   const [open, setOpen] = useState(false)
+  const [confirmIdx, setConfirmIdx] = useState<number | null>(null)
   const { format } = useDisplayPrice()
   if (details.length === 0) return null
   return (
@@ -682,12 +683,19 @@ function PassengerPriceHamburger({ details, currency }: { details: PassengerPric
             <div key={i} style={{ padding: '6px 0', borderBottom: i < details.length - 1 ? '1px solid #EEE' : 'none' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span style={{ fontSize: 12.5, fontWeight: 600 }}>Пасажир {i + 1}</span>
-                <div style={{ textAlign: 'right' }}>
-                  {/* Кеп (28.08): ціна, ВІД якої знижка — перекреслена, поруч з фактичною. */}
-                  {d.basePrice > d.price && (
-                    <div style={{ fontSize: 10.5, color: Gray, textDecoration: 'line-through' }}>{format(d.basePrice, currency)}</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                  <div style={{ textAlign: 'right' }}>
+                    {/* Кеп (28.08): ціна, ВІД якої знижка — перекреслена, поруч з фактичною. */}
+                    {d.basePrice > d.price && (
+                      <div style={{ fontSize: 10.5, color: Gray, textDecoration: 'line-through' }}>{format(d.basePrice, currency)}</div>
+                    )}
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>{format(d.price, currency)}</span>
+                  </div>
+                  {onRemove && (
+                    <button onClick={() => setConfirmIdx(i)} aria-label="Видалити пасажира" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C4645A', padding: 2 }}>
+                      <Trash2 size={13} />
+                    </button>
                   )}
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>{format(d.price, currency)}</span>
                 </div>
               </div>
               <div style={{ fontSize: 11, color: Gray }}>{d.catName}</div>
@@ -702,11 +710,30 @@ function PassengerPriceHamburger({ details, currency }: { details: PassengerPric
           ))}
         </div>
       )}
+      {/* Кеп (28.08): попап підтвердження видалення пасажира, той самий підхід, що на бронюванні. */}
+      {confirmIdx != null && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setConfirmIdx(null)}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 20, maxWidth: 320, width: '100%' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Видалити пасажира?</div>
+            <div style={{ fontSize: 13, color: Gray, marginBottom: 18 }}>
+              Пасажир {confirmIdx + 1} буде прибраний з пошуку. Цю дію не можна скасувати.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setConfirmIdx(null)} style={{ flex: 1, padding: '11px 0', background: '#F2F2F2', border: 'none', borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
+                Скасувати
+              </button>
+              <button onClick={() => { onRemove?.(confirmIdx); setConfirmIdx(null) }} style={{ flex: 1, padding: '11px 0', background: '#C4645A', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
+                Так, видалити
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function TotalPrice({ trip, twoWayTotal, twoWayStrike, twoWayDiscountPct, twoWayMode, twoWayDetails, cats }: { trip: any; twoWayTotal: number | null; twoWayStrike?: number | null; twoWayDiscountPct?: number | null; twoWayMode?: 'fixed' | 'open' | null; twoWayDetails?: PassengerPriceDetail[] | null; cats: string[] }) {
+function TotalPrice({ trip, twoWayTotal, twoWayStrike, twoWayDiscountPct, twoWayMode, twoWayDetails, cats, onRemovePassenger }: { trip: any; twoWayTotal: number | null; twoWayStrike?: number | null; twoWayDiscountPct?: number | null; twoWayMode?: 'fixed' | 'open' | null; twoWayDetails?: PassengerPriceDetail[] | null; cats: string[]; onRemovePassenger?: (idx: number) => void }) {
   const { format } = useDisplayPrice()
   const { total, original, legDiscountPct } = computeGroupPrice(trip, cats)
   const shown = twoWayTotal ?? total
@@ -735,7 +762,7 @@ function TotalPrice({ trip, twoWayTotal, twoWayStrike, twoWayDiscountPct, twoWay
       {discountPct != null && discountPct > 0 && (
         <div style={{ fontSize: 12, color: '#E53935', fontWeight: 700, marginTop: 2 }}>Діє знижка, кількість акційних квитків — обмежена</div>
       )}
-      <PassengerPriceHamburger details={details} currency={currency} />
+      <PassengerPriceHamburger details={details} currency={currency} onRemove={onRemovePassenger} />
     </>
   )
 }
