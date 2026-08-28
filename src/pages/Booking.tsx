@@ -99,6 +99,9 @@ export default function Booking() {
     removePassengerDataAt(idx)
     if (showDiscountFor === idx) setShowDiscountFor(null)
   }
+  // Кеп (28.08): підтвердження перед видаленням пасажира — попап "дійсно видалити",
+  // не одразу.
+  const [confirmRemoveIdx, setConfirmRemoveIdx] = useState<number | null>(null)
   const addPassenger = (catId: string) => { addPassengerCategory(catId); setShowAddPicker(false) }
 
 
@@ -641,7 +644,7 @@ export default function Booking() {
                   </div>
                 )}
                 {totalPax > 1 && !isEditing && (
-                  <button onClick={() => removePassenger(idx)} style={{
+                  <button onClick={() => setConfirmRemoveIdx(idx)} style={{
                     display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none',
                     cursor: 'pointer', color: '#C4645A', fontSize: 12, fontWeight: 600, padding: 0, marginTop: 6,
                   }}>
@@ -822,6 +825,26 @@ export default function Booking() {
       {showSeats2 && trip2 && (
         <SeatMap trip={trip2} totalPax={totalPax} totalPrice={convert(subtotal2, trip2?.currency, displayCurrency)} currencySign={displayCurrency === 'EUR' ? '€' : '₴'} onClose={() => setShowSeats2(false)}
           onConfirm={(seats: number[]) => { setSeats2(seats); setShowSeats2(false) }} />
+      )}
+
+      {/* Кеп (28.08): попап підтвердження видалення пасажира */}
+      {confirmRemoveIdx != null && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setConfirmRemoveIdx(null)}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 20, maxWidth: 320, width: '100%' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Видалити пасажира?</div>
+            <div style={{ fontSize: 13, color: Gray, marginBottom: 18 }}>
+              {passengerNames[confirmRemoveIdx] || `Пасажир ${confirmRemoveIdx + 1}`} буде прибраний із замовлення. Цю дію не можна скасувати.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setConfirmRemoveIdx(null)} style={{ flex: 1, padding: '11px 0', background: '#F2F2F2', border: 'none', borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
+                Скасувати
+              </button>
+              <button onClick={() => { removePassenger(confirmRemoveIdx); setConfirmRemoveIdx(null) }} style={{ flex: 1, padding: '11px 0', background: '#C4645A', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
+                Так, видалити
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
