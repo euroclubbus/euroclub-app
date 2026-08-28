@@ -13,6 +13,7 @@ import BottomNav from '../components/BottomNav'
 import BottomSheet from '../components/BottomSheet'
 import SimpleCalendar from '../components/SimpleCalendar'
 import { fetchOpenReturnMarker, markOpenReturnRequested, buildFixationMailto, OpenReturnMarker } from '../openReturn'
+import { readOrderRegistry, OrderRegistryData } from '../orderRegistry'
 
 const ORange = '#F5A623'
 const Navy = '#0B2E5E'
@@ -156,6 +157,18 @@ export default function Ticket() {
     return num ? num.padStart(9, '0') : '000000000'
   })()
 
+  // Кеп (28.08): назва категорії знижки на квитку — з order_registry (зафіксовано в
+  // момент бронювання), НЕ сирий dsc id з бекенду (нечитабельний, напр. "8"). rawOid — не
+  // доповнений нулями ключ, яким документ реально записаний у Firestore.
+  const rawOid = String(hash || data?.oid || '')
+  const [registry, setRegistry] = useState<OrderRegistryData | null>(null)
+  useEffect(() => {
+    if (!rawOid) return
+    readOrderRegistry(rawOid).then(setRegistry)
+  }, [rawOid])
+  const discountNameByIndex = (idx: number): string =>
+    registry?.passengers?.find(rp => rp.index === idx + 1)?.discountName || ''
+
   const fromCity = data?.from_city || trip?.departure?.[0]?.city_ua || trip?.departure?.[0]?.city || getCityNameSync(data?.from1) || ''
   const toCity = data?.to_city || trip?.arrival?.[0]?.city_ua || trip?.arrival?.[0]?.city || getCityNameSync(data?.to1) || ''
   // ВАЖЛИВО: реальні поля бекенду — departures1/arrivals1 (з "1"!) для поїздки туди,
@@ -242,7 +255,7 @@ export default function Ticket() {
           <div style={{ textAlign: 'center', marginBottom: 16 }}>
             <div style={{ fontSize: 12, color: Gray }}>Пасажир</div>
             <div style={{ fontSize: 17, fontWeight: 700 }}>{p.name}</div>
-            <div style={{ fontSize: 12, color: Gray, marginTop: 2 }}>{p.type || '—'}</div>
+            <div style={{ fontSize: 12, color: Gray, marginTop: 2 }}>{discountNameByIndex(i) || p.type || '—'}</div>
           </div>
 
           {/* ПОЇЗДКА 1 */}
@@ -334,6 +347,9 @@ export default function Ticket() {
             <span style={{ fontSize: 13, color: Gray }}>Ціна квитка</span>
             <span style={{ fontSize: 20, fontWeight: 700 }}>{format(p.price || 0)} {currency}</span>
           </div>
+          {discountNameByIndex(i) && (
+            <div style={{ fontSize: 12, color: Gray, marginTop: 4, textAlign: 'right' }}>{discountNameByIndex(i)}</div>
+          )}
         </div>
       </div>
     )
@@ -365,7 +381,10 @@ export default function Ticket() {
       {/* Сума і кнопки */}
       <div className="no-print" style={{ padding: '24px 16px 16px', background: Navy }}>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>Ціна квитка</div>
-        <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: 16 }}>{format(passengers[activeIdx]?.price || 0)} {currency}</div>
+        <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: discountNameByIndex(activeIdx) ? 4 : 16 }}>{format(passengers[activeIdx]?.price || 0)} {currency}</div>
+        {discountNameByIndex(activeIdx) && (
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 16 }}>{discountNameByIndex(activeIdx)}</div>
+        )}
         
         {ticketPdf && (
           <button onClick={() => window.open(ticketPdf)} style={{ width: '100%', padding: '12px', background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
