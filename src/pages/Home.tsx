@@ -161,7 +161,7 @@ const CATEGORY_ORDER: { match: RegExp; priority: number; label: string }[] = [
   { match: /доп\.?\s*м(і|е)ст/i, priority: 7, label: '20% знижка на додаткове місце' },
   { match: /тварин/i, priority: 8, label: '20% знижка на місце для тварини' },
 ]
-const FULL_FARE_LABEL = 'Квиток за повним тарифом'
+const FULL_FARE_LABEL = 'Дорослий квиток 16-59 років'
 
 function sortAndFilterCategories(list: any[]): any[] {
   return list
