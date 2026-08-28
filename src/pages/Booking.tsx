@@ -179,11 +179,16 @@ export default function Booking() {
         : findTwoWayGroupPrice(perPassengerOneWay, fullFareOneWayPrice(trip), from.id, to.id, direction))
     : null
   const total = pricedAsRoundTrip ? (twoWayGroup?.total ?? subtotal) : subtotal
-  // Тариф — базова ціна ОДНОГО повного квитка в два боки, саме вона йде в бронювання
-  // (`price` в neworder), незалежно від кількості пасажирів чи їхніх знижок. Система
-  // бронювання сама рахує суму по пасажирах зі своїх кодів знижок. У прев'ю/на екрані —
-  // завжди показуємо `total` (нашу ціну), а не тариф.
-  const tariff = pricedAsRoundTrip ? (twoWayGroup?.tariff ?? subtotal) : subtotal
+  // Тариф — базова ціна ОДНОГО повного квитка (без жодних знижок), саме вона йде в
+  // бронювання (`price` в neworder), незалежно від кількості пасажирів чи їхніх знижок.
+  // Бекенд САМ рахує ціну кожного пасажира як tariff × (1 − категорійна_знижка/100) —
+  // підтверджено Кепом 28.08 (звідси й баг: раніше сюди йшов subtotal/twoWayGroup.total,
+  // тобто ВЖЕ здешевлена сума, і бекенд рахував "знижку від знижки").
+  const tariff = !pricedAsRoundTrip
+    ? computeLegPricing(trip).базовийТариф
+    : (USE_NEW_PRICING && pricingTrip2
+        ? roundTripWithFixedCategory(trip, pricingTrip2, 0, getCoefficient(from?.id, pricingCoefficientMode)).total
+        : subtotal)
 
   // Ціна конкретної категорії знижки для показу в пікерах вибору.
   // ЗАДАЧА 3 (27.08, Кеп): "Фіксовані знижки що передаються — вони всі рахуються від
