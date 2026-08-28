@@ -123,7 +123,7 @@ export function oneWayGroupPrice(trip: any, cats: string[]): { total: number; ba
     total += passengerPrice
     perPassenger.push(roundPrice(passengerPrice))
     usedTripDiscount.push(usedTrip)
-    details.push({ catId, catName, price: roundPrice(passengerPrice), effectivePct, usedTripDiscount: usedTrip })
+    details.push({ catId, catName, price: roundPrice(passengerPrice), basePrice: roundPrice(базовийТариф), effectivePct, usedTripDiscount: usedTrip })
   }
   return { total: roundPrice(total), base: roundPrice(базовийТариф * list.length), perPassenger, usedTripDiscount, details }
 }
@@ -276,6 +276,7 @@ export interface PassengerPriceDetail {
   catId: string
   catName: string
   price: number
+  basePrice: number
   effectivePct: number
   usedTripDiscount: boolean
 }
@@ -296,7 +297,8 @@ export function roundTripGroupPrice(
   const details: PassengerPriceDetail[] = []
   for (const catId of list) {
     // Базовий (0%, однаковий для всіх пасажирів незалежно від категорії) — для перекресленої суми.
-    base += roundTripWithFixedCategory(leg1, leg2, 0, coefficient).total
+    const basePassengerPrice = roundTripWithFixedCategory(leg1, leg2, 0, coefficient).total
+    base += basePassengerPrice
     let passengerPrice: number
     let usedTrip = false
     let effectivePct = 0
@@ -320,7 +322,7 @@ export function roundTripGroupPrice(
     total += passengerPrice
     perPassenger.push(roundPrice(passengerPrice))
     usedTripDiscount.push(usedTrip)
-    details.push({ catId, catName, price: roundPrice(passengerPrice), effectivePct, usedTripDiscount: usedTrip })
+    details.push({ catId, catName, price: roundPrice(passengerPrice), basePrice: roundPrice(basePassengerPrice), effectivePct, usedTripDiscount: usedTrip })
   }
   return { total: roundPrice(total), base: roundPrice(base), perPassenger, usedTripDiscount, details }
 }
