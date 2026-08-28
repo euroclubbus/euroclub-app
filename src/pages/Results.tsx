@@ -685,8 +685,12 @@ function PassengerPriceHamburger({ details, currency }: { details: PassengerPric
                 <span style={{ fontSize: 13, fontWeight: 700 }}>{format(d.price, currency)}</span>
               </div>
               <div style={{ fontSize: 11, color: Gray }}>{d.catName}</div>
-              {d.usedTripDiscount && (
-                <div style={{ fontSize: 10.5, color: ORange, marginTop: 1 }}>Використовується знижка рейсу {Math.round(d.effectivePct)}%</div>
+              {/* Кеп (28.08): номінал знижки завжди — навіть коли це звичайна категорійна
+                  знижка (не підміна рейсовою) — для повної прозорості вигоди. */}
+              {d.effectivePct > 0 && (
+                <div style={{ fontSize: 10.5, color: ORange, marginTop: 1 }}>
+                  {d.usedTripDiscount ? `Використовується знижка рейсу ${Math.round(d.effectivePct)}%` : `Знижка ${Math.round(d.effectivePct)}%`}
+                </div>
               )}
             </div>
           ))}
