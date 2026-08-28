@@ -99,7 +99,8 @@ export interface NewOrderPassenger { name: string; discount: string; place1?: st
 
 export async function createOrderNew(
   fields: { email: string; phone: string; header: string; price: string; crc: 'uah' | 'eur'; from: string; to: string; route1: string; route2?: string },
-  passengers: NewOrderPassenger[]
+  passengers: NewOrderPassenger[],
+  saleComment?: string
 ) {
   const body = new URLSearchParams()
   body.set('work', 'work')
@@ -112,6 +113,10 @@ export async function createOrderNew(
     const v = fields[k]
     if (v !== undefined) body.set(k, String(v))
   }
+  // Кеп (28.08), підтверджено прогером: sale_comment — ОДНЕ поле на все замовлення (не
+  // масив по пасажирах, прогер сам об'єднує) — пояснення, коли знижка рейсу
+  // (price_dsc/price_mob_dsc) підмінила обрану фіксовану категорію якогось пасажира.
+  if (saleComment) body.set('sale_comment', saleComment)
   passengers.forEach(p => {
     body.append('psgr_name[]', p.name)
     body.append('psgr_dscnt[]', p.discount)
