@@ -190,15 +190,14 @@ export default function Booking() {
   const tariff = !pricedAsRoundTrip
     ? computeLegPricing(trip).базовийТариф
     : (USE_NEW_PRICING && pricingTrip2
-        ? roundTripWithFixedCategory(trip, pricingTrip2, 0, getCoefficient(from?.id, pricingCoefficientMode)).total
+        ? pureRoundTripBase(trip, pricingTrip2, getCoefficient(from?.id, pricingCoefficientMode))
         : subtotal)
   // Кеп (28.08), знайдено живим тестом: бекенд ДІЛИТЬ поле price на кількість пасажирів
-  // ПЕРЕД тим, як застосувати індивідуальну знижку кожного (4 пасажири, price=5500 →
-  // бекенд порахував базу кожного як 5500/4=1375). Щоб після цього ділення бекенд
-  // отримав ПРАВИЛЬНУ базу (tariff) на кожного пасажира — множимо тут, ТІЛЬКИ для поля,
-  // що йде в neworder. `tariff` сам лишається per-ticket значенням для решти коду
-  // (прев'ю, старий пропорційний fallback, локальний запис квитка).
-  const orderPriceField = tariff * totalPax
+  // ПЕРЕД тим, як застосувати індивідуальну знижку кожного — але ЦЕ СТОСУЄТЬСЯ ТІЛЬКИ
+  // one-way (4 пасажири, price=5500 → база кожного 5500/4=1375, підтверджено). Для
+  // round-trip/відкритої дати — ІНША логіка, бекенд НЕ ділить (підтверджено іншим живим
+  // тестом: множення там ламало результат ×5). Тож множимо на totalPax ЛИШЕ для one-way.
+  const orderPriceField = !pricedAsRoundTrip ? tariff * totalPax : tariff
 
   // Ціна конкретної категорії знижки для показу в пікерах вибору.
   // ЗАДАЧА 3 (27.08, Кеп): "Фіксовані знижки що передаються — вони всі рахуються від
