@@ -124,3 +124,25 @@ export function syncAllOrdersInList(list: any[]) {
     syncOrderRegistryStatus(orderNo, o.status, Number(o.paid_uah) || 0, Number(o.paid_eur) || 0, o.app, o.user_id)
   }
 }
+
+// Кеп (28.08): читання запису — потрібно для показу назви категорії знижки на квитку.
+// trip.discounts (сирий каталог з рейсу) часто НЕДОСТУПНИЙ при відкритті квитка пізніше
+// (selectedTrip у store живе тільки в межах поточної сесії бронювання) — тому назва
+// категорії, яку МИ САМІ зафіксували в момент бронювання (discountName), надійніше
+// джерело, ніж намагатись перекласти сирий dsc id щоразу заново.
+export async function readOrderRegistry(orderNo: string): Promise<OrderRegistryData | null> {
+  if (!isFirebaseConfigured() || !orderNo) return null
+  try {
+    const [{ initializeApp, getApps }, { getFirestore, doc, getDoc }] = await Promise.all([
+      import('firebase/app'),
+      import('firebase/firestore'),
+    ])
+    const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig)
+    const db = getFirestore(app)
+    const snap = await getDoc(doc(db, 'order_registry', orderNo))
+    return snap.exists() ? (snap.data() as OrderRegistryData) : null
+  } catch (e) {
+    console.error('[OrderRegistry] read failed', e)
+    return null
+  }
+}
