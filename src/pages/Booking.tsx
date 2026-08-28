@@ -213,6 +213,28 @@ export default function Booking() {
     }
     return false
   }
+  // Кеп (28.08), домовлено з прогером: коли знижка рейсу (price_dsc/price_mob_dsc)
+  // застосована ЗАМІСТЬ обраної фіксованої категорії — psgr_dscnt[] відправляємо текстом
+  // "price_dsc"/"price_mob_dsc" (яке саме спрацювало), а sale_comment[] — текстова назва
+  // ОРИГІНАЛЬНО обраної категорії (не id). Коли категорія реально вигідніша (чи це
+  // sale-online за замовчуванням) — psgr_dscnt лишається як є, sale_comment порожній.
+  const resolveOrderDiscount = (idx: number): { discount: string; saleComment: string } => {
+    const catId = effectiveDiscountId(idx)
+    if (catId === 'sale-online') {
+      const source = !pricedAsRoundTrip
+        ? computeLegPricing(trip).знижкаДжерело
+        : (pricingTrip2 ? (computeLegPricing(trip).знижкаДжерело ?? computeLegPricing(pricingTrip2).знижкаДжерело) : null)
+      return { discount: source ?? catId, saleComment: '' }
+    }
+    const opt = discountOptions.find(d => String(d.id) === catId)
+    if (!opt) return { discount: catId, saleComment: '' }
+    const usesTrip = categoryUsesTripDiscount(opt)
+    if (!usesTrip) return { discount: catId, saleComment: '' }
+    const source = !pricedAsRoundTrip
+      ? legPriceWithFixedCategory(trip, Number(opt.discount)).discountSource
+      : (pricingTrip2 ? roundTripWithFixedCategory(trip, pricingTrip2, Number(opt.discount), 1).discountSource : null)
+    return { discount: source ?? catId, saleComment: catName(opt) }
+  }
   // Кеп (26.08): результат categoryPrice для round-trip через нову формулу — вже
   // нормалізований в UAH, не валюта trip (leg1), бо leg2 може бути в EUR.
   const categoryPriceCurrency = (pricedAsRoundTrip && USE_NEW_PRICING && pricingTrip2) ? 'uah' : trip?.currency
@@ -284,12 +306,16 @@ export default function Booking() {
     setLoading(true)
     try {
       const currency: 'uah' | 'eur' = /eur/i.test(trip?.currency || 'uah') ? 'eur' : 'uah'
-      const passengers: NewOrderPassenger[] = Array.from({ length: totalPax }, (_, i) => ({
-        name: (passengerNames[i] || '').trim().toUpperCase(),
-        discount: effectiveDiscountId(i),
-        place1: selectedSeats[i] != null ? String(selectedSeats[i]) : '',
-        place2: isRoundTrip && selectedSeats2[i] != null ? String(selectedSeats2[i]) : undefined,
-      }))
+      const passengers: NewOrderPassenger[] = Array.from({ length: totalPax }, (_, i) => {
+        const { discount, saleComment } = resolveOrderDiscount(i)
+        return {
+          name: (passengerNames[i] || '').trim().toUpperCase(),
+          discount,
+          place1: selectedSeats[i] != null ? String(selectedSeats[i]) : '',
+          place2: isRoundTrip && selectedSeats2[i] != null ? String(selectedSeats2[i]) : undefined,
+          saleComment,
+        }
+      })
       const result: any = await createOrderNew({
         email: contactEmail.trim() || '',
         phone: contactPhone.trim(),
