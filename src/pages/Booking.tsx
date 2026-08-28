@@ -117,14 +117,26 @@ export default function Booking() {
   const showFullFareInList = legPct === 0 // тільки коли немає жодної автоматичної знижки
   const effectiveDiscountId = (idx: number) => {
     if (passengerDiscounts[idx] != null) return String(passengerDiscounts[idx])
-    if (passengerCategories[idx] && discountOptions.some(d => String(d.id) === String(passengerCategories[idx]))) return String(passengerCategories[idx])
+    if (passengerCategories[idx] && discountOptions.some(d => String(d.id) === String(passengerCategories[idx]))) {
+      // Кеп (28.08): якщо категорія з пошуку — це буквально "За повним тарифом" (id
+      // fullFare), трактуємо як "нічого не обрано" — підставляємо кращий замовчувальний
+      // варіант (sale-online), а не показуємо прибраний зі списку fullFare (звідси й був
+      // баг — пасажир 1 взагалі не мав відображення).
+      if (String(passengerCategories[idx]) === String(fullFare.id)) return defaultDiscountId
+      return String(passengerCategories[idx])
+    }
     return defaultDiscountId
   }
+  // Кеп (28.08): і "sale-online", і ЯВНА категорія — тепер ОБИДВА йдуть через
+  // legPriceWithFixedCategory (порівнює знижку категорії з знижкою рейсу, бере вигіднішу).
+  // Раніше явна категорія брала сирий opt.price з бекенду напряму — тому знижка рейсу не
+  // застосовувалась у нижньому підсумку.
   const getPassengerPrice = (idx: number) => {
     const discountId = effectiveDiscountId(idx)
     if (discountId === 'sale-online') return defaultLegPrice
     const opt = discountOptions.find(d => String(d.id) === discountId)
-    return Number(opt?.price ?? defaultLegPrice)
+    if (!opt) return defaultLegPrice
+    return legPriceWithFixedCategory(trip, Number(opt.discount ?? 0)).price
   }
 
   const subtotal = Array.from({ length: totalPax }, (_, i) => getPassengerPrice(i)).reduce((s, p) => s + p, 0)
@@ -517,7 +529,13 @@ export default function Booking() {
                   <div style={{ marginBottom: 4 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                       <span style={{ fontSize: 11.5, color: Gray }}>{catName(currentDiscount)}</span>
-                      <strong style={{ fontSize: 14 }}>{format(categoryPrice(currentDiscount), categoryPriceCurrency)}</strong>
+                      <div style={{ textAlign: 'right' }}>
+                        {/* Кеп (28.08): перекреслена базова ціна поруч з фактичною — для наглядності вигоди. */}
+                        {!pricedAsRoundTrip && categoryPrice(currentDiscount) < computeLegPricing(trip).базовийТариф && (
+                          <div style={{ fontSize: 11, color: Gray, textDecoration: 'line-through' }}>{format(computeLegPricing(trip).базовийТариф, categoryPriceCurrency)}</div>
+                        )}
+                        <strong style={{ fontSize: 14 }}>{format(categoryPrice(currentDiscount), categoryPriceCurrency)}</strong>
+                      </div>
                     </div>
                     {categoryUsesTripDiscount(currentDiscount) && (
                       <div style={{ fontSize: 10.5, color: ORange }}>Застосовано знижку рейсу</div>
