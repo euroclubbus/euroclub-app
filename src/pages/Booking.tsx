@@ -307,15 +307,21 @@ export default function Booking() {
     try {
       const currency: 'uah' | 'eur' = /eur/i.test(trip?.currency || 'uah') ? 'eur' : 'uah'
       const passengers: NewOrderPassenger[] = Array.from({ length: totalPax }, (_, i) => {
-        const { discount, saleComment } = resolveOrderDiscount(i)
+        const { discount } = resolveOrderDiscount(i)
         return {
           name: (passengerNames[i] || '').trim().toUpperCase(),
           discount,
           place1: selectedSeats[i] != null ? String(selectedSeats[i]) : '',
           place2: isRoundTrip && selectedSeats2[i] != null ? String(selectedSeats2[i]) : undefined,
-          saleComment,
         }
       })
+      // Кеп (28.08), уточнено прогером: sale_comment — ОДНЕ поле на все замовлення, не
+      // масив по пасажирах — об'єднуємо тут, пропускаючи пасажирів без підміни знижки.
+      const saleCommentParts = Array.from({ length: totalPax }, (_, i) => {
+        const { saleComment } = resolveOrderDiscount(i)
+        return saleComment ? `Пасажир ${i + 1} — ${saleComment}, використовується знижка рейсу` : null
+      }).filter((s): s is string => s !== null)
+      const saleComment = saleCommentParts.length > 0 ? saleCommentParts.join('; ') : undefined
       const result: any = await createOrderNew({
         email: contactEmail.trim() || '',
         phone: contactPhone.trim(),
@@ -326,7 +332,7 @@ export default function Booking() {
         to: String(to.id),
         route1: String(trip.id).split('-')[0],
         route2: isRoundTrip ? String(trip2.id).split('-')[0] : (openReturnPending ? '-1' : undefined),
-      }, passengers)
+      }, passengers, saleComment)
 
       // Успіх визначаємо НЕ через result?.err === 0 (на реальному успіху відповідь — це повний
       // об'єкт замовлення, як запис user-orders, і поля `err` там може взагалі не бути — воно є
