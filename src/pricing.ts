@@ -90,6 +90,44 @@ export function oneWayDisplay(trip: any): PriceDisplay {
   return buildDisplay(актуальнаЦіна, priceOld, знижкаПроц)
 }
 
+// Кеп (28.08): те саме, що roundTripGroupPrice, але для одностороннього рейсу — кожен
+// пасажир своя категорія (з тим самим правилом "знижка рейсу підміняє категорійну, якщо
+// вигідніша"), для гамбургер-деталізації на екрані.
+export function oneWayGroupPrice(trip: any, cats: string[]): { total: number; base: number; perPassenger: number[]; usedTripDiscount: boolean[]; details: PassengerPriceDetail[] } {
+  const list = cats.length ? cats : ['__default__']
+  const discountOptions: any[] = trip?.discounts || []
+  const { базовийТариф } = computeLegPricing(trip)
+  let total = 0
+  const perPassenger: number[] = []
+  const usedTripDiscount: boolean[] = []
+  const details: PassengerPriceDetail[] = []
+  for (const catId of list) {
+    let passengerPrice: number
+    let usedTrip = false
+    let effectivePct = 0
+    let catName = 'Sale online'
+    if (catId === '__default__') {
+      const d = oneWayDisplay(trip)
+      passengerPrice = d.price
+      effectivePct = d.discountPct ?? 0
+    } else {
+      const opt = discountOptions.find(d => String(d.id) === catId)
+      const pct = opt ? Number(opt.discount) : 0
+      catName = opt?.name || 'Повний тариф'
+      const r = legPriceWithFixedCategory(trip, pct)
+      passengerPrice = r.price
+      usedTrip = r.usedTripDiscount
+      const tripPct = computeLegPricing(trip).знижкаПроц
+      effectivePct = usedTrip ? Math.max(tripPct, pct) : pct
+    }
+    total += passengerPrice
+    perPassenger.push(roundPrice(passengerPrice))
+    usedTripDiscount.push(usedTrip)
+    details.push({ catId, catName, price: roundPrice(passengerPrice), effectivePct, usedTripDiscount: usedTrip })
+  }
+  return { total: roundPrice(total), base: roundPrice(базовийТариф * list.length), perPassenger, usedTripDiscount, details }
+}
+
 export interface RoundTripCoefficients {
   fixedDates: number   // за замовч. 0.95
   openDate: number      // за замовч. 0.9
@@ -234,37 +272,55 @@ export function getCoefficient(departureCityId: string | number | undefined, mod
 // кілька пасажирів РІЗНИХ категорій (напр. повний + інвалідність + УБД). Ця функція
 // рахує суму по КОЖНОМУ пасажиру окремо, з ЙОГО власною категорією — так само, як уже
 // давно робить one-way (computeGroupPrice в Results.tsx).
+export interface PassengerPriceDetail {
+  catId: string
+  catName: string
+  price: number
+  effectivePct: number
+  usedTripDiscount: boolean
+}
+
 export function roundTripGroupPrice(
   leg1: any,
   leg2: any,
   cats: string[],
   mode: 'fixed' | 'open',
   coefficient: number
-): { total: number; base: number; perPassenger: number[]; usedTripDiscount: boolean[] } {
+): { total: number; base: number; perPassenger: number[]; usedTripDiscount: boolean[]; details: PassengerPriceDetail[] } {
   const list = cats.length ? cats : ['__default__']
   const discountOptions: any[] = leg1?.discounts || []
   let total = 0
   let base = 0
   const perPassenger: number[] = []
   const usedTripDiscount: boolean[] = []
+  const details: PassengerPriceDetail[] = []
   for (const catId of list) {
     // Базовий (0%, однаковий для всіх пасажирів незалежно від категорії) — для перекресленої суми.
     base += roundTripWithFixedCategory(leg1, leg2, 0, coefficient).total
     let passengerPrice: number
     let usedTrip = false
+    let effectivePct = 0
+    let catName = 'Sale online'
     if (catId === '__default__') {
       const p = mode === 'open' ? roundTripOpenDateDisplay(leg1, leg2, coefficient) : roundTripFixedDisplay(leg1, leg2, coefficient)
       passengerPrice = p.price
+      effectivePct = p.discountPct ?? 0
     } else {
       const opt = discountOptions.find(d => String(d.id) === catId)
       const pct = opt ? Number(opt.discount) : 0
+      catName = opt?.name || 'Повний тариф'
       const r = roundTripWithFixedCategory(leg1, leg2, pct, coefficient)
       passengerPrice = r.total
       usedTrip = r.usedTripDiscountLeg1 || r.usedTripDiscountLeg2
+      // Ефективний % — те саме, що застосовується до leg1 (для гамбургера показуємо
+      // єдине число, навіть якщо leg1/leg2 різняться — leg1 як репрезентативне).
+      const tripPct1 = computeLegPricing(leg1).знижкаПроц
+      effectivePct = usedTrip ? Math.max(tripPct1, pct) : pct
     }
     total += passengerPrice
     perPassenger.push(roundPrice(passengerPrice))
     usedTripDiscount.push(usedTrip)
+    details.push({ catId, catName, price: roundPrice(passengerPrice), effectivePct, usedTripDiscount: usedTrip })
   }
-  return { total: roundPrice(total), base: roundPrice(base), perPassenger, usedTripDiscount }
+  return { total: roundPrice(total), base: roundPrice(base), perPassenger, usedTripDiscount, details }
 }
