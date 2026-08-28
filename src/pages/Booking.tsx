@@ -192,6 +192,13 @@ export default function Booking() {
     : (USE_NEW_PRICING && pricingTrip2
         ? roundTripWithFixedCategory(trip, pricingTrip2, 0, getCoefficient(from?.id, pricingCoefficientMode)).total
         : subtotal)
+  // Кеп (28.08), знайдено живим тестом: бекенд ДІЛИТЬ поле price на кількість пасажирів
+  // ПЕРЕД тим, як застосувати індивідуальну знижку кожного (4 пасажири, price=5500 →
+  // бекенд порахував базу кожного як 5500/4=1375). Щоб після цього ділення бекенд
+  // отримав ПРАВИЛЬНУ базу (tariff) на кожного пасажира — множимо тут, ТІЛЬКИ для поля,
+  // що йде в neworder. `tariff` сам лишається per-ticket значенням для решти коду
+  // (прев'ю, старий пропорційний fallback, локальний запис квитка).
+  const orderPriceField = tariff * totalPax
 
   // Ціна конкретної категорії знижки для показу в пікерах вибору.
   // ЗАДАЧА 3 (27.08, Кеп): "Фіксовані знижки що передаються — вони всі рахуються від
@@ -351,7 +358,7 @@ export default function Booking() {
         email: contactEmail.trim() || '',
         phone: contactPhone.trim(),
         header: (payerName || passengerNames[0] || '').trim().toUpperCase() || 'PASSENGER',
-        price: String(tariff),
+        price: String(orderPriceField),
         crc: currency,
         from: String(from.id),
         to: String(to.id),
