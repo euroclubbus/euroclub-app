@@ -294,6 +294,17 @@ export interface PassengerPriceDetail {
   discountSource: 'price_dsc' | 'price_mob_dsc' | null // код для psgr_dscnt[] коли підмінено
 }
 
+// Кеп (28.08): "Чиста" базова ціна раунд-тріп — БЕЗ жодної логіки "бери більше" (на
+// відміну від roundTripWithFixedCategory, яка завжди підставляє знижку рейсу, якщо вона
+// вигідніша за передану категорійну, навіть коли передали 0%). Ця функція — для
+// перекресленого числа в гамбургері/деталізації, де потрібна СПРАВЖНЯ база без жодної
+// знижки, а не "найкраща можлива при 0% категорії".
+export function pureRoundTripBase(leg1: any, leg2: any, coefficient: number): number {
+  const p1 = computeLegPricingUAH(leg1)
+  const p2 = computeLegPricingUAH(leg2)
+  return roundPrice((p1.базовийТариф + p2.базовийТариф) * coefficient)
+}
+
 export function roundTripGroupPrice(
   leg1: any,
   leg2: any,
@@ -310,7 +321,7 @@ export function roundTripGroupPrice(
   const details: PassengerPriceDetail[] = []
   for (const catId of list) {
     // Базовий (0%, однаковий для всіх пасажирів незалежно від категорії) — для перекресленої суми.
-    const basePassengerPrice = roundTripWithFixedCategory(leg1, leg2, 0, coefficient).total
+    const basePassengerPrice = pureRoundTripBase(leg1, leg2, coefficient)
     base += basePassengerPrice
     let passengerPrice: number
     let usedTrip = false
