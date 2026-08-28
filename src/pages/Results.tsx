@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, Wifi, Zap, Bus, MessageCircle, AlertTriangle, Menu } from 'lucide-react'
+import { ArrowLeft, Clock, Wifi, Zap, Bus, MessageCircle, AlertTriangle, Menu, ChevronDown, ChevronUp } from 'lucide-react'
 import { useSearchStore, useBookingStore } from '../store'
 import { getRoutes } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
 import { perPassengerOneWayPrices, fullFareOneWayPrice } from '../passengerPricing'
-import { USE_NEW_PRICING, computeLegPricing, roundPrice, roundTripFixedDisplay, roundTripOpenDateDisplay, legPriceWithFixedCategory, roundTripGroupPrice, getCoefficient } from '../pricing'
+import { USE_NEW_PRICING, computeLegPricing, roundPrice, roundTripFixedDisplay, roundTripOpenDateDisplay, legPriceWithFixedCategory, roundTripGroupPrice, oneWayGroupPrice, getCoefficient, PassengerPriceDetail } from '../pricing'
 import { useDisplayPrice } from '../currency'
 import CurrencyToggle from '../components/CurrencyToggle'
 import SideMenu from '../components/SideMenu'
@@ -173,7 +173,8 @@ function TripCard({ trip, cats, onBook, roundTripPrice, hidePrice, bookLabel, hi
                     з UAH у вибрану валюту показу, не бере валюту ЦЬОГО leg-у, яка тут може
                     бути будь-якою). */}
                 <div style={{ fontSize: 21, fontWeight: 800 }}>{roundTripPrice != null ? format(displayTotal, 'uah') : format(displayTotal, trip.currency)}</div>
-                {legDiscountPct > 0 && !roundTripPrice && <div style={{ fontSize: 11, color: '#E53935', fontWeight: 700 }}>{t('results.discountOnTrip', { pct: legDiscountPct })}</div>}
+                {/* Кеп (28.08): на рівні картки/підсумку НІКОЛИ не показуємо номінал — тільки фіксований напис (для всіх типів однаково). */}
+                {legDiscountPct > 0 && !roundTripPrice && <div style={{ fontSize: 11, color: '#E53935', fontWeight: 700 }}>Діє знижка, кількість акційних квитків — обмежена</div>}
                 {roundTripPrice != null && <div style={{ fontSize: 11, color: ORange, fontWeight: 700 }}>{t('results.roundTripLabel')}</div>}
               </div>
             )}
@@ -495,7 +496,7 @@ export default function Results() {
             const coefficient = getCoefficient(from.id, 'fixedDates')
             const g = roundTripGroupPrice(outTrip, retTrip, passengerCategories, 'fixed', coefficient)
             const discountPct = g.base > 0 ? Math.round((1 - g.total / g.base) * 100) : 0
-            return { tariff: g.total, total: g.total, perPassenger: [g.total], anyFallback: false, strikePrice: g.total < g.base ? g.base : undefined, discountPct }
+            return { tariff: g.total, total: g.total, perPassenger: g.perPassenger, anyFallback: false, strikePrice: g.total < g.base ? g.base : undefined, discountPct, details: g.details }
           })()
         : findTwoWayGroupPrice(perPassengerOneWayPrices(outTrip, passengerCategories), fullFareOneWayPrice(outTrip), from.id, to.id, direction))
     : (openReturnActive && ready && from && to && USE_NEW_PRICING && openReturnSearch.searched && openReturnSearch.trip)
@@ -503,7 +504,7 @@ export default function Results() {
           const coefficient = getCoefficient(from.id, 'openDate')
           const g = roundTripGroupPrice(outTrip, openReturnSearch.trip, passengerCategories, 'open', coefficient)
           const discountPct = g.base > 0 ? Math.round((1 - g.total / g.base) * 100) : 0
-          return { tariff: g.total, total: g.total, perPassenger: [g.total], anyFallback: false, strikePrice: g.total < g.base ? g.base : undefined, discountPct }
+          return { tariff: g.total, total: g.total, perPassenger: g.perPassenger, anyFallback: false, strikePrice: g.total < g.base ? g.base : undefined, discountPct, details: g.details }
         })()
       : (wantsTwoWay && ready && from && to && !hasFixedReturn && !USE_NEW_PRICING
           ? findTwoWayGroupPrice(perPassengerOneWayPrices(outTrip, passengerCategories), fullFareOneWayPrice(outTrip), from.id, to.id, direction)
@@ -637,7 +638,7 @@ export default function Results() {
                       <div style={{ fontSize: 14, color: Gray }}>Шукаємо зворотний рейс…</div>
                     ) : (
                       <>
-                        <TotalPrice trip={outTrip} twoWayTotal={twoWay?.total ?? null} twoWayStrike={(twoWay as any)?.strikePrice ?? null} twoWayDiscountPct={(twoWay as any)?.discountPct ?? null} twoWayMode={hasFixedReturn ? 'fixed' : (openReturnActive ? 'open' : null)} cats={passengerCategories} />
+                        <TotalPrice trip={outTrip} twoWayTotal={twoWay?.total ?? null} twoWayStrike={(twoWay as any)?.strikePrice ?? null} twoWayDiscountPct={(twoWay as any)?.discountPct ?? null} twoWayMode={hasFixedReturn ? 'fixed' : (openReturnActive ? 'open' : null)} twoWayDetails={(twoWay as any)?.details ?? null} cats={passengerCategories} />
                         {twoWay?.anyFallback && (
                           <div style={{ marginTop: 8, fontSize: 11, color: ORange, display: 'flex', alignItems: 'center', gap: 5 }}>
                             <AlertTriangle size={12} /> Точна ціна в два боки буде уточнена на кроці бронювання
@@ -660,7 +661,42 @@ export default function Results() {
   )
 }
 
-function TotalPrice({ trip, twoWayTotal, twoWayStrike, twoWayDiscountPct, twoWayMode, cats }: { trip: any; twoWayTotal: number | null; twoWayStrike?: number | null; twoWayDiscountPct?: number | null; twoWayMode?: 'fixed' | 'open' | null; cats: string[] }) {
+// Кеп (28.08): "гамбургер" — розгортна деталізація ціни по кожному пасажиру, для ВСІХ
+// типів (one-way, round-trip, відкрита дата). У згорнутому вигляді — тільки сума й
+// написи, без номіналу знижки. У розгорнутому — кожен пасажир: категорія, ціна, і якщо
+// спрацювала знижка рейсу (замість категорійної) — "Використовується знижка рейсу X%".
+function PassengerPriceHamburger({ details, currency }: { details: PassengerPriceDetail[]; currency: string }) {
+  const [open, setOpen] = useState(false)
+  const { format } = useDisplayPrice()
+  if (details.length === 0) return null
+  return (
+    <div style={{ marginTop: 6 }}>
+      <button onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: Gray, fontSize: 11.5, cursor: 'pointer', padding: 0 }}>
+        <Menu size={12} />
+        Деталізація по пасажирах
+        {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+      </button>
+      {open && (
+        <div style={{ marginTop: 8, background: '#F9F9F9', borderRadius: 12, padding: 10 }}>
+          {details.map((d, i) => (
+            <div key={i} style={{ padding: '6px 0', borderBottom: i < details.length - 1 ? '1px solid #EEE' : 'none' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600 }}>Пасажир {i + 1}</span>
+                <span style={{ fontSize: 13, fontWeight: 700 }}>{format(d.price, currency)}</span>
+              </div>
+              <div style={{ fontSize: 11, color: Gray }}>{d.catName}</div>
+              {d.usedTripDiscount && (
+                <div style={{ fontSize: 10.5, color: ORange, marginTop: 1 }}>Використовується знижка рейсу {Math.round(d.effectivePct)}%</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TotalPrice({ trip, twoWayTotal, twoWayStrike, twoWayDiscountPct, twoWayMode, twoWayDetails, cats }: { trip: any; twoWayTotal: number | null; twoWayStrike?: number | null; twoWayDiscountPct?: number | null; twoWayMode?: 'fixed' | 'open' | null; twoWayDetails?: PassengerPriceDetail[] | null; cats: string[] }) {
   const { format } = useDisplayPrice()
   const { total, original, legDiscountPct } = computeGroupPrice(trip, cats)
   const shown = twoWayTotal ?? total
@@ -675,6 +711,10 @@ function TotalPrice({ trip, twoWayTotal, twoWayStrike, twoWayDiscountPct, twoWay
   // значення рахувались, але ніде не показувались для одностороннього рейсу.
   const strike = twoWayTotal != null ? twoWayStrike : (original > shown ? original : null)
   const discountPct = twoWayTotal != null ? twoWayDiscountPct : legDiscountPct
+  // Кеп (28.08): на РІВНІ ПІДСУМКУ — НІКОЛИ не показуємо номінал знижки, для ЖОДНОГО типу
+  // (one-way/round-trip/відкрита дата) — тільки сума й фіксований напис. Номінал — лише
+  // в гамбургер-деталізації по кожному пасажиру.
+  const details = twoWayTotal != null ? (twoWayDetails ?? []) : oneWayGroupPrice(trip, cats).details
   return (
     <>
       {headerLabel && <div style={{ fontSize: 12, color: Gray, marginBottom: 4 }}>{headerLabel}</div>}
@@ -682,17 +722,10 @@ function TotalPrice({ trip, twoWayTotal, twoWayStrike, twoWayDiscountPct, twoWay
         <div style={{ fontSize: 14, color: Gray, textDecoration: 'line-through' }}>{format(strike, currency)}</div>
       )}
       <div style={{ fontSize: 26, fontWeight: 800 }}>{format(shown, currency)}</div>
-      {twoWayTotal != null ? (
-        // Round-trip/відкрита дата — фіксований підпис, БЕЗ відсотка (Кеп, 27.08).
-        discountPct != null && discountPct > 0 && (
-          <div style={{ fontSize: 12, color: '#E53935', fontWeight: 700, marginTop: 2 }}>Діє знижка, кількість акційних квитків — обмежена</div>
-        )
-      ) : (
-        // One-way — реальний відсоток (розділ 4 специфікації).
-        discountPct != null && discountPct > 0 && (
-          <div style={{ fontSize: 12, color: '#E53935', fontWeight: 700, marginTop: 2 }}>Sale online {Math.round(discountPct)}%</div>
-        )
+      {discountPct != null && discountPct > 0 && (
+        <div style={{ fontSize: 12, color: '#E53935', fontWeight: 700, marginTop: 2 }}>Діє знижка, кількість акційних квитків — обмежена</div>
       )}
+      <PassengerPriceHamburger details={details} currency={currency} />
     </>
   )
 }
