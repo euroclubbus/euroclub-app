@@ -312,6 +312,10 @@ export default function Booking() {
       })
       // Кеп (28.08), уточнено прогером: sale_comment — ОДНЕ поле на все замовлення, не
       // масив по пасажирах — об'єднуємо тут, пропускаючи пасажирів без підміни знижки.
+      // Кеп (28.08): ТИМЧАСОВО вимкнено — навіть із форматом, який прогер підтвердив,
+      // бекенд усе одно повертає Server error #4. Лишаю розрахунок готовим (saleComment
+      // нижче), просто НЕ передаю його в createOrderNew, поки прогер не розбереться зі
+      // своєї сторони. Щоб повернути — досить прибрати "undefined &&" в передостанньому рядку.
       const saleCommentParts = Array.from({ length: totalPax }, (_, i) => {
         const { saleComment } = resolveOrderDiscount(i)
         return saleComment ? `Пасажир ${i + 1} — ${saleComment}, використовується знижка рейсу` : null
@@ -327,7 +331,7 @@ export default function Booking() {
         to: String(to.id),
         route1: String(trip.id).split('-')[0],
         route2: isRoundTrip ? String(trip2.id).split('-')[0] : (openReturnPending ? '-1' : undefined),
-      }, passengers, saleComment)
+      }, passengers, undefined /* saleComment — тимчасово вимкнено, див. коментар вище */)
 
       // Успіх визначаємо НЕ через result?.err === 0 (на реальному успіху відповідь — це повний
       // об'єкт замовлення, як запис user-orders, і поля `err` там може взагалі не бути — воно є
