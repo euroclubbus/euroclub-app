@@ -333,8 +333,11 @@ export default function Booking() {
     setLoading(true)
     try {
       const currency: 'uah' | 'eur' = /eur/i.test(trip?.currency || 'uah') ? 'eur' : 'uah'
+      // Кеп (28.08): зберігаємо ОКРЕМО те, що САМЕ відправили по кожному пасажиру
+      // (discount code + чи це підміна) — знадобиться пізніше для order_registry.
+      const sentDiscounts = Array.from({ length: totalPax }, (_, i) => resolveOrderDiscount(i))
       const passengers: NewOrderPassenger[] = Array.from({ length: totalPax }, (_, i) => {
-        const { discount } = resolveOrderDiscount(i)
+        const { discount } = sentDiscounts[i]
         return {
           name: (passengerNames[i] || '').trim().toUpperCase(),
           discount,
@@ -349,7 +352,7 @@ export default function Booking() {
       // впливати на розрахунок через коментар. sale_comment знову увімкнено — лише як
       // текстова примітка для довідки/підтримки (яка категорія була обрана насправді).
       const saleCommentParts = Array.from({ length: totalPax }, (_, i) => {
-        const { saleComment } = resolveOrderDiscount(i)
+        const { saleComment } = sentDiscounts[i]
         return saleComment ? `Пасажир ${i + 1} — ${saleComment}, використовується знижка рейсу` : null
       }).filter((s): s is string => s !== null)
       const saleComment = saleCommentParts.length > 0 ? saleCommentParts.join('; ') : undefined
@@ -513,10 +516,19 @@ export default function Booking() {
             passengers: order.passangers.map((p: any, i: number) => {
               const discountOpt = orderedDiscounts.find(d => String(d.id) === discountIds[i])
               const discountName = discountOpt ? catName(discountOpt) : 'Повний тариф'
-              const discountPercent = discountOpt ? Number(discountOpt.discount) || 0 : 0
+              // Кеп (28.08): відсоток має бути ФАКТИЧНО застосований (якщо спрацювала
+              // підміна на знижку рейсу — це відсоток рейсу, а не оригінальної категорії).
+              const usedTripDiscount = !!sentDiscounts[i]?.saleComment
+              const tripPctForPassenger = !pricedAsRoundTrip
+                ? computeLegPricing(trip).знижкаПроц
+                : (pricingTrip2 ? Math.max(computeLegPricing(trip).знижкаПроц, computeLegPricing(pricingTrip2).знижкаПроц) : 0)
+              const discountPercent = usedTripDiscount ? tripPctForPassenger : (discountOpt ? Number(discountOpt.discount) || 0 : 0)
               const ownPrice = pricedAsRoundTrip
                 ? (twoWayGroup?.perPassenger?.[i] ?? Number(p.prc ?? p.price ?? 0))
                 : Number(p.prc ?? p.price ?? 0)
+              // Кеп (28.08): sentDiscountId — РЕАЛЬНИЙ код, який пішов на бекенд (може бути
+              // підмінений на знижку рейсу) — для порівняння з живими даними пізніше.
+              const sentDiscountId = sentDiscounts[i]?.discount ?? discountIds[i]
               return {
                 index: i + 1,
                 ticketNumber: String(p.tck ?? p.ticket ?? ''),
@@ -524,6 +536,8 @@ export default function Booking() {
                 discountPercent,
                 tariff: pricedAsRoundTrip ? tariff : ownPrice,
                 price: ownPrice,
+                sentDiscountId,
+                usedTripDiscount,
               }
             }),
             })
