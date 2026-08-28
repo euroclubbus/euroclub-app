@@ -226,14 +226,32 @@ export default function Booking() {
   // Кеп (28.08, ФІНАЛЬНЕ виправлення): psgr_dscnt ЗАВЖДИ реальний числовий id категорії з
   // бекенду — текст "price_dsc"/"price_mob_dsc" туди НІКОЛИ не йде (бекенд не розуміє,
   // повертає Server error #4). Уся інформація про підміну — ЛИШЕ словами в sale_comment.
+  // Кеп (28.08, ФІНАЛЬНА архітектура): реально підміняємо id знижки на такий, що дає
+  // потрібний % (price_dsc/price_mob_dsc) — знаходимо в trip.discounts РЕАЛЬНУ категорію
+  // з ТАКИМ САМИМ відсотком (окрім id=43, який завжди ігноруємо). Оригінальний вибір
+  // пасажира зберігаємо лише в sale_comment, для бекенду це вже підмінений, "чесний" id.
+  const findRealIdForPct = (pct: number): string | null => {
+    const match = discountOptions.find(d => String(d.id) !== '43' && Number(d.discount) === pct)
+    return match ? String(match.id) : null
+  }
   const resolveOrderDiscount = (idx: number): { discount: string; saleComment: string } => {
     const catId = effectiveDiscountId(idx)
-    if (catId === 'sale-online') return { discount: String(fullFare.id), saleComment: '' }
+    const tripPct = !pricedAsRoundTrip
+      ? computeLegPricing(trip).знижкаПроц
+      : (pricingTrip2 ? Math.max(computeLegPricing(trip).знижкаПроц, computeLegPricing(pricingTrip2).знижкаПроц) : 0)
+    if (catId === 'sale-online') {
+      // Дефолтна знижка рейсу — теж має піти РЕАЛЬНИМ id з відповідним %, інакше бекенд
+      // порахує повну ціну (0%), а не задуману знижку.
+      const realId = tripPct > 0 ? findRealIdForPct(tripPct) : null
+      return { discount: realId ?? String(fullFare.id), saleComment: '' }
+    }
     const opt = discountOptions.find(d => String(d.id) === catId)
     if (!opt) return { discount: catId, saleComment: '' }
     const usesTrip = categoryUsesTripDiscount(opt)
     if (!usesTrip) return { discount: catId, saleComment: '' }
-    return { discount: catId, saleComment: catName(opt) }
+    const realId = findRealIdForPct(tripPct)
+    if (!realId) return { discount: catId, saleComment: '' } // немає відповідної категорії — лишаємо як є, категорійна ціна застосується як є
+    return { discount: realId, saleComment: catName(opt) }
   }
   // Кеп (26.08): результат categoryPrice для round-trip через нову формулу — вже
   // нормалізований в UAH, не валюта trip (leg1), бо leg2 може бути в EUR.
@@ -317,10 +335,10 @@ export default function Booking() {
       })
       // Кеп (28.08), уточнено прогером: sale_comment — ОДНЕ поле на все замовлення, не
       // масив по пасажирах — об'єднуємо тут, пропускаючи пасажирів без підміни знижки.
-      // Кеп (28.08): ТИМЧАСОВО вимкнено — навіть із форматом, який прогер підтвердив,
-      // бекенд усе одно повертає Server error #4. Лишаю розрахунок готовим (saleComment
-      // нижче), просто НЕ передаю його в createOrderNew, поки прогер не розбереться зі
-      // своєї сторони. Щоб повернути — досить прибрати "undefined &&" в передостанньому рядку.
+      // Кеп (28.08): psgr_dscnt тепер реально підмінюється на id з відповідним %
+      // (resolveOrderDiscount), тому бекенд рахує правильну ціну сам, без потреби
+      // впливати на розрахунок через коментар. sale_comment знову увімкнено — лише як
+      // текстова примітка для довідки/підтримки (яка категорія була обрана насправді).
       const saleCommentParts = Array.from({ length: totalPax }, (_, i) => {
         const { saleComment } = resolveOrderDiscount(i)
         return saleComment ? `Пасажир ${i + 1} — ${saleComment}, використовується знижка рейсу` : null
@@ -336,7 +354,7 @@ export default function Booking() {
         to: String(to.id),
         route1: String(trip.id).split('-')[0],
         route2: isRoundTrip ? String(trip2.id).split('-')[0] : (openReturnPending ? '-1' : undefined),
-      }, passengers, undefined /* saleComment — тимчасово вимкнено, див. коментар вище */)
+      }, passengers, saleComment)
 
       // Успіх визначаємо НЕ через result?.err === 0 (на реальному успіху відповідь — це повний
       // об'єкт замовлення, як запис user-orders, і поля `err` там може взагалі не бути — воно є
