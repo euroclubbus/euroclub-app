@@ -218,22 +218,17 @@ export default function Booking() {
   // "price_dsc"/"price_mob_dsc" (яке саме спрацювало), а sale_comment[] — текстова назва
   // ОРИГІНАЛЬНО обраної категорії (не id). Коли категорія реально вигідніша (чи це
   // sale-online за замовчуванням) — psgr_dscnt лишається як є, sale_comment порожній.
+  // Кеп (28.08, ФІНАЛЬНЕ виправлення): psgr_dscnt ЗАВЖДИ реальний числовий id категорії з
+  // бекенду — текст "price_dsc"/"price_mob_dsc" туди НІКОЛИ не йде (бекенд не розуміє,
+  // повертає Server error #4). Уся інформація про підміну — ЛИШЕ словами в sale_comment.
   const resolveOrderDiscount = (idx: number): { discount: string; saleComment: string } => {
     const catId = effectiveDiscountId(idx)
-    if (catId === 'sale-online') {
-      const source = !pricedAsRoundTrip
-        ? computeLegPricing(trip).знижкаДжерело
-        : (pricingTrip2 ? (computeLegPricing(trip).знижкаДжерело ?? computeLegPricing(pricingTrip2).знижкаДжерело) : null)
-      return { discount: source ?? catId, saleComment: '' }
-    }
+    if (catId === 'sale-online') return { discount: String(fullFare.id), saleComment: '' }
     const opt = discountOptions.find(d => String(d.id) === catId)
     if (!opt) return { discount: catId, saleComment: '' }
     const usesTrip = categoryUsesTripDiscount(opt)
     if (!usesTrip) return { discount: catId, saleComment: '' }
-    const source = !pricedAsRoundTrip
-      ? legPriceWithFixedCategory(trip, Number(opt.discount)).discountSource
-      : (pricingTrip2 ? roundTripWithFixedCategory(trip, pricingTrip2, Number(opt.discount), 1).discountSource : null)
-    return { discount: source ?? catId, saleComment: catName(opt) }
+    return { discount: catId, saleComment: catName(opt) }
   }
   // Кеп (26.08): результат categoryPrice для round-trip через нову формулу — вже
   // нормалізований в UAH, не валюта trip (leg1), бо leg2 може бути в EUR.
@@ -512,10 +507,11 @@ export default function Booking() {
         setError(t('booking.bookingError') + ': ' + msg)
       }
     } catch (e) {
-      // Кеп (28.08): тимчасова діагностика — показуємо справжню причину, а не мовчазне
-      // "Помилка мережі", щоб знайти, що саме зламалось після додавання sale_comment.
+      // Кеп (28.08): причину помилки sale_comment/psgr_dscnt знайдено й виправлено —
+      // повертаємо звичайний дружній напис. console.error лишається для майбутньої
+      // діагностики без показу технічних деталей юзеру.
       console.error('[Booking] handleBook error:', e)
-      setError(`ДІАГНОСТИКА: ${e instanceof Error ? e.message : String(e)}`)
+      setError(t('booking.networkError'))
     } finally {
       setLoading(false)
     }
