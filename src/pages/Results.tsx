@@ -682,7 +682,13 @@ function PassengerPriceHamburger({ details, currency }: { details: PassengerPric
             <div key={i} style={{ padding: '6px 0', borderBottom: i < details.length - 1 ? '1px solid #EEE' : 'none' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span style={{ fontSize: 12.5, fontWeight: 600 }}>Пасажир {i + 1}</span>
-                <span style={{ fontSize: 13, fontWeight: 700 }}>{format(d.price, currency)}</span>
+                <div style={{ textAlign: 'right' }}>
+                  {/* Кеп (28.08): ціна, ВІД якої знижка — перекреслена, поруч з фактичною. */}
+                  {d.basePrice > d.price && (
+                    <div style={{ fontSize: 10.5, color: Gray, textDecoration: 'line-through' }}>{format(d.basePrice, currency)}</div>
+                  )}
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>{format(d.price, currency)}</span>
+                </div>
               </div>
               <div style={{ fontSize: 11, color: Gray }}>{d.catName}</div>
               {/* Кеп (28.08): номінал знижки завжди — навіть коли це звичайна категорійна
