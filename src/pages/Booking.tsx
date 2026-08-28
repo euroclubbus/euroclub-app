@@ -534,7 +534,7 @@ export default function Booking() {
                 ticketNumber: String(p.tck ?? p.ticket ?? ''),
                 discountName,
                 discountPercent,
-                tariff: pricedAsRoundTrip ? tariff : ownPrice,
+                tariff: pricedAsRoundTrip ? tariff : computeLegPricing(trip).базовийТариф,
                 price: ownPrice,
                 sentDiscountId,
                 usedTripDiscount,
