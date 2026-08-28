@@ -481,11 +481,28 @@ export default function OrderSuccess() {
         {passengers.length > 0 && (
           <div style={{ marginBottom: 18 }}>
             {passengers.map((p: any, i: number) => {
-              const typeName = registry?.passengers?.find(rp => rp.index === i + 1)?.discountName || ''
+              const rp = registry?.passengers?.find(rp => rp.index === i + 1)
+              const typeName = rp?.discountName || ''
+              // Кеп (28.08): повний тариф (перекреслений) + знижка — той самий підхід,
+              // що вже є на Booking.tsx і в гамбургері на пошуку.
+              const fullTariff = rp?.tariff ?? 0
+              const showStrike = fullTariff > 0 && fullTariff > Number(p.price)
               return (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-                  <span style={{ fontSize: 14.5, fontWeight: 600 }}>{p.name}{typeName && <span style={{ fontWeight: 400, color: Gray }}> ({typeName})</span>}</span>
-                  <span style={{ fontSize: 15, fontWeight: 700 }}>{format(p.price, currencyCode)}</span>
+                <div key={i} style={{ marginBottom: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontSize: 14.5, fontWeight: 600 }}>{p.name}{typeName && <span style={{ fontWeight: 400, color: Gray }}> ({typeName})</span>}</span>
+                    <div style={{ textAlign: 'right' }}>
+                      {showStrike && (
+                        <div style={{ fontSize: 12, color: Gray, textDecoration: 'line-through' }}>{format(fullTariff, currencyCode)}</div>
+                      )}
+                      <span style={{ fontSize: 15, fontWeight: 700 }}>{format(p.price, currencyCode)}</span>
+                    </div>
+                  </div>
+                  {rp && rp.discountPercent > 0 && (
+                    <div style={{ fontSize: 11, color: '#E53935', textAlign: 'right' }}>
+                      {rp.usedTripDiscount ? `Використовується знижка рейсу ${Math.round(rp.discountPercent)}%` : `Знижка ${Math.round(rp.discountPercent)}%`}
+                    </div>
+                  )}
                 </div>
               )
             })}
