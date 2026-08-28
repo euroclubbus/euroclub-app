@@ -662,7 +662,7 @@ export default function Results() {
 
 function TotalPrice({ trip, twoWayTotal, twoWayStrike, twoWayDiscountPct, twoWayMode, cats }: { trip: any; twoWayTotal: number | null; twoWayStrike?: number | null; twoWayDiscountPct?: number | null; twoWayMode?: 'fixed' | 'open' | null; cats: string[] }) {
   const { format } = useDisplayPrice()
-  const { total } = computeGroupPrice(trip, cats)
+  const { total, original, legDiscountPct } = computeGroupPrice(trip, cats)
   const shown = twoWayTotal ?? total
   // Кеп (26.08): twoWayTotal — сума двох ніг, уже нормалізована в UAH (див. computeLegPricingUAH
   // у pricing.ts) — не валюта trip (leg1), бо leg2 може бути в EUR.
@@ -670,16 +670,28 @@ function TotalPrice({ trip, twoWayTotal, twoWayStrike, twoWayDiscountPct, twoWay
   // Кеп (27.08): заголовок над ціною — окремий підпис, не пов'язаний із внутрішньою
   // термінологією специфікації (базовий/актуальний тариф) — просто розрізняє тип квитка.
   const headerLabel = twoWayMode === 'open' ? 'Актуальний тариф квитка з відкритою датою' : twoWayMode === 'fixed' ? 'Актуальний тариф квитка в 2 сторони' : null
+  // Кеп (28.08): для one-way (twoWayTotal===null) — теж показуємо перекреслення+знижку,
+  // з ЛОКАЛЬНО порахованих original/legDiscountPct (computeGroupPrice) — раніше ці
+  // значення рахувались, але ніде не показувались для одностороннього рейсу.
+  const strike = twoWayTotal != null ? twoWayStrike : (original > shown ? original : null)
+  const discountPct = twoWayTotal != null ? twoWayDiscountPct : legDiscountPct
   return (
     <>
       {headerLabel && <div style={{ fontSize: 12, color: Gray, marginBottom: 4 }}>{headerLabel}</div>}
-      {twoWayStrike != null && (
-        <div style={{ fontSize: 14, color: Gray, textDecoration: 'line-through' }}>{format(twoWayStrike, currency)}</div>
+      {strike != null && (
+        <div style={{ fontSize: 14, color: Gray, textDecoration: 'line-through' }}>{format(strike, currency)}</div>
       )}
       <div style={{ fontSize: 26, fontWeight: 800 }}>{format(shown, currency)}</div>
-      {/* Кеп (27.08): для round-trip/відкритої дати НЕ показуємо номінал знижки — фіксований підпис. */}
-      {twoWayDiscountPct != null && twoWayDiscountPct > 0 && (
-        <div style={{ fontSize: 12, color: '#E53935', fontWeight: 700, marginTop: 2 }}>Діє знижка, кількість акційних квитків — обмежена</div>
+      {twoWayTotal != null ? (
+        // Round-trip/відкрита дата — фіксований підпис, БЕЗ відсотка (Кеп, 27.08).
+        discountPct != null && discountPct > 0 && (
+          <div style={{ fontSize: 12, color: '#E53935', fontWeight: 700, marginTop: 2 }}>Діє знижка, кількість акційних квитків — обмежена</div>
+        )
+      ) : (
+        // One-way — реальний відсоток (розділ 4 специфікації).
+        discountPct != null && discountPct > 0 && (
+          <div style={{ fontSize: 12, color: '#E53935', fontWeight: 700, marginTop: 2 }}>Sale online {Math.round(discountPct)}%</div>
+        )
       )}
     </>
   )
