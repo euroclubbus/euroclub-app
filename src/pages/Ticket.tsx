@@ -14,6 +14,7 @@ import BottomSheet from '../components/BottomSheet'
 import SimpleCalendar from '../components/SimpleCalendar'
 import { fetchOpenReturnMarker, markOpenReturnRequested, buildFixationMailto, OpenReturnMarker } from '../openReturn'
 import { readOrderRegistry, OrderRegistryData } from '../orderRegistry'
+import { resolvePassengerDisplay } from '../passengerDisplayResolver'
 
 const ORange = '#F5A623'
 const Navy = '#0B2E5E'
@@ -166,8 +167,15 @@ export default function Ticket() {
     if (!rawOid) return
     readOrderRegistry(rawOid).then(setRegistry)
   }, [rawOid])
-  const discountNameByIndex = (idx: number): string =>
-    registry?.passengers?.find(rp => rp.index === idx + 1)?.discountName || ''
+  // Кеп (28.08): "жива vs застигла" — узгоджене правило, те саме, що на OrderSuccess.tsx.
+  const resolvedByIndex = (idx: number, rawDsc: any, rawPrc: number) => {
+    const rp = registry?.passengers?.find(x => x.index === idx + 1)
+    return resolvePassengerDisplay(
+      rp ? { discountName: rp.discountName, discountPercent: rp.discountPercent, tariff: rp.tariff, usedTripDiscount: rp.usedTripDiscount } : undefined,
+      rawDsc,
+      rawPrc
+    )
+  }
 
   const fromCity = data?.from_city || trip?.departure?.[0]?.city_ua || trip?.departure?.[0]?.city || getCityNameSync(data?.from1) || ''
   const toCity = data?.to_city || trip?.arrival?.[0]?.city_ua || trip?.arrival?.[0]?.city || getCityNameSync(data?.to1) || ''
@@ -255,7 +263,7 @@ export default function Ticket() {
           <div style={{ textAlign: 'center', marginBottom: 16 }}>
             <div style={{ fontSize: 12, color: Gray }}>Пасажир</div>
             <div style={{ fontSize: 17, fontWeight: 700 }}>{p.name}</div>
-            <div style={{ fontSize: 12, color: Gray, marginTop: 2 }}>{discountNameByIndex(i) || p.type || '—'}</div>
+            <div style={{ fontSize: 12, color: Gray, marginTop: 2 }}>{resolvedByIndex(i, p.type, Number(p.price) || 0).discountName || '—'}</div>
           </div>
 
           {/* ПОЇЗДКА 1 */}
@@ -343,13 +351,25 @@ export default function Ticket() {
           )}
 
           {/* Ціна цього конкретного квитка */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 12, borderTop: '1px solid #E5E5E5' }}>
-            <span style={{ fontSize: 13, color: Gray }}>Ціна квитка</span>
-            <span style={{ fontSize: 20, fontWeight: 700 }}>{format(p.price || 0)} {currency}</span>
-          </div>
-          {discountNameByIndex(i) && (
-            <div style={{ fontSize: 12, color: Gray, marginTop: 4, textAlign: 'right' }}>{discountNameByIndex(i)}</div>
-          )}
+          {(() => {
+            const r = resolvedByIndex(i, p.type, Number(p.price) || 0)
+            return (
+              <div style={{ paddingTop: 12, borderTop: '1px solid #E5E5E5' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ fontSize: 13, color: Gray }}>Ціна квитка</span>
+                  <div style={{ textAlign: 'right' }}>
+                    {r.strikeBase != null && (
+                      <div style={{ fontSize: 12, color: Gray, textDecoration: 'line-through' }}>{format(r.strikeBase)} {currency}</div>
+                    )}
+                    <span style={{ fontSize: 20, fontWeight: 700 }}>{format(p.price || 0)} {currency}</span>
+                  </div>
+                </div>
+                {r.discountName && (
+                  <div style={{ fontSize: 12, color: Gray, marginTop: 4, textAlign: 'right' }}>{r.discountName}</div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       </div>
     )
@@ -380,11 +400,22 @@ export default function Ticket() {
 
       {/* Сума і кнопки */}
       <div className="no-print" style={{ padding: '24px 16px 16px', background: Navy }}>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>Ціна квитка</div>
-        <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: discountNameByIndex(activeIdx) ? 4 : 16 }}>{format(passengers[activeIdx]?.price || 0)} {currency}</div>
-        {discountNameByIndex(activeIdx) && (
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 16 }}>{discountNameByIndex(activeIdx)}</div>
-        )}
+        {(() => {
+          const activeP = passengers[activeIdx]
+          const r = resolvedByIndex(activeIdx, activeP?.type, Number(activeP?.price) || 0)
+          return (
+            <>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>Ціна квитка</div>
+              {r.strikeBase != null && (
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textDecoration: 'line-through' }}>{format(r.strikeBase)} {currency}</div>
+              )}
+              <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: r.discountName ? 4 : 16 }}>{format(activeP?.price || 0)} {currency}</div>
+              {r.discountName && (
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 16 }}>{r.discountName}</div>
+              )}
+            </>
+          )
+        })()}
         
         {ticketPdf && (
           <button onClick={() => window.open(ticketPdf)} style={{ width: '100%', padding: '12px', background: ORange, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
