@@ -118,6 +118,15 @@ export default function Ticket() {
   const [activeIdx, setActiveIdx] = useState(0)
   const [fullscreenOpen, setFullscreenOpen] = useState(false)
   const { format } = useDisplayPrice()
+  // Кеп (28.08): ПЕРЕНЕСЕНО сюди (з-під умовних return нижче) — Rules of Hooks, хуки
+  // мають викликатись в однаковій кількості на КОЖНОМУ рендері. rawOid тут ще
+  // недоступний (data визначається пізніше) — читаємо просто з hash/localOrderData.
+  const rawOid = String(hash || data?.oid || '')
+  const [registry, setRegistry] = useState<OrderRegistryData | null>(null)
+  useEffect(() => {
+    if (!rawOid) return
+    readOrderRegistry(rawOid).then(setRegistry)
+  }, [rawOid])
 
   // Чекаємо завантаження даних з бекенду
   if (loadingBackend) {
@@ -158,16 +167,8 @@ export default function Ticket() {
     return num ? num.padStart(9, '0') : '000000000'
   })()
 
-  // Кеп (28.08): назва категорії знижки на квитку — з order_registry (зафіксовано в
-  // момент бронювання), НЕ сирий dsc id з бекенду (нечитабельний, напр. "8"). rawOid — не
-  // доповнений нулями ключ, яким документ реально записаний у Firestore.
-  const rawOid = String(hash || data?.oid || '')
-  const [registry, setRegistry] = useState<OrderRegistryData | null>(null)
-  useEffect(() => {
-    if (!rawOid) return
-    readOrderRegistry(rawOid).then(setRegistry)
-  }, [rawOid])
   // Кеп (28.08): "жива vs застигла" — узгоджене правило, те саме, що на OrderSuccess.tsx.
+  // (rawOid/useState(registry)/useEffect — вище, ДО умовних return, Rules of Hooks).
   const resolvedByIndex = (idx: number, rawDsc: any, rawPrc: number) => {
     const rp = registry?.passengers?.find(x => x.index === idx + 1)
     return resolvePassengerDisplay(
