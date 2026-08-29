@@ -7,6 +7,7 @@ import { ticketAvailable, statusLabel, payInfo, needsPolling, keepOurPrice, rest
 import { ensureCitiesLoaded, getCityNameSync } from '../cityNames'
 import { useOrderRegistry } from '../orderRegistryRead'
 import { syncOrderRegistryStatus } from '../orderRegistry'
+import { resolvePassengerDisplay } from '../passengerDisplayResolver'
 import { useOrderPolling } from '../useOrderPolling'
 import { useDisplayPrice } from '../currency'
 import SeatMap from './SeatMap'
@@ -201,7 +202,7 @@ export default function OrderSuccess() {
   // створенні (Booking.tsx). Раніше тут читалось лише data?.passangers (з друкарською
   // помилкою) — тому після фонового оновлення реальними даними пасажири зникали з екрану.
   const rawPax = data?.passengers?.length ? data.passengers : data?.passangers
-  let passengers: any[] = (rawPax || []).map((p: any) => ({ name: p.name, place: p.plc ?? p.place, price: p.prc ?? p.price }))
+  let passengers: any[] = (rawPax || []).map((p: any) => ({ name: p.name, place: p.plc ?? p.place, price: p.prc ?? p.price, dsc: p.dsc, rawPrc: Number(p.prc ?? p.price ?? 0) }))
   const split = passengerDisplayPrices(Number(summ) || 0, passengers)
   passengers = passengers.map((p, i) => ({ ...p, price: split[i] }))
 
@@ -482,25 +483,30 @@ export default function OrderSuccess() {
           <div style={{ marginBottom: 18 }}>
             {passengers.map((p: any, i: number) => {
               const rp = registry?.passengers?.find(rp => rp.index === i + 1)
-              const typeName = rp?.discountName || ''
-              // Кеп (28.08): повний тариф (перекреслений) + знижка — той самий підхід,
-              // що вже є на Booking.tsx і в гамбургері на пошуку.
-              const fullTariff = rp?.tariff ?? 0
-              const showStrike = fullTariff > 0 && fullTariff > Number(p.price)
+              // Кеп (28.08): "жива vs застигла" — узгоджене правило для ВСІХ типів
+              // замовлень. Порівнюємо очікувану (застиглу) ціну з живим prc — якщо
+              // збігається, довіряємо застиглим даним; якщо ні, хтось вручну змінив
+              // саме це замовлення на бекенді, і ми рахуємо все наживо (назва з
+              // discountCatalog.ts за живим dsc, база — виведена назад із живого prc).
+              const resolved = resolvePassengerDisplay(
+                rp ? { discountName: rp.discountName, discountPercent: rp.discountPercent, tariff: rp.tariff, usedTripDiscount: rp.usedTripDiscount } : undefined,
+                p.dsc,
+                p.rawPrc
+              )
               return (
                 <div key={i} style={{ marginBottom: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <span style={{ fontSize: 14.5, fontWeight: 600 }}>{p.name}{typeName && <span style={{ fontWeight: 400, color: Gray }}> ({typeName})</span>}</span>
+                    <span style={{ fontSize: 14.5, fontWeight: 600 }}>{p.name}{resolved.discountName && <span style={{ fontWeight: 400, color: Gray }}> ({resolved.discountName})</span>}</span>
                     <div style={{ textAlign: 'right' }}>
-                      {showStrike && (
-                        <div style={{ fontSize: 12, color: Gray, textDecoration: 'line-through' }}>{format(fullTariff, currencyCode)}</div>
+                      {resolved.strikeBase != null && (
+                        <div style={{ fontSize: 12, color: Gray, textDecoration: 'line-through' }}>{format(resolved.strikeBase, currencyCode)}</div>
                       )}
-                      <span style={{ fontSize: 15, fontWeight: 700 }}>{format(p.price, currencyCode)}</span>
+                      <span style={{ fontSize: 15, fontWeight: 700 }}>{format(resolved.price, currencyCode)}</span>
                     </div>
                   </div>
-                  {rp && rp.discountPercent > 0 && (
+                  {resolved.discountPercent != null && resolved.discountPercent > 0 && (
                     <div style={{ fontSize: 11, color: '#E53935', textAlign: 'right' }}>
-                      {rp.usedTripDiscount ? `Використовується знижка рейсу ${Math.round(rp.discountPercent)}%` : `Знижка ${Math.round(rp.discountPercent)}%`}
+                      {resolved.usedTripDiscount ? `Використовується знижка рейсу ${Math.round(resolved.discountPercent)}%` : `Знижка ${Math.round(resolved.discountPercent)}%`}
                     </div>
                   )}
                 </div>
