@@ -46,4 +46,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
     }
 
+    // Кеп (01.09): ОБОВ'ЯЗКОВІ для @capacitor/push-notifications — без цих двох методів
+    // плагін ніколи не дізнається про токен від APNs, навіть якщо дозвіл надано і
+    // entitlements правильно налаштовані. Стандартна вимога Capacitor, раніше була
+    // відсутня повністю. GoogleService-Info.plist НЕ потрібен — push на iOS йде через
+    // окремий Worker (euroclub-push-sender), напряму APNs, без Firebase (див. коментар
+    // у euroclub-admin/api/send-push.ts).
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+    }
+
 }
