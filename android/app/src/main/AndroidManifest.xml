@@ -32,4 +32,8 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Кеп (01.09): Android 13+ (і наш новий цільовий рівень 36) вимагає ЯВНИЙ дозвіл
+         для показу push-сповіщень — без нього застосунок не може навіть попросити його
+         в юзера, реєстрація токена в PushNotifications.register() тихо не спрацьовує. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>
