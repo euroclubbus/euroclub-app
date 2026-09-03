@@ -51,7 +51,10 @@ export async function pingInstall(userId?: string | null) {
       ...(isFirstPing ? { firstSeenAt: serverTimestamp() } : {}),
       ...(userId ? { userId: String(userId) } : {}),
     }, { merge: true })
-  } catch {
-    // тихо ігноруємо — статистика не повинна ламати сам застосунок
+  } catch (e) {
+    // Кеп (01.09): тимчасово логуємо — сторінка "Встановлення" в адмінці порожня,
+    // причина ще не з'ясована (найімовірніше — Firestore security rules не покривають
+    // цю НОВУ колекцію app_installs, дефолтна заборона). Приберемо після діагностики.
+    console.error('[InstallTracking] pingInstall failed:', e)
   }
 }
