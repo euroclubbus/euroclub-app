@@ -55,7 +55,7 @@ function AppRoutes() {
   return (
     <>
       <InstallPrompt />
-      <div style={{ paddingBottom: showNav ? 64 : 0 }}>
+      <div style={{ paddingBottom: showNav ? 64 : 0, paddingTop: 'env(safe-area-inset-top)' }}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/results" element={<Results />} />
