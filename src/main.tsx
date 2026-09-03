@@ -31,6 +31,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import { useAuthStore } from './authStore'
 import { useState, useEffect } from 'react'
 import { registerPushToken } from './push'
+import { pingInstall } from './installTracking'
 import { useNotificationsStore } from './notificationsFolder'
 import { useLocation } from 'react-router-dom'
 import { useForceUpdate } from './forceUpdate'
@@ -116,6 +117,13 @@ function Root() {
   const forceUpdate = useForceUpdate()
   const user = useAuthStore(s => s.user)
   const t = useT()
+  // Кеп (01.09): пінгуємо ОДРАЗУ, до будь-яких екранів-гейтів (welcome/auth/force-update)
+  // — рахуємо саме "застосунок відкрили", а не "хтось дійшов до логіну". React рендерить
+  // цей ефект незалежно від того, який return нижче спрацює цього разу.
+  useEffect(() => {
+    pingInstall(user?.id ?? null).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
   // Екран вибору "Зареєструватися" / "Продовжити без реєстрації" — показуємо один раз
   // на пристрої, тільки якщо ще не залогінені. Якщо вже є сесія (напр. після
   // перевстановлення з тим самим локальним сховищем чи повторного відкриття) —
