@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 import { useAuthStore } from './authStore'
 import { getFirebaseApp } from './firebaseApp'
+import { APP_VERSION } from './appVersion'
 
 // Кеп (01.09): своя статистика встановлень — усього/зареєстрованих, БЕЗ прив'язки до
 // логіну чи push-дозволу (той механізм, чому 2000 встановлень давали лише 13
@@ -39,7 +40,7 @@ export async function pingInstall(userId?: string | null) {
 
     const deviceId = getDeviceId()
     const platform = Capacitor.isNativePlatform() ? Capacitor.getPlatform() : 'pwa' // 'android' | 'ios' | 'pwa'
-    const appVersion = (window as any).__APP_VERSION__ || 'unknown'
+    const appVersion = APP_VERSION
 
     const isFirstPing = !localStorage.getItem('eclub_install_first_seen')
     if (isFirstPing) localStorage.setItem('eclub_install_first_seen', String(now))
