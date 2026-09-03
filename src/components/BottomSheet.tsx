@@ -35,6 +35,7 @@ export default function BottomSheet({ open, onClose, title, children, fullScreen
         maxHeight: fullScreen ? '100%' : '90vh',
         display: 'flex', flexDirection: 'column',
         animation: 'slideUp 0.25s ease',
+        paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
         {/* Handle */}
         {!fullScreen && (
