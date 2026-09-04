@@ -76,8 +76,14 @@ export async function registerPushToken() {
       if (req.receive !== 'granted') return
     }
 
-    await PushNotifications.register()
-
+    // Кеп (04.09), КРИТИЧНИЙ баг масштабу — слухачі МАЮТЬ бути підписані ДО виклику
+    // register(), не після. Раніше було навпаки: register() → await → ТІЛЬКИ ПОТІМ
+    // addListener('registration', ...) — класичний race condition. Якщо нативна сторона
+    // встигала емітнути подію 'registration' швидше, ніж ми підписувались (цілком
+    // реально, особливо коли дозвіл уже раніше надавався і register() резолвиться
+    // майже миттєво) — токен губився НАЗАВЖДИ, без жодної помилки в консолі. Це
+    // непередбачувано за таймінгом, тому й проявлялось нестабільно в масі користувачів,
+    // а не як стабільний баг конкретного пристрою.
     PushNotifications.addListener('registration', (token) => {
       saveDeviceToken(token.value, appCode).catch(() => {})
       try {
@@ -89,6 +95,8 @@ export async function registerPushToken() {
     PushNotifications.addListener('registrationError', (err) => {
       console.error('[Push] registration error', err)
     })
+
+    await PushNotifications.register()
 
     // Записуємо повідомлення локально (з точним часом), щоб воно було видно у
     // вкладці "Сповіщення" — раніше це ніде не зберігалось, спливаюче показувала
