@@ -30,7 +30,7 @@ import AdminTransferCities from './pages/AdminTransferCities'
 import ErrorBoundary from './components/ErrorBoundary'
 import { useAuthStore } from './authStore'
 import { useState, useEffect } from 'react'
-import { registerPushToken } from './push'
+import { registerPushToken, flushCachedPushToken } from './push'
 import { pingInstall } from './installTracking'
 import { useNotificationsStore } from './notificationsFolder'
 import { useLocation } from 'react-router-dom'
@@ -89,6 +89,12 @@ function PushTokenSync() {
   const user = useAuthStore(s => s.user)
   useEffect(() => {
     if (!user) return
+    // Кеп (01.09): ЗАВЖДИ намагаємось дописати вже кешований токен (якщо дозвіл давали
+    // ДО логіну — токен фізично був отриманий, але Firestore-запис тоді пропускався
+    // через порожній userId). register() повторно НЕ тригерить подію 'registration',
+    // тому саме flushCachedPushToken() (не повторний registerPushToken()) — правильний
+    // спосіб "дописати" вже наявний токен без нового запиту дозволу.
+    flushCachedPushToken()
     // Якщо дозвіл на сповіщення вже надавали раніше — тихо перереєструємо токен
     // (без нового запиту дозволу), щоб не втрачати токен між сесіями/оновленнями застосунку.
     try {
