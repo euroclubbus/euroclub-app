@@ -4,6 +4,15 @@ import { getFirebaseApp } from './firebaseApp'
 import { addNotif } from './notifications'
 
 const DEVICE_ID_KEY = 'eclub_device_id'
+// Кеп (01.09): КРИТИЧНИЙ фікс — PushNotifications.register() ПОВТОРНО НЕ викликає подію
+// 'registration', якщо пристрій уже зареєстрований на нативному рівні. Раніше, якщо
+// дозвіл на сповіщення давали ДО логіну (userId ще порожній) — saveTokenToFirestore
+// мовчки пропускав запис, а "наступна реєстрація" (після логіну) НІКОЛИ не приносила
+// новий токен, бо той самий register() просто не тригерив listener вдруге. Токен
+// фізично існував, але НІКОЛИ не потрапляв у Firestore. Тепер кешуємо сам токен окремо
+// від збереження — і "дописуємо" його, щойно з'являється userId, без re-register().
+const LAST_TOKEN_KEY = 'eclub_last_push_token'
+const LAST_PLATFORM_KEY = 'eclub_last_push_platform'
 
 // Стабільний ID цього конкретного пристрою/інсталяції — генерується один раз і
 // зберігається в localStorage, живе, поки застосунок не перевстановлять. Потрібен,
@@ -39,6 +48,17 @@ async function saveTokenToFirestore(token: string, platform: 'android' | 'ios') 
   }
 }
 
+// Кеп (01.09): викликати кожного разу, коли з'являється/змінюється userId (напр. одразу
+// після логіну) — якщо токен ВЖЕ отримано раніше (кешовано), але тоді userId ще не було
+// для запису в Firestore — дописуємо ЗАРАЗ, без повторного виклику register().
+export function flushCachedPushToken() {
+  try {
+    const token = localStorage.getItem(LAST_TOKEN_KEY)
+    const platform = localStorage.getItem(LAST_PLATFORM_KEY) as 'android' | 'ios' | null
+    if (token && platform) saveTokenToFirestore(token, platform).catch(() => {})
+  } catch {}
+}
+
 // Реєстрація push-токена працює тільки в нативному застосунку (Capacitor), не в браузері/PWA.
 // Викликати після того, як користувач дав дозвіл на сповіщення.
 export async function registerPushToken() {
@@ -60,6 +80,10 @@ export async function registerPushToken() {
 
     PushNotifications.addListener('registration', (token) => {
       saveDeviceToken(token.value, appCode).catch(() => {})
+      try {
+        localStorage.setItem(LAST_TOKEN_KEY, token.value)
+        localStorage.setItem(LAST_PLATFORM_KEY, platform === 'ios' ? 'ios' : 'android')
+      } catch {}
       saveTokenToFirestore(token.value, platform === 'ios' ? 'ios' : 'android')
     })
     PushNotifications.addListener('registrationError', (err) => {
