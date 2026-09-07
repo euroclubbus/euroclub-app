@@ -45,7 +45,20 @@ jobs:
             echo "All build attempts failed"
             exit 1
           fi
-      
+
+      # Кеп (04.09): паралельно звичайний .apk, ТИМ САМИМ ключем (upload) — для
+      # діагностики push-проблеми, порівняти встановлення напряму (цей apk) проти
+      # Google Play (де застосунок перепідписується ключем Play App Signing).
+      - name: Build Release APK (for direct install testing)
+        run: |
+          cd android
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$(pwd)/app/upload-keystore.jks \
+            -Pandroid.injected.signing.store.password=euroclub123 \
+            -Pandroid.injected.signing.key.alias=upload \
+            -Pandroid.injected.signing.key.password=euroclub123 \
+            --no-daemon --no-parallel --max-workers=1
+
       - name: List release bundle outputs
         run: find android/app/build/outputs -type f
         if: always()
@@ -54,3 +67,8 @@ jobs:
         with:
           name: EuroClub-release-bundle
           path: android/app/build/outputs/bundle/release/app-release.aab
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EuroClub-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
