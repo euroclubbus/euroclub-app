@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import type { TouchEvent } from 'react'
-import NotifPrompt from '../components/NotifPrompt'
 import SideMenu from '../components/SideMenu'
 import { useT, MONTHS, WEEKDAYS_MON, WEEKDAYS_SUN } from '../i18n'
 import { useLangStore } from '../langStore'
@@ -603,8 +602,6 @@ export default function Home() {
 
       <button onClick={() => setMenuOpen(true)} aria-label="Меню" style={{ position: 'absolute', top: `calc(env(safe-area-inset-top) + 12px + ${unpaidOrders.length > 0 ? 46 : 0}px)`, left: 14, zIndex: 20, width: 40, height: 40, borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Menu size={22} color="#fff" /></button>
       <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
-
-      <NotifPrompt />
 
       {/* Tagline (друкований, чергується) */}
       <div style={{ textAlign: 'center', marginTop: 28, padding: '0 24px', fontSize: 15, fontWeight: 700, color: '#8A8A8A', minHeight: 22 }}>
