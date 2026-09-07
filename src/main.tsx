@@ -36,6 +36,7 @@ import { useNotificationsStore } from './notificationsFolder'
 import { useLocation } from 'react-router-dom'
 import { useForceUpdate } from './forceUpdate'
 import ForceUpdateScreen from './components/ForceUpdateScreen'
+import NotifScreen, { shouldShowNotifScreen } from './components/NotifScreen'
 
 // Guideline 5.1.1(v) Apple: логін вимагається лише для account-based функцій
 // (бронювання, оплата, квитки, профіль, сповіщення). Пошук/перегляд маршрутів —
@@ -142,11 +143,16 @@ function Root() {
     try { localStorage.setItem(WELCOME_SEEN_KEY, '1') } catch {}
     setWelcomeStep('done')
   }
+  // Кеп (04.09): повноекранний обов'язковий екран дозволу сповіщень — замінює старий
+  // маленький банер (був "майже не видно"). Показується ПІСЛЯ Welcome/Auth/ForceUpdate,
+  // ПЕРЕД самим застосунком — не можна оминути, не побачивши.
+  const [notifShown, setNotifShown] = useState(shouldShowNotifScreen)
 
   if (!splashDone) return <Splash onDone={() => setSplashDone(true)} />
   if (welcomeStep === 'welcome') return <Welcome onRegister={() => setWelcomeStep('auth')} onGuest={dismissWelcome} />
   if (welcomeStep === 'auth') return <Auth initialMode="register" onAuthed={dismissWelcome} message={t('welcome.subtitle')} />
   if (forceUpdate.blocked) return <ForceUpdateScreen storeUrl={forceUpdate.storeUrl} />
+  if (notifShown) return <NotifScreen onDone={() => setNotifShown(false)} />
   return (
     <BrowserRouter>
       <ErrorBoundary>
