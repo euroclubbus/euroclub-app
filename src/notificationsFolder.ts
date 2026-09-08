@@ -22,6 +22,8 @@ export interface FolderNotif {
   read: boolean
   createdAt: string // ISO
   type: 'marketing' | 'service' // service = транзакційне (по замовленню/рейсу), червона мітка
+  deepLink: string | null // Кеп (04.09): куди перейти по кліку, якщо адмін вказав
+  feedback: 'like' | 'dislike' | null // Кеп (04.09): реакція юзера — для статистики в адмінці
 }
 
 interface NotificationsState {
@@ -83,7 +85,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       const unsub = onSnapshot(q, (snap) => {
         const items: FolderNotif[] = snap.docs.map((d) => {
           const data = d.data() as any
-          return { id: d.id, title: data.title || '', body: data.body || '', read: !!data.read, createdAt: data.createdAt || '', type: data.type === 'service' ? 'service' : 'marketing' }
+          return { id: d.id, title: data.title || '', body: data.body || '', read: !!data.read, createdAt: data.createdAt || '', type: data.type === 'service' ? 'service' : 'marketing', deepLink: data.deepLink || null, feedback: data.feedback === 'like' || data.feedback === 'dislike' ? data.feedback : null }
         })
         if (!isFirstSnapshot) {
           const prevIds = new Set(get().items.map((n) => n.id))
@@ -119,6 +121,25 @@ export async function markNotifRead(notifId: string) {
     await updateDoc(doc(db, 'notifications', String(userId), 'messages', notifId), { read: true })
   } catch (e) {
     console.error('[Notifications] markRead failed', e)
+  }
+}
+
+// Кеп (04.09): лайк/дизлайк — на самому документі повідомлення, для статистики в
+// адмінці. Записуємо ОДРАЗУ обрану реакцію (без окремого підтвердження) — можна
+// змінити думку пізніше, перезаписом того самого поля.
+export async function setNotifFeedback(notifId: string, feedback: 'like' | 'dislike') {
+  const userId = useAuthStore.getState().user?.id
+  if (!userId || !isFirebaseConfigured()) return
+  try {
+    const [{ initializeApp, getApps }, { getFirestore, doc, updateDoc }] = await Promise.all([
+      import('firebase/app'),
+      import('firebase/firestore'),
+    ])
+    const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig)
+    const db = getFirestore(app)
+    await updateDoc(doc(db, 'notifications', String(userId), 'messages', notifId), { feedback })
+  } catch (e) {
+    console.error('[Notifications] setFeedback failed', e)
   }
 }
 
