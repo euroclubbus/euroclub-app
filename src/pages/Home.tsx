@@ -434,6 +434,30 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authUser])
 
+  // Кеп (04.09): deep-link на конкретний маршрут+дату з push-сповіщення — /?from=1&to=4&date=30-09-2026
+  // (from/to — id міст, date — дд-мм-рррр). Знаходимо міста за id (той самий формат City,
+  // що й при виборі зі списку), заповнюємо стор пошуку, і одразу переходимо на результати.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const fromId = params.get('from')
+    const toId = params.get('to')
+    const date = params.get('date')
+    if (!fromId || !toId) return
+    getCities().then((data: any) => {
+      const raw = data.cities || data || {}
+      const arr = Array.isArray(raw) ? raw : Object.values(raw)
+      const fromCity = arr.find((c: any) => String(c.id) === fromId)
+      const toCity = arr.find((c: any) => String(c.id) === toId)
+      if (!fromCity || !toCity) return
+      const { setFrom, setTo, setDateFrom: setDF } = useSearchStore.getState()
+      setFrom({ id: String((fromCity as any).id), name: (fromCity as any).uk, country: COUNTRY_NAMES[(fromCity as any).i2] || (fromCity as any).i2, i2: (fromCity as any).i2 })
+      setTo({ id: String((toCity as any).id), name: (toCity as any).uk, country: COUNTRY_NAMES[(toCity as any).i2] || (toCity as any).i2, i2: (toCity as any).i2 })
+      if (date) setDF(date)
+      nav('/results')
+    }).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Попередження про дубль замовлення — показується замість переходу до результатів, коли
   // на обраний маршрут+дату вже є неоплачене замовлення.
   const [dupeMatches, setDupeMatches] = useState<any[] | null>(null)
