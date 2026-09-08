@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
-import { Bell, Menu } from 'lucide-react'
-import { useNotificationsStore, markNotifRead, formatNotifDate } from '../notificationsFolder'
+import { useNavigate } from 'react-router-dom'
+import { Bell, Menu, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { useNotificationsStore, markNotifRead, setNotifFeedback, formatNotifDate } from '../notificationsFolder'
 import SideMenu from '../components/SideMenu'
 import { useT } from '../i18n'
 
@@ -9,6 +10,7 @@ const Gray = '#9E9E9E'
 
 export default function Notifications() {
   const t = useT()
+  const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const items = useNotificationsStore(s => s.items)
   // Фіксуємо, які були непрочитані ДО того, як позначимо все прочитаним —
@@ -52,7 +54,11 @@ export default function Notifications() {
         {items.map(n => {
           const isNew = unreadIdsBefore.current?.has(n.id) ?? false
           return (
-            <div key={n.id} style={{ background: '#fff', borderRadius: 20, padding: 16, marginBottom: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', position: 'relative' }}>
+            <div
+              key={n.id}
+              onClick={() => { if (n.deepLink) navigate(n.deepLink) }}
+              style={{ background: '#fff', borderRadius: 20, padding: 16, marginBottom: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', position: 'relative', cursor: n.deepLink ? 'pointer' : 'default' }}
+            >
               {isNew && (
                 <span style={{ position: 'absolute', top: 16, right: 16, width: 9, height: 9, borderRadius: '50%', background: ORange }} />
               )}
@@ -68,7 +74,26 @@ export default function Notifications() {
                 <span style={{ fontWeight: 700, fontSize: 15, color: '#1A1A1A' }}>{n.title}</span>
               </div>
               <p style={{ color: '#555', fontSize: 14, lineHeight: 1.4, margin: '0 0 8px', paddingLeft: 44 }}>{n.body}</p>
-              <div style={{ color: Gray, fontSize: 12, paddingLeft: 44 }}>{formatNotifDate(n.createdAt)}</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 44 }}>
+                <div style={{ color: Gray, fontSize: 12 }}>{formatNotifDate(n.createdAt)}</div>
+                {/* Кеп (04.09): лайк/дизлайк — для статистики корисності в адмінці. */}
+                <div style={{ display: 'flex', gap: 6 }} onClick={e => e.stopPropagation()}>
+                  <button
+                    onClick={() => setNotifFeedback(n.id, 'like')}
+                    aria-label="Корисно"
+                    style={{ background: n.feedback === 'like' ? '#E8F5E9' : 'none', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', display: 'flex' }}
+                  >
+                    <ThumbsUp size={16} color={n.feedback === 'like' ? '#43A047' : Gray} fill={n.feedback === 'like' ? '#43A047' : 'none'} />
+                  </button>
+                  <button
+                    onClick={() => setNotifFeedback(n.id, 'dislike')}
+                    aria-label="Не корисно"
+                    style={{ background: n.feedback === 'dislike' ? '#FFEBEE' : 'none', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', display: 'flex' }}
+                  >
+                    <ThumbsDown size={16} color={n.feedback === 'dislike' ? '#E53935' : Gray} fill={n.feedback === 'dislike' ? '#E53935' : 'none'} />
+                  </button>
+                </div>
+              </div>
             </div>
           )
         })}
