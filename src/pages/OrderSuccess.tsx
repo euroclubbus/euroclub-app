@@ -492,7 +492,8 @@ export default function OrderSuccess() {
                 rp ? { discountName: rp.discountName, discountPercent: rp.discountPercent, tariff: rp.tariff, usedTripDiscount: rp.usedTripDiscount } : undefined,
                 p.dsc,
                 p.rawPrc,
-                currencyCode
+                currencyCode,
+                String(hash || data?.oid || '')
               )
               return (
                 <div key={i} style={{ marginBottom: 10 }}>
