@@ -25,10 +25,13 @@ export const DISCOUNT_CATALOG: DiscountCatalogEntry[] = [
   { id: '68', name: 'Діти 10 - 15 років', discount: 10 },
 ]
 
-// Кеп (28.08): для "sale-online"-подібного id, якого немає в списку взагалі (напр. якщо
-// бекенд повернув живий dsc, що не збігається з жодною відомою категорією) — резервна
-// назва, без конкретного %.
+// Кеп (18.09): для SALE-категорій (id тепер РІЗНИЙ по кожному маршруту — 36, 46, ...) —
+// принципово НЕМОЖЛИВО заздалегідь знати всі id у статичному списку. Якщо id
+// нерозпізнаний — показуємо загальну назву "Знижка" (не порожньо), БЕЗ вигаданого %
+// (бо реального % ми тут не знаємо — тільки id, без доступу до trip.discounts).
 export function lookupDiscount(id: string | number | undefined | null): DiscountCatalogEntry | null {
   if (id == null) return null
-  return DISCOUNT_CATALOG.find(d => d.id === String(id)) || null
+  const found = DISCOUNT_CATALOG.find(d => d.id === String(id))
+  if (found) return found
+  return { id: String(id), name: 'Знижка', discount: 0 }
 }
