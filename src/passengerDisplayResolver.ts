@@ -1,4 +1,5 @@
 import { lookupDiscount } from './discountCatalog'
+import { toUAH } from './currency'
 
 export interface FrozenPassengerRecord {
   discountName: string
@@ -34,12 +35,24 @@ export interface ResolvedPassengerDisplay {
 //        жива_база = живий_prc / (1 − живий_% / 100)
 //        (саме так вирішується приклад "0.8 ₴ замість 4400 ₴, база тоді 1, не 5500/10450")
 //      - якщо dsc взагалі не знайдено в каталозі — показуємо тільки ціну, без бази/%.
+// Кеп (18.09), КРИТИЧНИЙ баг знайдено й виправлено — подвійна конвертація EUR→UAH.
+// Раніше ця функція порівнювала frozen.tariff (застиглий, ЗАВЖДИ в UAH — так пише
+// Booking.tsx) напряму з livePrc (сирий, У ВАЛЮТІ ЗАМОВЛЕННЯ — для маршрутів з Європи
+// це EUR, напр. Дрезден↔Звягель). Різні одиниці — порівняння "matches" ЗАВЖДИ
+// провалювалось для EUR-замовлень, функція ПОМИЛКОВО думала, що адмін щось змінив
+// вручну (хоча ніхто нічого не міняв), вмикала "живий" режим. У живому режимі база
+// рахувалась ще в EUR, а виклик (OrderSuccess.tsx/Ticket.tsx) ЗНОВУ конвертував у UAH
+// через format(..., currencyCode) — подвійне множення на курс (×50 замість одного разу).
+// Виправлено: currency — валюта ЖИВОГО prc (order.crc/trip.currency), конвертуємо в UAH
+// ОДРАЗУ тут, до будь-яких порівнянь/розрахунків. price/strikeBase, які повертає ця
+// функція, — ЗАВЖДИ вже в UAH. Виклики мають форматувати їх з 'uah', не з currencyCode.
 export function resolvePassengerDisplay(
   frozen: FrozenPassengerRecord | undefined,
   liveDsc: string | number | undefined,
-  livePrc: number
+  livePrc: number,
+  currency: string = 'uah'
 ): ResolvedPassengerDisplay {
-  const price = Number(livePrc) || 0
+  const price = toUAH(Number(livePrc) || 0, currency)
 
   if (frozen) {
     const expected = frozen.tariff * (1 - frozen.discountPercent / 100)
