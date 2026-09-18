@@ -9,9 +9,10 @@ export interface DiscountCatalogEntry {
   id: string
   name: string
   discount: number
+  recognized: boolean // Кеп (18.09): false = нерозпізнаний id, підставлена загальна назва — для reportIssue()
 }
 
-export const DISCOUNT_CATALOG: DiscountCatalogEntry[] = [
+export const DISCOUNT_CATALOG: Omit<DiscountCatalogEntry, 'recognized'>[] = [
   { id: '0', name: 'За повним тарифом', discount: 0 },
   { id: '55', name: 'За повним тарифом', discount: 0 },
   { id: '4', name: 'Особи, старші за 60', discount: 10 },
@@ -29,9 +30,10 @@ export const DISCOUNT_CATALOG: DiscountCatalogEntry[] = [
 // принципово НЕМОЖЛИВО заздалегідь знати всі id у статичному списку. Якщо id
 // нерозпізнаний — показуємо загальну назву "Знижка" (не порожньо), БЕЗ вигаданого %
 // (бо реального % ми тут не знаємо — тільки id, без доступу до trip.discounts).
+// recognized:false сигналізує викликачу, що варто повідомити через reportIssue().
 export function lookupDiscount(id: string | number | undefined | null): DiscountCatalogEntry | null {
   if (id == null) return null
   const found = DISCOUNT_CATALOG.find(d => d.id === String(id))
-  if (found) return found
-  return { id: String(id), name: 'Знижка', discount: 0 }
+  if (found) return { ...found, recognized: true }
+  return { id: String(id), name: 'Знижка', discount: 0, recognized: false }
 }
