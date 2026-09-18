@@ -491,7 +491,8 @@ export default function OrderSuccess() {
               const resolved = resolvePassengerDisplay(
                 rp ? { discountName: rp.discountName, discountPercent: rp.discountPercent, tariff: rp.tariff, usedTripDiscount: rp.usedTripDiscount } : undefined,
                 p.dsc,
-                p.rawPrc
+                p.rawPrc,
+                currencyCode
               )
               return (
                 <div key={i} style={{ marginBottom: 10 }}>
@@ -499,9 +500,9 @@ export default function OrderSuccess() {
                     <span style={{ fontSize: 14.5, fontWeight: 600 }}>{p.name}{resolved.discountName && <span style={{ fontWeight: 400, color: Gray }}> ({resolved.discountName})</span>}</span>
                     <div style={{ textAlign: 'right' }}>
                       {resolved.strikeBase != null && (
-                        <div style={{ fontSize: 12, color: Gray, textDecoration: 'line-through' }}>{format(resolved.strikeBase, currencyCode)}</div>
+                        <div style={{ fontSize: 12, color: Gray, textDecoration: 'line-through' }}>{format(resolved.strikeBase, 'uah')}</div>
                       )}
-                      <span style={{ fontSize: 15, fontWeight: 700 }}>{format(resolved.price, currencyCode)}</span>
+                      <span style={{ fontSize: 15, fontWeight: 700 }}>{format(resolved.price, 'uah')}</span>
                     </div>
                   </div>
                   {resolved.discountPercent != null && resolved.discountPercent > 0 && (
