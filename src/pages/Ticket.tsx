@@ -175,7 +175,8 @@ export default function Ticket() {
       rp ? { discountName: rp.discountName, discountPercent: rp.discountPercent, tariff: rp.tariff, usedTripDiscount: rp.usedTripDiscount } : undefined,
       rawDsc,
       rawPrc,
-      data?.crc || trip?.currency || 'uah'
+      data?.crc || trip?.currency || 'uah',
+      rawOid
     )
   }
 
