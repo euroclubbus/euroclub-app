@@ -1,5 +1,6 @@
 import { lookupDiscount } from './discountCatalog'
 import { toUAH } from './currency'
+import { reportIssue } from './issueReporting'
 
 export interface FrozenPassengerRecord {
   discountName: string
@@ -50,7 +51,8 @@ export function resolvePassengerDisplay(
   frozen: FrozenPassengerRecord | undefined,
   liveDsc: string | number | undefined,
   livePrc: number,
-  currency: string = 'uah'
+  currency: string = 'uah',
+  orderNo?: string
 ): ResolvedPassengerDisplay {
   const price = toUAH(Number(livePrc) || 0, currency)
 
@@ -73,6 +75,15 @@ export function resolvePassengerDisplay(
   const liveCat = lookupDiscount(liveDsc)
   if (!liveCat) {
     return { isLive: true, discountName: '', discountPercent: null, strikeBase: null, price, usedTripDiscount: false }
+  }
+  // Кеп (18.09): невідомий id (SALE-категорія, якої немає в статичному каталозі) — це
+  // саме та ситуація "не знаю, що робити" з нового загального механізму (issueReporting.ts).
+  if (!liveCat.recognized) {
+    reportIssue({
+      type: 'unknown_discount_id',
+      context: `Нерозпізнаний id знижки "${liveDsc}" — немає в discountCatalog.ts, показано загальну назву замість справжньої`,
+      data: { discountId: String(liveDsc ?? ''), orderNo: orderNo || null },
+    }, String(liveDsc ?? ''))
   }
   const liveBase = liveCat.discount < 100 ? price / (1 - liveCat.discount / 100) : price
   return {
