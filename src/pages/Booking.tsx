@@ -72,10 +72,12 @@ export default function Booking() {
   const arr2 = trip2?.arrival?.[0]
   const totalPax = passengerCount
   // Real discounts come from the selected trip itself (trip.discounts), e.g. id 0 = full fare, 4 = senior, etc.
-  // Кеп (27.08): id=43 ("Знижка при предоплаті") повністю ігнорується — бекенд-теговане
-  // поле, не використовуємо ніде, замінене синтетичною категорією "Sale online" нижче.
+  // Кеп (18.09): раніше виключався лише id=43 (жорстко прив'язаний id). Тепер бекенд може
+  // повертати SALE-категорії з РІЗНИМИ id для різних маршрутів (36, 46, ...) — Кеп
+  // підтвердив: назва ЗАВЖДИ починається з "SALE". Фільтруємо за назвою, не за конкретним
+  // id — інакше нові SALE-категорії потрапляли б у видимий список вибору пасажира.
   const discountOptions: Array<{ id: number; default: number; name: string; discount: number; price: number }> =
-    (trip?.discounts || []).filter((d: any) => String(d.id) !== '43')
+    (trip?.discounts || []).filter((d: any) => String(d.id) !== '43' && !String(d.name || '').toUpperCase().startsWith('SALE'))
   // Повний тариф — першим у списку вибору категорії
   const isFull = (d: any) => d && (d.default === 1 || d.default === '1' || String(d.id) === '0')
   const fullFare: any = discountOptions.find(isFull) || { id: 0, default: 1, name: t('booking.fullFare'), discount: 0, price: Number(trip?.price ?? 0) }
@@ -239,28 +241,35 @@ export default function Booking() {
   // потрібний % (price_dsc/price_mob_dsc) — знаходимо в trip.discounts РЕАЛЬНУ категорію
   // з ТАКИМ САМИМ відсотком (окрім id=43, який завжди ігноруємо). Оригінальний вибір
   // пасажира зберігаємо лише в sale_comment, для бекенду це вже підмінений, "чесний" id.
-  const findRealIdForPct = (pct: number): string | null => {
-    const match = discountOptions.find(d => String(d.id) !== '43' && Number(d.discount) === pct)
-    return match ? String(match.id) : null
-  }
+  // Кеп (18.09): ПОВНІСТЮ переписано — прибрано findRealIdForPct (пошук "аналога" за %,
+  // міг знайти семантично випадкову категорію типу "доп. место" замість справжньої SALE-
+  // категорії, бекенд бачив дивну примітку в записі замовлення). Тепер беремо РЕАЛЬНИЙ
+  // discountId напряму з pricing.ts (знижкаId) — той самий, що спарений із полем, яке
+  // реально спрацювало (price_mob_dsc_id/price_dsc_id), точно як його дає бекенд.
   const resolveOrderDiscount = (idx: number): { discount: string; saleComment: string } => {
     const catId = effectiveDiscountId(idx)
-    const tripPct = !pricedAsRoundTrip
-      ? computeLegPricing(trip).знижкаПроц
-      : (pricingTrip2 ? Math.max(computeLegPricing(trip).знижкаПроц, computeLegPricing(pricingTrip2).знижкаПроц) : 0)
     if (catId === 'sale-online') {
-      // Дефолтна знижка рейсу — теж має піти РЕАЛЬНИМ id з відповідним %, інакше бекенд
-      // порахує повну ціну (0%), а не задуману знижку.
-      const realId = tripPct > 0 ? findRealIdForPct(tripPct) : null
-      return { discount: realId ?? String(fullFare.id), saleComment: '' }
+      // Дефолтна знижка рейсу — leg1 як репрезентативне джерело (той самий підхід, що й
+      // у roundTripGroupPrice для '__default__'). Якщо навіть тут id немає (рідкісний
+      // розрив даних на бекенді) — лишається повний тариф, бо "оригінальної" категорії
+      // тут нема що зберігати (нічого не обирали).
+      const id = !pricedAsRoundTrip
+        ? computeLegPricing(trip).знижкаId
+        : (pricingTrip2 ? computeLegPricing(trip).знижкаId : null)
+      return { discount: id != null ? String(id) : String(fullFare.id), saleComment: '' }
     }
     const opt = discountOptions.find(d => String(d.id) === catId)
     if (!opt) return { discount: catId, saleComment: '' }
-    const usesTrip = categoryUsesTripDiscount(opt)
-    if (!usesTrip) return { discount: catId, saleComment: '' }
-    const realId = findRealIdForPct(tripPct)
-    if (!realId) return { discount: catId, saleComment: '' } // немає відповідної категорії — лишаємо як є, категорійна ціна застосується як є
-    return { discount: realId, saleComment: catName(opt) }
+    const pct = Number(opt.discount)
+    const r = !pricedAsRoundTrip
+      ? legPriceWithFixedCategory(trip, pct)
+      : (pricingTrip2 ? roundTripWithFixedCategory(trip, pricingTrip2, pct, getCoefficient(from?.id, pricingCoefficientMode)) : null)
+    const usesTrip = !pricedAsRoundTrip ? r && (r as any).usedTripDiscount : r && ((r as any).usedTripDiscountLeg1 || (r as any).usedTripDiscountLeg2)
+    if (!usesTrip || !r) return { discount: catId, saleComment: '' }
+    // Кеп: якщо підміна МАЛА б спрацювати (знижка рейсу вища), але реального id немає
+    // (розрив даних) — НЕ занулюємо, лишаємо оригінальну обрану категорію як є.
+    if (r.discountId == null) return { discount: catId, saleComment: '' }
+    return { discount: String(r.discountId), saleComment: catName(opt) }
   }
   // Кеп (26.08): результат categoryPrice для round-trip через нову формулу — вже
   // нормалізований в UAH, не валюта trip (leg1), бо leg2 може бути в EUR.
