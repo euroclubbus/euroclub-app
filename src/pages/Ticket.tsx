@@ -174,7 +174,8 @@ export default function Ticket() {
     return resolvePassengerDisplay(
       rp ? { discountName: rp.discountName, discountPercent: rp.discountPercent, tariff: rp.tariff, usedTripDiscount: rp.usedTripDiscount } : undefined,
       rawDsc,
-      rawPrc
+      rawPrc,
+      data?.crc || trip?.currency || 'uah'
     )
   }
 
@@ -202,7 +203,6 @@ export default function Ticket() {
   const fStation2 = dep2Info?.station_name || ''
   const tStation2 = arr2Info?.station_name || ''
   const tripDate = data?.date || data?.date1 || ''
-  const currency = (data?.crc || trip?.currency || 'uah').toLowerCase() === 'eur' ? 'EUR' : 'UAH'
 
   const rawPax = data?.passengers?.length ? data.passengers : data?.passangers
   const paxCount = Math.max(selectedSeats.length, Object.keys(passengerNames).length, 1)
@@ -360,9 +360,9 @@ export default function Ticket() {
                   <span style={{ fontSize: 13, color: Gray }}>Ціна квитка</span>
                   <div style={{ textAlign: 'right' }}>
                     {r.strikeBase != null && (
-                      <div style={{ fontSize: 12, color: Gray, textDecoration: 'line-through' }}>{format(r.strikeBase)} {currency}</div>
+                      <div style={{ fontSize: 12, color: Gray, textDecoration: 'line-through' }}>{format(r.strikeBase, 'uah')}</div>
                     )}
-                    <span style={{ fontSize: 20, fontWeight: 700 }}>{format(p.price || 0)} {currency}</span>
+                    <span style={{ fontSize: 20, fontWeight: 700 }}>{format(r.price, 'uah')}</span>
                   </div>
                 </div>
                 {r.discountName && (
@@ -408,9 +408,9 @@ export default function Ticket() {
             <>
               <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>Ціна квитка</div>
               {r.strikeBase != null && (
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textDecoration: 'line-through' }}>{format(r.strikeBase)} {currency}</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textDecoration: 'line-through' }}>{format(r.strikeBase, 'uah')}</div>
               )}
-              <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: r.discountName ? 4 : 16 }}>{format(activeP?.price || 0)} {currency}</div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: r.discountName ? 4 : 16 }}>{format(r.price, 'uah')}</div>
               {r.discountName && (
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 16 }}>{r.discountName}</div>
               )}
