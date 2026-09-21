@@ -43,9 +43,15 @@ export function computeLegPricing(trip: any): LegPricing {
   // пошук аналога за % (findRealIdForPct) — той метод міг знайти семантично випадкову
   // категорію ("доп. место" замість "SALE"), бекенд бачив це як дивну примітку в записі
   // замовлення. Береться ТОЙ САМИЙ id, що відповідає полю, яке реально спрацювало.
+  // Кеп (21.09), КРИТИЧНИЙ регрес — id=43 ("Знижка при передоплаті") МАЄ бути виключений
+  // ЗАВЖДИ (правило з 27.08, "залупа", не наш тип знижки) — випадково загубив цей виняток
+  // при сьогоднішньому переписуванні на price_mob_dsc_id/price_dsc_id. Живий тест
+  // (Дрезден-Київ) підтвердив: якщо для маршруту price_mob_dsc_id==43 — бекенд рахує ціну
+  // за ЦЮ категорію (не "Sale online"), результат неправильний.
+  const rawId43Excluded = (id: number) => (id === 43 ? null : id)
   const знижкаId: number | null = priceMobDsc > 0
-    ? (Number(trip?.price_mob_dsc_id ?? 0) || null)
-    : (priceDsc > 0 ? (Number(trip?.price_dsc_id ?? 0) || null) : null)
+    ? rawId43Excluded(Number(trip?.price_mob_dsc_id ?? 0) || 0) || null
+    : (priceDsc > 0 ? rawId43Excluded(Number(trip?.price_dsc_id ?? 0) || 0) || null : null)
 
   return { базовийТариф, знижкаПроц, актуальнаЦіна, знижкаДжерело, знижкаId }
 }
