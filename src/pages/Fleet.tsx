@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, X, ChevronLeft, ChevronRight, Wind, Star, Wifi, Coffee } from 'lucide-react'
+import { ArrowLeft, X, ChevronLeft, ChevronRight, Wind, Star, Wifi, Coffee, Usb } from 'lucide-react'
 import { getFirebaseApp } from '../firebaseApp'
 import { useT } from '../i18n'
 
@@ -8,7 +8,7 @@ const Navy = '#0A4684'
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
 
-interface FleetAmenities { climate: boolean; vip: boolean; wifi: boolean; toilet: boolean; kitchen: boolean }
+interface FleetAmenities { climate: boolean; vip: boolean; wifi: boolean; toilet: boolean; kitchen: boolean; usb?: boolean }
 interface FleetBus {
   id: string
   order: number
@@ -28,6 +28,7 @@ const AMENITY_ICONS: { key: keyof FleetAmenities; label: string; icon: any }[] =
   { key: 'wifi', label: 'Wi-Fi', icon: Wifi },
   { key: 'toilet', label: 'Туалет', icon: null },
   { key: 'kitchen', label: 'Кухня', icon: Coffee },
+  { key: 'usb', label: 'USB-розетки', icon: Usb },
 ]
 
 function Lightbox({ photos, index, onClose, onChange }: { photos: string[]; index: number; onClose: () => void; onChange: (i: number) => void }) {
@@ -154,7 +155,7 @@ export default function Fleet() {
             )}
             <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 2 }}>{bus.brandModel}</div>
             <div style={{ fontSize: 13, color: Gray, marginBottom: 12 }}>
-              {bus.plateNumber} · {bus.floors === 2 ? '2 поверхи' : '1 поверх'} · {bus.seats} місць · {bus.euroClass}
+              {bus.plateNumber} · {bus.floors === 2 ? '2 поверхи' : '1 поверх'} · {bus.seats} місць{bus.euroClass ? ` · ${bus.euroClass}` : ''}
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {AMENITY_ICONS.filter(a => bus.amenities?.[a.key]).map(a => (
