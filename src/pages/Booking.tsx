@@ -6,7 +6,7 @@ import { useAuthStore } from '../authStore'
 import { saveOrderLocally } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
 import { fullFareOneWayPrice, localizedDiscountName } from '../passengerPricing'
-import { USE_NEW_PRICING, computeLegPricing, roundTripFixedDisplay, roundTripOpenDateDisplay, roundTripWithFixedCategory, roundTripGroupPrice, pureRoundTripBase, legPriceWithFixedCategory, DEFAULT_COEFFICIENTS, getCoefficient } from '../pricing'
+import { USE_NEW_PRICING, computeLegPricing, roundTripFixedDisplay, roundTripOpenDateDisplay, roundTripWithFixedCategory, roundTripGroupPrice, pureRoundTripBase, legPriceWithFixedCategory, DEFAULT_COEFFICIENTS, getCoefficient, roundTripQuote, mobDiscountId } from '../pricing'
 import { keepOurPrice } from '../orderStatus'
 import { convert, useDisplayPrice } from '../currency'
 import { getSavedPassengers } from '../savedPassengers'
@@ -77,7 +77,7 @@ export default function Booking() {
   // підтвердив: назва ЗАВЖДИ починається з "SALE". Фільтруємо за назвою, не за конкретним
   // id — інакше нові SALE-категорії потрапляли б у видимий список вибору пасажира.
   const discountOptions: Array<{ id: number; default: number; name: string; discount: number; price: number }> =
-    (trip?.discounts || []).filter((d: any) => String(d.id) !== '43' && !String(d.name || '').toUpperCase().startsWith('SALE'))
+    (trip?.discounts || []).filter((d: any) => String(d.id) !== '43' && !/^\s*(SALE|MOB)\b/i.test(String(d.name || '')))
   // Повний тариф — першим у списку вибору категорії
   const isFull = (d: any) => d && (d.default === 1 || d.default === '1' || String(d.id) === '0')
   const fullFare: any = discountOptions.find(isFull) || { id: 0, default: 1, name: t('booking.fullFare'), discount: 0, price: Number(trip?.price ?? 0) }
@@ -115,7 +115,11 @@ export default function Booking() {
   // ціноутворенням (price_old/price_alt/price_dsc/price_mob_dsc) замість сирого trip.price.
   // Категорійні знижки (trip.discounts[].price) лишаються без змін — окрема логіка.
   const defaultLegPrice = USE_NEW_PRICING ? computeLegPricing(trip).актуальнаЦіна : Number(trip?.price ?? 0)
-  const legPct = USE_NEW_PRICING ? computeLegPricing(trip).знижкаПроц : 0
+  // Кеп (28.09): для round-trip "Sale online" = СЕРЕДНЯ знижка двох плечей (roundTripQuote),
+  // для one-way — знижка рейсу, як і раніше.
+  const rtMode: 'fixed' | 'open' = pricingMode === 'open' ? 'open' : 'fixed'
+  const legPct = !USE_NEW_PRICING ? 0
+    : ((pricedAsRoundTrip && pricingTrip2) ? roundTripQuote(trip, pricingTrip2, rtMode, 1).avgPct : computeLegPricing(trip).знижкаПроц)
   // Кеп (27.08): "За повним тарифом" — ЛИШЕ для наших розрахунків, ніколи не пропонується
   // пасажиру як вибір і ніколи не є замовчуванням. Якщо є автоматична знижка (legPct>0) —
   // замовчування "sale-online". Якщо знижки нема взагалі — тоді справді нема іншого
@@ -192,7 +196,7 @@ export default function Booking() {
   const tariff = !pricedAsRoundTrip
     ? computeLegPricing(trip).базовийТариф
     : (USE_NEW_PRICING && pricingTrip2
-        ? pureRoundTripBase(trip, pricingTrip2, getCoefficient(from?.id, pricingCoefficientMode))
+        ? pureRoundTripBase(trip, pricingTrip2, getCoefficient(from?.id, pricingCoefficientMode), rtMode)
         : subtotal)
   // Кеп (28.08), знайдено живим тестом: бекенд ДІЛИТЬ поле price на кількість пасажирів
   // ПЕРЕД тим, як застосувати індивідуальну знижку кожного — але ЦЕ СТОСУЄТЬСЯ ТІЛЬКИ
@@ -212,7 +216,7 @@ export default function Booking() {
     if (!pricedAsRoundTrip) return legPriceWithFixedCategory(trip, d.discount).price
     if (USE_NEW_PRICING && pricingTrip2) {
       const coefficient = getCoefficient(from?.id, pricingCoefficientMode)
-      return roundTripWithFixedCategory(trip, pricingTrip2, d.discount, coefficient).total
+      return roundTripWithFixedCategory(trip, pricingTrip2, d.discount, coefficient, rtMode).total
     }
     // Fallback (USE_NEW_PRICING=false, миттєвий відкат) — стара пропорція.
     const fullOneWay = fullFareOneWayPrice(trip)
@@ -224,7 +228,7 @@ export default function Booking() {
     if (String(d.id) === 'sale-online' || !USE_NEW_PRICING) return false
     if (!pricedAsRoundTrip) return legPriceWithFixedCategory(trip, d.discount).usedTripDiscount
     if (pricingTrip2) {
-      const r = roundTripWithFixedCategory(trip, pricingTrip2, d.discount, 1) // коефіцієнт не впливає на прапорець
+      const r = roundTripWithFixedCategory(trip, pricingTrip2, d.discount, 1, rtMode) // коефіцієнт не впливає на прапорець
       return r.usedTripDiscountLeg1 || r.usedTripDiscountLeg2
     }
     return false
@@ -255,7 +259,7 @@ export default function Booking() {
       // тут нема що зберігати (нічого не обирали).
       const id = !pricedAsRoundTrip
         ? computeLegPricing(trip).знижкаId
-        : (pricingTrip2 ? computeLegPricing(trip).знижкаId : null)
+        : (pricingTrip2 ? mobDiscountId(roundTripQuote(trip, pricingTrip2, rtMode, 1).avgPct) : null)
       return { discount: id != null ? String(id) : String(fullFare.id), saleComment: '' }
     }
     const opt = discountOptions.find(d => String(d.id) === catId)
@@ -263,7 +267,7 @@ export default function Booking() {
     const pct = Number(opt.discount)
     const r = !pricedAsRoundTrip
       ? legPriceWithFixedCategory(trip, pct)
-      : (pricingTrip2 ? roundTripWithFixedCategory(trip, pricingTrip2, pct, getCoefficient(from?.id, pricingCoefficientMode)) : null)
+      : (pricingTrip2 ? roundTripWithFixedCategory(trip, pricingTrip2, pct, getCoefficient(from?.id, pricingCoefficientMode), rtMode) : null)
     const usesTrip = !pricedAsRoundTrip ? r && (r as any).usedTripDiscount : r && ((r as any).usedTripDiscountLeg1 || (r as any).usedTripDiscountLeg2)
     if (!usesTrip || !r) return { discount: catId, saleComment: '' }
     // Кеп: якщо підміна МАЛА б спрацювати (знижка рейсу вища), але реального id немає
@@ -280,7 +284,7 @@ export default function Booking() {
     ? Number(fullFare.price ?? 0)
     : (!pricedAsRoundTrip
         ? computeLegPricing(trip).базовийТариф
-        : (pricingTrip2 ? pureRoundTripBase(trip, pricingTrip2, getCoefficient(from?.id, pricingCoefficientMode)) : 0))
+        : (pricingTrip2 ? pureRoundTripBase(trip, pricingTrip2, getCoefficient(from?.id, pricingCoefficientMode), rtMode) : 0))
 
   // Кеп (27.08): "Sale online" — СИНТЕТИЧНА категорія, не з trip.discounts. Відсоток —
   // price_mob_dsc (пріоритет) або price_dsc, точно той самий двигун, що рахує "актуальну"
@@ -341,7 +345,11 @@ export default function Booking() {
     setError('')
     setLoading(true)
     try {
-      const currency: 'uah' | 'eur' = /eur/i.test(trip?.currency || 'uah') ? 'eur' : 'uah'
+      // Кеп (23.09): round-trip рахується ЗАВЖДИ в UAH → і відправляється з crc='uah'
+      // (раніше crc брався з leg1 — 9880 грн ішли як 9880 €, звідси 839800 ₴). One-way — як було.
+      const currency: 'uah' | 'eur' = (pricedAsRoundTrip && USE_NEW_PRICING && pricingTrip2)
+        ? 'uah'
+        : (/eur/i.test(trip?.currency || 'uah') ? 'eur' : 'uah')
       // Кеп (28.08): зберігаємо ОКРЕМО те, що САМЕ відправили по кожному пасажиру
       // (discount code + чи це підміна) — знадобиться пізніше для order_registry.
       const sentDiscounts = Array.from({ length: totalPax }, (_, i) => resolveOrderDiscount(i))

@@ -10,6 +10,25 @@ export const USE_NEW_PRICING = true
 import { toUAH } from './currency'
 import { firebaseConfig, isFirebaseConfigured } from './firebaseConfig'
 
+// Кеп (28.09): MOB-знижки від прогера — id = 100 + відсоток, доступні 1–40% (id 101–140).
+// Зі старих SALE лишаємо ТІЛЬКИ 50% (id 45). Понад 50% не буває. 41–49% (теоретично) —
+// обмежуємо MOB 40 (id 140). 0% → null (викликач підставляє "повний тариф").
+export const MOB_MAX_PCT = 40
+export const LEGACY_SALE_50_ID = 45
+export function mobDiscountId(pct: number): number | null {
+  const p = Math.round(Number(pct) || 0)
+  if (p <= 0) return null
+  if (p >= 50) return LEGACY_SALE_50_ID
+  return 100 + Math.min(p, MOB_MAX_PCT)
+}
+// Відсоток, який реально отримає бекенд для цього id (для узгодженого показу ціни).
+export function mobEffectivePct(pct: number): number {
+  const p = Math.round(Number(pct) || 0)
+  if (p <= 0) return 0
+  if (p >= 50) return 50
+  return Math.min(p, MOB_MAX_PCT)
+}
+
 export interface LegPricing {
   базовийТариф: number
   знижкаПроц: number
@@ -34,24 +53,16 @@ export function computeLegPricing(trip: any): LegPricing {
   const priceMobDsc = Number(trip?.price_mob_dsc ?? 0)
 
   const базовийТариф = priceAlt !== 0 ? priceAlt : priceOld
-  const знижкаПроц = priceMobDsc > 0 ? priceMobDsc : (priceDsc > 0 ? priceDsc : 0)
+  // Кеп (28.09): % нормалізуємо до того, що реально прийме бекенд через MOB-id
+  // (1–40, або 50) — щоб показана ціна == порахована бекендом.
+  const знижкаПроц = mobEffectivePct(priceMobDsc > 0 ? priceMobDsc : (priceDsc > 0 ? priceDsc : 0))
   const актуальнаЦіна = базовийТариф * (1 - знижкаПроц / 100)
   // Кеп (28.08): яке саме поле спрацювало — для psgr_dscnt[] при відправці замовлення.
   const знижкаДжерело: 'price_dsc' | 'price_mob_dsc' | null = priceMobDsc > 0 ? 'price_mob_dsc' : (priceDsc > 0 ? 'price_dsc' : null)
-  // Кеп (18.09): РЕАЛЬНИЙ id знижки (з discounts[], назва завжди починається з "SALE") —
-  // price_mob_dsc_id спарений з price_mob_dsc, price_dsc_id спарений з price_dsc. НЕ
-  // пошук аналога за % (findRealIdForPct) — той метод міг знайти семантично випадкову
-  // категорію ("доп. место" замість "SALE"), бекенд бачив це як дивну примітку в записі
-  // замовлення. Береться ТОЙ САМИЙ id, що відповідає полю, яке реально спрацювало.
-  // Кеп (21.09), КРИТИЧНИЙ регрес — id=43 ("Знижка при передоплаті") МАЄ бути виключений
-  // ЗАВЖДИ (правило з 27.08, "залупа", не наш тип знижки) — випадково загубив цей виняток
-  // при сьогоднішньому переписуванні на price_mob_dsc_id/price_dsc_id. Живий тест
-  // (Дрезден-Київ) підтвердив: якщо для маршруту price_mob_dsc_id==43 — бекенд рахує ціну
-  // за ЦЮ категорію (не "Sale online"), результат неправильний.
-  const rawId43Excluded = (id: number) => (id === 43 ? null : id)
-  const знижкаId: number | null = priceMobDsc > 0
-    ? rawId43Excluded(Number(trip?.price_mob_dsc_id ?? 0) || 0) || null
-    : (priceDsc > 0 ? rawId43Excluded(Number(trip?.price_dsc_id ?? 0) || 0) || null : null)
+  // Кеп (28.09): ВСІ онлайн-знижки відправляємо як MOB-id (id = 100 + %), див.
+  // mobDiscountId нижче. Старі SALE-id (price_mob_dsc_id/price_dsc_id, у т.ч. id=43, який
+  // насправді "SALE 15% online") більше не використовуються.
+  const знижкаId: number | null = mobDiscountId(знижкаПроц)
 
   return { базовийТариф, знижкаПроц, актуальнаЦіна, знижкаДжерело, знижкаId }
 }
@@ -156,42 +167,67 @@ export function oneWayGroupPrice(trip: any, cats: string[]): { total: number; ba
 
 export interface RoundTripCoefficients {
   fixedDates: number   // за замовч. 0.95
-  openDate: number      // за замовч. 0.9
+  openDate: number      // за замовч. 0.95 (Кеп 23.09: було 0.9)
 }
 
-export const DEFAULT_COEFFICIENTS: RoundTripCoefficients = { fixedDates: 0.95, openDate: 0.9 }
+export const DEFAULT_COEFFICIENTS: RoundTripCoefficients = { fixedDates: 0.95, openDate: 0.95 }
 
-// Розділ 5.2 — фіксовані дати в обидва боки.
-export function roundTripFixedDisplay(leg1: any, leg2: any, coefficient: number = DEFAULT_COEFFICIENTS.fixedDates): PriceDisplay {
+// ============================================================================
+// Кеп (28.09) — НОВА логіка round-trip (погоджено з прогером), однакова для фіксованих
+// дат і відкритої дати:
+//   1. Тариф = (повна ціна "туди" + повна ціна "назад") × коефіцієнт.
+//      Коефіцієнт НЕ застосовується, якщо на будь-якому плечі знижка > 15%.
+//   2. Знижка = (знижка "туди" + знижка "назад") / 2, округлено до цілого.
+//      Відкрита дата: знижка "назад" = 0 завжди.
+//   3. Бекенду: price = тариф (UAH), crc='uah', dsc = MOB-id середньої знижки
+//      (або категорія пасажира, якщо її % більший).
+//   4. Round-trip НЕМОЖЛИВИЙ, якщо на будь-якому плечі знижка > 30%.
+// Усе в UAH (плечі нормалізуються через computeLegPricingUAH).
+// ============================================================================
+export const ROUND_TRIP_MAX_LEG_PCT = 30
+export const ROUND_TRIP_COEF_MAX_LEG_PCT = 15
+
+export interface RoundTripQuote {
+  tariff: number          // UAH, вже з коефіцієнтом (якщо застосовано)
+  avgPct: number          // ціла середня знижка
+  coefficientApplied: boolean
+  leg1Pct: number
+  leg2Pct: number         // для 'open' завжди 0
+  allowed: boolean        // false — знижка на плечі > 30%
+}
+
+export function roundTripQuote(leg1: any, leg2: any, mode: 'fixed' | 'open', coefficient: number): RoundTripQuote {
   const p1 = computeLegPricingUAH(leg1)
   const p2 = computeLegPricingUAH(leg2)
-  const базовийТарифРаундТріп = (p1.базовийТариф + p2.базовийТариф) * coefficient
-  const актуальнийТарифРаундТріп = (p1.актуальнаЦіна + p2.актуальнаЦіна) * coefficient
-  // Для тексту "знижка на рейсі X%" при round-trip показуємо ефективний % від різниці
-  // сум (а не % окремого leg — вони можуть відрізнятись між собою).
-  const effectivePct = базовийТарифРаундТріп > 0
-    ? (1 - актуальнийТарифРаундТріп / базовийТарифРаундТріп) * 100
-    : 0
-  return buildDisplay(актуальнийТарифРаундТріп, базовийТарифРаундТріп, effectivePct)
+  const leg1Pct = p1.знижкаПроц
+  const leg2Pct = mode === 'open' ? 0 : p2.знижкаПроц
+  const coefficientApplied = Math.max(leg1Pct, leg2Pct) <= ROUND_TRIP_COEF_MAX_LEG_PCT
+  const tariff = roundPrice((p1.базовийТариф + p2.базовийТариф) * (coefficientApplied ? coefficient : 1))
+  const avgPct = mobEffectivePct(Math.round((leg1Pct + leg2Pct) / 2))
+  return { tariff, avgPct, coefficientApplied, leg1Pct, leg2Pct, allowed: isRoundTripAllowedLeg(leg1) && (mode === 'open' || isRoundTripAllowedLeg(leg2)) }
 }
 
-// Розділ 5.3 — відкрита дата повернення. returnTrip — рейс, знайдений на 30+ днів
-// вперед від дати виїзду leg1 (пошук цього рейсу — відповідальність викликаючого коду,
-// див. findOpenDateReturnTrip нижче).
-// Кеп (27.08): АСИМЕТРИЧНА логіка — знижка ЗВОРОТНЬОГО рейсу (той, що знайшли автоматично)
-// ІГНОРУЄТЬСЯ, беремо тільки його базовийТариф. leg1 (обраний вручну) — з ЙОГО власною
-// знижкою, як завжди. Це відрізняється від фіксованих дат, де знижки враховуються на
-// ОБОХ ногах — тому НЕ можна перевикористати roundTripFixedDisplay напряму.
+// Чи можна брати цей рейс як плече round-trip (знижка ≤ 30%).
+export function isRoundTripAllowedLeg(trip: any): boolean {
+  return computeLegPricing(trip).знижкаПроц <= ROUND_TRIP_MAX_LEG_PCT
+}
+
+// Ціна одного пасажира round-trip з категорією categoryPct (0 = без категорії).
+// Бекенд рахує tariff × (1 − % обраного id) — тут те саме.
+function roundTripPassenger(q: RoundTripQuote, categoryPct: number): { price: number; pct: number; usedTrip: boolean; discountId: number | null } {
+  const usedTrip = q.avgPct > categoryPct
+  const pct = usedTrip ? q.avgPct : categoryPct
+  return { price: roundPrice(q.tariff * (1 - pct / 100)), pct, usedTrip, discountId: usedTrip ? mobDiscountId(q.avgPct) : null }
+}
+
+export function roundTripFixedDisplay(leg1: any, leg2: any, coefficient: number = DEFAULT_COEFFICIENTS.fixedDates): PriceDisplay {
+  const q = roundTripQuote(leg1, leg2, 'fixed', coefficient)
+  return buildDisplay(q.tariff * (1 - q.avgPct / 100), q.tariff, q.avgPct)
+}
+
 export function roundTripOpenDateDisplay(leg1: any, returnTrip: any, coefficient: number = DEFAULT_COEFFICIENTS.openDate): PriceDisplay {
-  const p1 = computeLegPricingUAH(leg1)
-  const p2 = computeLegPricingUAH(returnTrip)
-  const базовийТарифРаундТріп = (p1.базовийТариф + p2.базовийТариф) * coefficient
-  // Актуальна ціна: leg1 зі знижкою, зворотний рейс — БЕЗ знижки (тільки базовийТариф).
-  const актуальнийТарифРаундТріп = (p1.актуальнаЦіна + p2.базовийТариф) * coefficient
-  const effectivePct = базовийТарифРаундТріп > 0
-    ? (1 - актуальнийТарифРаундТріп / базовийТарифРаундТріп) * 100
-    : 0
-  return buildDisplay(актуальнийТарифРаундТріп, базовийТарифРаундТріп, effectivePct)
+  const q = roundTripQuote(leg1, returnTrip, 'open', coefficient)
+  return buildDisplay(q.tariff * (1 - q.avgPct / 100), q.tariff, q.avgPct)
 }
 
 // Розділ 5.3 — знайти зворотний рейс: 30+ днів вперед від дати виїзду leg1, той самий
@@ -239,23 +275,10 @@ export function legPriceWithFixedCategory(trip: any, categoryDiscountPct: number
   return { price: roundPrice(базовийТариф * (1 - effectivePct / 100)), usedTripDiscount, discountSource: usedTripDiscount ? знижкаДжерело : null, discountId: usedTripDiscount ? знижкаId : null }
 }
 
-export function roundTripWithFixedCategory(leg1: any, leg2: any, categoryDiscountPct: number, coefficient: number): { total: number; usedTripDiscountLeg1: boolean; usedTripDiscountLeg2: boolean; discountSource: 'price_dsc' | 'price_mob_dsc' | null; discountId: number | null } {
-  const p1 = computeLegPricingUAH(leg1)
-  const p2 = computeLegPricingUAH(leg2)
-  const leg1Pricing = computeLegPricing(leg1)
-  const leg2Pricing = computeLegPricing(leg2)
-  const tripPct1 = leg1Pricing.знижкаПроц
-  const tripPct2 = leg2Pricing.знижкаПроц
-  const usedTripDiscountLeg1 = tripPct1 > categoryDiscountPct
-  const usedTripDiscountLeg2 = tripPct2 > categoryDiscountPct
-  const effectivePct1 = usedTripDiscountLeg1 ? tripPct1 : categoryDiscountPct
-  const effectivePct2 = usedTripDiscountLeg2 ? tripPct2 : categoryDiscountPct
-  const price1 = p1.базовийТариф * (1 - effectivePct1 / 100)
-  const price2 = p2.базовийТариф * (1 - effectivePct2 / 100)
-  // Джерело для psgr_dscnt[] — leg1 як пріоритетне (відправна поїздка), інакше leg2.
-  const discountSource = usedTripDiscountLeg1 ? leg1Pricing.знижкаДжерело : (usedTripDiscountLeg2 ? leg2Pricing.знижкаДжерело : null)
-  const discountId = usedTripDiscountLeg1 ? leg1Pricing.знижкаId : (usedTripDiscountLeg2 ? leg2Pricing.знижкаId : null)
-  return { total: roundPrice((price1 + price2) * coefficient), usedTripDiscountLeg1, usedTripDiscountLeg2, discountSource, discountId }
+export function roundTripWithFixedCategory(leg1: any, leg2: any, categoryDiscountPct: number, coefficient: number, mode: 'fixed' | 'open' = 'fixed'): { total: number; usedTripDiscountLeg1: boolean; usedTripDiscountLeg2: boolean; discountSource: 'price_dsc' | 'price_mob_dsc' | null; discountId: number | null } {
+  const q = roundTripQuote(leg1, leg2, mode, coefficient)
+  const r = roundTripPassenger(q, categoryDiscountPct)
+  return { total: r.price, usedTripDiscountLeg1: r.usedTrip, usedTripDiscountLeg2: r.usedTrip, discountSource: r.usedTrip ? 'price_mob_dsc' : null, discountId: r.discountId }
 }
 
 // ЗАДАЧА 5 (27.08, Кеп): коефіцієнт read з Firestore settings/pricingCoefficients (адмінка
@@ -319,10 +342,8 @@ export interface PassengerPriceDetail {
 // вигідніша за передану категорійну, навіть коли передали 0%). Ця функція — для
 // перекресленого числа в гамбургері/деталізації, де потрібна СПРАВЖНЯ база без жодної
 // знижки, а не "найкраща можлива при 0% категорії".
-export function pureRoundTripBase(leg1: any, leg2: any, coefficient: number): number {
-  const p1 = computeLegPricingUAH(leg1)
-  const p2 = computeLegPricingUAH(leg2)
-  return roundPrice((p1.базовийТариф + p2.базовийТариф) * coefficient)
+export function pureRoundTripBase(leg1: any, leg2: any, coefficient: number, mode: 'fixed' | 'open' = 'fixed'): number {
+  return roundTripQuote(leg1, leg2, mode, coefficient).tariff
 }
 
 export function roundTripGroupPrice(
@@ -334,48 +355,27 @@ export function roundTripGroupPrice(
 ): { total: number; base: number; perPassenger: number[]; usedTripDiscount: boolean[]; details: PassengerPriceDetail[] } {
   const list = cats.length ? cats : ['__default__']
   const discountOptions: any[] = leg1?.discounts || []
+  const q = roundTripQuote(leg1, leg2, mode, coefficient)
   let total = 0
   let base = 0
   const perPassenger: number[] = []
   const usedTripDiscount: boolean[] = []
   const details: PassengerPriceDetail[] = []
   for (const catId of list) {
-    // Базовий (0%, однаковий для всіх пасажирів незалежно від категорії) — для перекресленої суми.
-    const basePassengerPrice = pureRoundTripBase(leg1, leg2, coefficient)
-    base += basePassengerPrice
-    let passengerPrice: number
-    let usedTrip = false
-    let effectivePct = 0
+    base += q.tariff
     let catName = 'Sale online'
-    let discountSource: 'price_dsc' | 'price_mob_dsc' | null = null
-    let discountId: number | null = null
-    if (catId === '__default__') {
-      const p = mode === 'open' ? roundTripOpenDateDisplay(leg1, leg2, coefficient) : roundTripFixedDisplay(leg1, leg2, coefficient)
-      passengerPrice = p.price
-      effectivePct = p.discountPct ?? 0
-      // Кеп (18.09): раніше тут discountSource/discountId взагалі не встановлювались —
-      // leg1 як репрезентативне джерело (той самий підхід, що й нижче для effectivePct).
-      const leg1P = computeLegPricing(leg1)
-      discountSource = leg1P.знижкаДжерело
-      discountId = leg1P.знижкаId
-    } else {
+    let categoryPct = 0
+    if (catId !== '__default__') {
       const opt = discountOptions.find(d => String(d.id) === catId)
-      const pct = opt ? Number(opt.discount) : 0
+      categoryPct = opt ? Number(opt.discount) : 0
       catName = opt?.name || 'Повний тариф'
-      const r = roundTripWithFixedCategory(leg1, leg2, pct, coefficient)
-      passengerPrice = r.total
-      usedTrip = r.usedTripDiscountLeg1 || r.usedTripDiscountLeg2
-      discountSource = r.discountSource
-      discountId = r.discountId
-      // Ефективний % — те саме, що застосовується до leg1 (для гамбургера показуємо
-      // єдине число, навіть якщо leg1/leg2 різняться — leg1 як репрезентативне).
-      const tripPct1 = computeLegPricing(leg1).знижкаПроц
-      effectivePct = usedTrip ? Math.max(tripPct1, pct) : pct
     }
-    total += passengerPrice
-    perPassenger.push(roundPrice(passengerPrice))
+    const r = roundTripPassenger(q, categoryPct)
+    const usedTrip = catId === '__default__' ? false : r.usedTrip
+    total += r.price
+    perPassenger.push(r.price)
     usedTripDiscount.push(usedTrip)
-    details.push({ catId, catName, price: roundPrice(passengerPrice), basePrice: roundPrice(basePassengerPrice), effectivePct, usedTripDiscount: usedTrip, discountSource, discountId })
+    details.push({ catId, catName, price: r.price, basePrice: q.tariff, effectivePct: r.pct, usedTripDiscount: usedTrip, discountSource: r.usedTrip ? 'price_mob_dsc' : null, discountId: r.discountId })
   }
   return { total: roundPrice(total), base: roundPrice(base), perPassenger, usedTripDiscount, details }
 }

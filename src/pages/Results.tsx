@@ -5,7 +5,7 @@ import { useSearchStore, useBookingStore } from '../store'
 import { getRoutes } from '../api/euroclub'
 import { findTwoWayGroupPrice } from '../priceEngine'
 import { perPassengerOneWayPrices, fullFareOneWayPrice } from '../passengerPricing'
-import { USE_NEW_PRICING, computeLegPricing, roundPrice, roundTripFixedDisplay, roundTripOpenDateDisplay, legPriceWithFixedCategory, roundTripGroupPrice, oneWayGroupPrice, getCoefficient, PassengerPriceDetail } from '../pricing'
+import { USE_NEW_PRICING, computeLegPricing, roundPrice, roundTripFixedDisplay, roundTripOpenDateDisplay, legPriceWithFixedCategory, roundTripGroupPrice, oneWayGroupPrice, getCoefficient, PassengerPriceDetail, isRoundTripAllowedLeg, ROUND_TRIP_MAX_LEG_PCT } from '../pricing'
 import { useDisplayPrice } from '../currency'
 import CurrencyToggle from '../components/CurrencyToggle'
 import SideMenu from '../components/SideMenu'
@@ -453,7 +453,7 @@ function DateStrip({ dateISO, onChange }: { dateISO: string; onChange: (iso: str
 export default function Results() {
   const nav = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
-  const { from, to, dateFrom, dateTo, isOpenReturn, passengerCategories, setDateFrom, setDateTo, setOpenReturn, removePassengerCategoryAt } = useSearchStore()
+  const { from, to, dateFrom, dateTo, isOpenReturn, passengerCategories, setDateFrom, setDateTo, setOpenReturn, removePassengerCategoryAt, setRoundTripWanted } = useSearchStore()
   const { setTrip, setTrip2, setOpenReturnPending, setPricingTrip2 } = useBookingStore()
 
   // "Відкрита дата повернення" (Кеп, 05.08): бекенд ВСЕ Ж підтримує такий тип замовлення —
@@ -513,6 +513,11 @@ export default function Results() {
   // в діапазоні +30..+60, чи знайдений рейс має ціну 0) — явно кажемо юзеру "немає",
   // а не мовчки показуємо 0.
   const openReturnNotFound = openReturnActive && USE_NEW_PRICING && openReturnSearch.searched && !openReturnSearch.trip
+  // Кеп (28.09): поїздка в два боки неможлива, якщо на будь-якому плечі знижка > 30%.
+  // Відкрита дата — перевіряємо лише "туди" (знижка "назад" для неї не враховується).
+  const roundTripBlocked = USE_NEW_PRICING && wantsTwoWay && !!outTrip && (
+    !isRoundTripAllowedLeg(outTrip) || (hasFixedReturn && !!retTrip && !isRoundTripAllowedLeg(retTrip))
+  )
 
   const handleSelect = () => {
     if (!outTrip) return
@@ -628,7 +633,22 @@ export default function Results() {
                   </div>
                 )}
 
-                {!openReturnNotFound && (
+                {roundTripBlocked && (
+                  <div style={{ background: '#FDECEC', border: '1px solid #E53935', borderRadius: 16, padding: 14, marginBottom: 14 }}>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                      <AlertTriangle size={16} color="#E53935" style={{ flexShrink: 0, marginTop: 1 }} />
+                      <div style={{ fontSize: 13, color: '#8C1D1D', lineHeight: 1.4 }}>
+                        На цей рейс діє знижка понад {ROUND_TRIP_MAX_LEG_PCT}% — він доступний тільки
+                        в одну сторону. Оберіть іншу дату або купіть квиток в одну сторону.
+                      </div>
+                    </div>
+                    <button onClick={() => setRoundTripWanted(false)} style={{ width: '100%', marginTop: 12, padding: '12px 0', background: ORange, border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                      Купити в одну сторону
+                    </button>
+                  </div>
+                )}
+
+                {!openReturnNotFound && !roundTripBlocked && (
                   <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginBottom: 14 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                       <span style={{ fontSize: 14, color: Gray }}>{wantsTwoWay ? 'Разом за поїздку в два боки' : 'Разом за поїздку'}</span>

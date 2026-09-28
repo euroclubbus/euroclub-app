@@ -16,6 +16,10 @@ export interface DiscountOpt { id: string | number; default?: number | string; p
 // передоплаті" — фіксована назва, override незалежно від того, що присилає бекенд.
 export function localizedDiscountName(name: string | undefined | null, id?: string | number): string {
   if (String(id) === '43') return 'Sale online'
+  // Кеп (28.09): усі онлайн-знижки (MOB id 101–150 і старі SALE) показуємо як "Sale online".
+  const nId = Number(id)
+  if (nId >= 101 && nId <= 150) return 'Sale online'
+  if (/^\s*(SALE|MOB)\b/i.test(String(name || ''))) return 'Sale online'
   if (!name) return ''
   return name.split(' / ')[0].trim()
 }
