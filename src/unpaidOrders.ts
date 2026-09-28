@@ -33,7 +33,10 @@ interface UnpaidOrdersState {
   orders: any[]
   loading: boolean
   refresh: () => Promise<void>
+  setFromOrders: (list: any[]) => void // Кеп (23.09): свіжий список з "Моїх замовлень" одразу оновлює плашку/бейдж
 }
+
+let lastRefreshAt = 0
 
 export const useUnpaidOrdersStore = create<UnpaidOrdersState>((set) => ({
   orders: [],
@@ -41,6 +44,9 @@ export const useUnpaidOrdersStore = create<UnpaidOrdersState>((set) => ({
   refresh: async () => {
     const user = useAuthStore.getState().user
     if (!user) { set({ orders: [] }); return }
+    // visibilitychange і appStateChange спрацьовують разом при поверненні з фону — не дублюємо.
+    if (Date.now() - lastRefreshAt < 3000) return
+    lastRefreshAt = Date.now()
     set({ loading: true })
     try {
       const res: any = await getUserOrders()
@@ -54,6 +60,10 @@ export const useUnpaidOrdersStore = create<UnpaidOrdersState>((set) => ({
       console.error('[UnpaidOrders] refresh failed', e)
       set({ loading: false })
     }
+  },
+  setFromOrders: (list) => {
+    lastRefreshAt = Date.now()
+    set({ orders: (Array.isArray(list) ? list : []).filter(isUnpaidFuture), loading: false })
   },
 }))
 
@@ -70,4 +80,25 @@ export function findMatchingUnpaidOrders(orders: any[], fromId: string | number 
     const orderDateISO = `${m[3]}-${m[2]}-${m[1]}`
     return orderDateISO === dateISO
   })
+}
+
+// Кеп (23.09): плашка "у вас є неоплачені замовлення" мала висіти застарілою, бо store
+// оновлювався лише при зміні authUser на Головній. Тепер — ОДИН запит при кожному
+// відкритті застосунку: холодний старт (коли юзер відомий) + кожне повернення з фону.
+let autoRefreshInited = false
+export function initUnpaidOrdersAutoRefresh() {
+  if (autoRefreshInited) return
+  autoRefreshInited = true
+  const refresh = () => useUnpaidOrdersStore.getState().refresh()
+  if (useAuthStore.getState().user) refresh()
+  useAuthStore.subscribe((st: any, prev: any) => {
+    if (st.user && !prev?.user) refresh()
+    if (!st.user && prev?.user) useUnpaidOrdersStore.setState({ orders: [] })
+  })
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refresh()
+  })
+  import('@capacitor/app').then(({ App }) => {
+    App.addListener('appStateChange', ({ isActive }) => { if (isActive) refresh() })
+  }).catch(() => {})
 }

@@ -29,6 +29,8 @@ import Feedback from './pages/Feedback'
 import AdminTransferCities from './pages/AdminTransferCities'
 import ErrorBoundary from './components/ErrorBoundary'
 import { useAuthStore } from './authStore'
+import { initUnpaidOrdersAutoRefresh } from './unpaidOrders'
+initUnpaidOrdersAutoRefresh()
 import { useState, useEffect } from 'react'
 import { registerPushToken, flushCachedPushToken } from './push'
 import { pingInstall } from './installTracking'

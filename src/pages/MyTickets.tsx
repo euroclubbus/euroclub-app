@@ -8,6 +8,7 @@ import { ticketAvailable, statusLabel, payInfo, isCancelled, isCompleted, isPaid
 import { syncOrderRegistryStatus } from '../orderRegistry'
 import { ensureCitiesLoaded, getCityNameSync } from '../cityNames'
 import SideMenu from '../components/SideMenu'
+import { useUnpaidOrdersStore } from '../unpaidOrders'
 import { useT } from '../i18n'
 
 const ORange = '#F5A623'
@@ -41,10 +42,13 @@ export default function MyTickets() {
   // а наявні оновлюються свіжими полями (ціна/статус/оплата) з бекенду.
   // Дані конкретного замовлення (Ticket/OrderSuccess) все одно запитуються живо по
   // oid при відкритті — це не стосується списку.
-  const loadOrders = useCallback((force = false) => {
-    setLoading(true)
+  // Кеп (23.09): ЩОРАЗУ при відкритті вкладки — автоматичний запит до бекенду (без кнопки).
+  // Кеш показуємо миттєво, свіжі дані зливаємо зверху, як тільки прийдуть. Той самий
+  // список одразу оновлює плашку/бейдж неоплачених (setFromOrders) — без другого запиту.
+  const loadOrders = useCallback((_force = false) => {
     const local = getLocalOrders()
     const hasCache = Object.keys(local).length > 0
+    if (!hasCache) setLoading(true)
 
     function finish(merged: any[]) {
       // Дедуп за реальним ID замовлення (oid, або hash якщо oid нема) — старий кеш міг
@@ -62,11 +66,7 @@ export default function MyTickets() {
       setLoading(false)
     }
 
-    if (hasCache && !force) {
-      // Кеш вже є, і це не примусове оновлення — показуємо його одразу, без запиту до бекенду.
-      finish(Object.values(local))
-      return
-    }
+    if (hasCache) finish(Object.values(local))
 
     // Кеш порожній (перший вхід) АБО користувач натиснув "Оновити" — питаємо бекенд і
     // зливаємо результат з тим, що вже є локально (щоб не загубити суто локальні поля,
@@ -100,6 +100,7 @@ export default function MyTickets() {
           byId[key] = { ...byId[key], ...normalized }
           syncOrderRegistryStatusIfChanged(key, o.status, Number(o.paid_uah) || 0, Number(o.paid_eur) || 0, o.app, o.user_id)
         }
+        useUnpaidOrdersStore.getState().setFromOrders(remote)
         finish(Object.values(byId))
       })
       .catch(() => {
@@ -121,10 +122,10 @@ export default function MyTickets() {
       })))
     })
 
-    // ВАЖЛИВО (домовлено з Кепом): список більше НЕ оновлюється автоматично при
-    // поверненні фокуса на вкладку/додаток — це й було основним джерелом зайвого
-    // навантаження на бекенд. Живі дані запитуються лише на екрані КОНКРЕТНОГО
-    // замовлення (Ticket/OrderSuccess), і тільки для нього одного.
+    // Кеп (23.09): повернення в застосунок, поки відкрита ця вкладка — теж оновлюємо.
+    const onVis = () => { if (document.visibilityState === 'visible') loadOrders() }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
   }, [loadOrders])
 
   function parseOrderDate(str: any): number {

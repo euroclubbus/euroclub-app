@@ -429,10 +429,8 @@ export default function Home() {
   const unpaidOrders = useUnpaidOrdersStore(s => s.orders)
   const refreshUnpaid = useUnpaidOrdersStore(s => s.refresh)
   const { setOrderResult } = useBookingStore()
-  useEffect(() => {
-    if (authUser) refreshUnpaid()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authUser])
+  // Кеп (23.09): оновлення неоплачених тепер глобальне (initUnpaidOrdersAutoRefresh у main.tsx).
+  void refreshUnpaid; void authUser
 
   // Кеп (04.09): deep-link на конкретний маршрут+дату з push-сповіщення — /?from=1&to=4&date=30-09-2026
   // (from/to — id міст, date — дд-мм-рррр). Знаходимо міста за id (той самий формат City,
