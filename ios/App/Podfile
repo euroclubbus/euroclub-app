@@ -19,6 +19,8 @@ end
 target 'App' do
   capacitor_pods
   # Add your Pods here
+  # Кеп (29.09): Meta App Events (MetaEventsPlugin в AppDelegate.swift)
+  pod 'FBSDKCoreKit', '17.4.0'
 end
 
 post_install do |installer|

@@ -12,6 +12,7 @@ import SideMenu from '../components/SideMenu'
 import BottomSheet from '../components/BottomSheet'
 import SimpleCalendar from '../components/SimpleCalendar'
 import { useT } from '../i18n'
+import { track } from '../tracking'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -519,8 +520,28 @@ export default function Results() {
     !isRoundTripAllowedLeg(outTrip) || (hasFixedReturn && !!retTrip && !isRoundTripAllowedLeg(retTrip))
   )
 
+  // Кеп (29.09): Meta — Search (пошук рейсу) і ViewContent (показано рейс із ціною).
+  const searchKey = `${from?.id}-${to?.id}-${dateFrom}-${dateTo || (isOpenReturn ? 'open' : '')}`
+  useEffect(() => {
+    if (!from || !to || !dateFrom) return
+    track('Search', { searchString: `${from.name} → ${to.name}, ${dateFrom}${dateTo ? ' / ' + dateTo : (isOpenReturn ? ' / відкрита дата' : '')}`, contentId: `${from.id}-${to.id}` })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchKey])
+  const viewedId = outTrip?.id ? String(outTrip.id) : ''
+  useEffect(() => {
+    if (!viewedId || !outTrip) return
+    const cur = String(outTrip.currency || 'uah').toUpperCase()
+    track('ViewContent', { contentId: viewedId, value: Number(outTrip.price) || undefined, currency: cur === 'EUR' ? 'EUR' : 'UAH' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewedId])
+
   const handleSelect = () => {
     if (!outTrip) return
+    track('InitiateCheckout', {
+      contentId: String(outTrip.id),
+      numItems: Math.max(1, passengerCategories.length),
+      ...(twoWay?.total ? { value: twoWay.total, currency: 'UAH' } : { value: Number(outTrip.price) || undefined, currency: /eur/i.test(outTrip.currency || '') ? 'EUR' : 'UAH' }),
+    })
     setTrip(outTrip)
     if (hasFixedReturn) {
       if (!retTrip) return

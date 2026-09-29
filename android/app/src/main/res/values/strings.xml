@@ -4,4 +4,7 @@
     <string name="title_activity_main">EuroClub</string>
     <string name="package_name">com.eclub.app</string>
     <string name="custom_url_scheme">com.eclub.app</string>
+    <!-- Кеп (29.09): Meta App "Euroclub App" (developers.facebook.com) -->
+    <string name="facebook_app_id">1423691416357260</string>
+    <string name="facebook_client_token">9fa8ea30e067fb1d7550c6698dbfd70f</string>
 </resources>

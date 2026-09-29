@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { getUserOrders } from './api/auth'
 import { isCancelled, payInfo } from './orderStatus'
 import { useAuthStore } from './authStore'
+import { checkPurchases } from './tracking'
 
 // Одне спільне джерело для трьох речей одразу (Кеп, 12.08):
 // 1. Бейдж-цифра на іконці "Мої замовлення" в нижній навігації
@@ -55,6 +56,7 @@ export const useUnpaidOrdersStore = create<UnpaidOrdersState>((set) => ({
         : Array.isArray(res?.orders) ? res.orders
         : Array.isArray(res?.list) ? res.list
         : []
+      checkPurchases(list)
       set({ orders: list.filter(isUnpaidFuture), loading: false })
     } catch (e) {
       console.error('[UnpaidOrders] refresh failed', e)
@@ -63,6 +65,7 @@ export const useUnpaidOrdersStore = create<UnpaidOrdersState>((set) => ({
   },
   setFromOrders: (list) => {
     lastRefreshAt = Date.now()
+    checkPurchases(list)
     set({ orders: (Array.isArray(list) ? list : []).filter(isUnpaidFuture), loading: false })
   },
 }))

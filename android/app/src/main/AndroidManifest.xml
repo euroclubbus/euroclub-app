@@ -20,6 +20,13 @@
             </intent-filter>
         </activity>
 
+        <!-- Кеп (29.09): Meta App Events. Автоматичні події та рекламний ID ВИМКНЕНІ, поки
+             користувач не дасть згоду (вмикає MetaEventsPlugin.setConsent). -->
+        <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id" />
+        <meta-data android:name="com.facebook.sdk.ClientToken" android:value="@string/facebook_client_token" />
+        <meta-data android:name="com.facebook.sdk.AutoLogAppEventsEnabled" android:value="false" />
+        <meta-data android:name="com.facebook.sdk.AdvertiserIDCollectionEnabled" android:value="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

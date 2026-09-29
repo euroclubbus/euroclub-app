@@ -11,7 +11,7 @@ import { APP_VERSION } from './appVersion'
 // вигадуємо окремий installId, це вже те саме поняття).
 const DEVICE_ID_KEY = 'eclub_device_id'
 
-function getDeviceId(): string {
+export function getDeviceId(): string {
   let id = localStorage.getItem(DEVICE_ID_KEY)
   if (!id) {
     id = crypto.randomUUID()

@@ -9,6 +9,7 @@ import { useT } from '../i18n'
 import { useDisplayPrice } from '../currency'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import SideMenu from '../components/SideMenu'
+import { getConsent, setConsent } from '../tracking'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -17,6 +18,7 @@ export default function Profile() {
   const nav = useNavigate()
   const t = useT()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [trackingOn, setTrackingOn] = useState(() => getConsent() === 'granted')
   const { user, logout, setUser } = useAuthStore()
   const { format } = useDisplayPrice()
   const [cab, setCab] = useState<Record<string, any> | null>(null)
@@ -214,6 +216,19 @@ export default function Profile() {
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontWeight: 700, fontSize: 15 }}>{t('profile.language')}</span>
           <LanguageSwitcher />
+        </div>
+
+        {/* Кеп (29.09): згода на відстеження реклами (Meta) — можна змінити будь-коли */}
+        <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Згода на відстеження</div>
+            <div style={{ fontSize: 12, color: '#9E9E9E', marginTop: 2 }}>Персоналізована реклама EuroClub у Facebook та Instagram</div>
+          </div>
+          <button onClick={async () => { const next = !trackingOn; setTrackingOn(next); await setConsent(next, 'profile') }}
+            aria-label="Згода на відстеження"
+            style={{ flexShrink: 0, width: 50, height: 30, borderRadius: 15, border: 'none', cursor: 'pointer', background: trackingOn ? '#F5A623' : '#DDD', position: 'relative' }}>
+            <span style={{ position: 'absolute', top: 3, left: trackingOn ? 23 : 3, width: 24, height: 24, borderRadius: 12, background: '#fff', transition: 'left .15s' }} />
+          </button>
         </div>
 
         {/* Збережені пасажири */}

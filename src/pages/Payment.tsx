@@ -8,6 +8,7 @@ import BankTransferBox from '../components/BankTransferBox'
 import { useOrderPolling } from '../useOrderPolling'
 import { useDisplayPrice } from '../currency'
 import { useT } from '../i18n'
+import { track } from '../tracking'
 import { openInternalBrowser, closeInternalBrowser } from '../internalBrowser'
 
 const ORange = '#F5A623'
@@ -45,6 +46,16 @@ export default function Payment() {
   const goSuccess = () => { if (doneRef.current) return; doneRef.current = true; closeBrowser(); nav('/order-success') }
 
   const [waited, setWaited] = useState(false)
+
+  // Кеп (29.09): Meta — AddPaymentInfo, один раз при переході на екран оплати.
+  useEffect(() => {
+    const oid = String(data?.oid ?? data?.hash ?? hash ?? '')
+    if (!oid) return
+    try { const k = 'eclub_meta_api_' + oid; if (sessionStorage.getItem(k)) return; sessionStorage.setItem(k, '1') } catch {}
+    const eur = /eur/i.test(String(data?.crc || ''))
+    track('AddPaymentInfo', { orderId: oid, value: Number(data?.summ ?? data?.price) || undefined, currency: eur ? 'EUR' : 'UAH', numItems: passengers.length || undefined })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.oid, hash])
 
   // Раніше тут було автовідкриття однієї з посилань одразу при заході на екран —
   // прибрано, бо тепер є ДВА способи оплати (LiqPay/грн і Stripe/євро) і користувач

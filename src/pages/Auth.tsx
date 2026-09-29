@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { track } from '../tracking'
 import { authLogin, authRegister, authRepass1, authRepass2, authRepass3 } from '../api/auth'
 import { useAuthStore } from '../authStore'
 import { useT } from '../i18n'
@@ -52,6 +53,7 @@ export default function Auth({ onAuthed, message, initialMode = 'login' }: { onA
     try {
       const r: any = await authRegister(email.trim(), pass, header.trim())
       if (r.ok === 'reg_complete') {
+        track('CompleteRegistration', { email: email.trim() })
         // одразу входимо
         const l: any = await authLogin(email.trim(), pass)
         if (l.db?.id) { setUser({ id: l.db.id, header: l.db.header || header, email: l.db.email || email, phone: l.db.phone || '', key: l.db.uidkey || l.db.key || '' }); onAuthed?.() }

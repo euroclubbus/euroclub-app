@@ -39,6 +39,9 @@ import { useLocation } from 'react-router-dom'
 import { useForceUpdate } from './forceUpdate'
 import ForceUpdateScreen from './components/ForceUpdateScreen'
 import NotifScreen, { shouldShowNotifScreen } from './components/NotifScreen'
+import ConsentScreen from './components/ConsentScreen'
+import { needsConsentScreen, initTracking } from './tracking'
+initTracking().catch(() => {})
 
 // Guideline 5.1.1(v) Apple: логін вимагається лише для account-based функцій
 // (бронювання, оплата, квитки, профіль, сповіщення). Пошук/перегляд маршрутів —
@@ -149,8 +152,11 @@ function Root() {
   // маленький банер (був "майже не видно"). Показується ПІСЛЯ Welcome/Auth/ForceUpdate,
   // ПЕРЕД самим застосунком — не можна оминути, не побачивши.
   const [notifShown, setNotifShown] = useState(shouldShowNotifScreen)
+  // Кеп (29.09): згода на відстеження — один раз після встановлення, одразу після Splash.
+  const [consentShown, setConsentShown] = useState(needsConsentScreen)
 
   if (!splashDone) return <Splash onDone={() => setSplashDone(true)} />
+  if (consentShown) return <ConsentScreen onDone={() => setConsentShown(false)} />
   if (welcomeStep === 'welcome') return <Welcome onRegister={() => setWelcomeStep('auth')} onGuest={dismissWelcome} />
   if (welcomeStep === 'auth') return <Auth initialMode="register" onAuthed={dismissWelcome} message={t('welcome.subtitle')} />
   if (forceUpdate.blocked) return <ForceUpdateScreen storeUrl={forceUpdate.storeUrl} />

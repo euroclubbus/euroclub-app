@@ -1,3 +1,4 @@
+import { checkPurchases } from './tracking'
 import { useEffect, useRef } from 'react'
 import { getUserOrders } from './api/auth'
 import { syncAllOrdersInList } from './orderRegistry'
@@ -36,6 +37,7 @@ export function useOrderPolling(oid: string, active: boolean, onUpdate: (order: 
         if (o) cb.current(o)
         // Синхронізуємо ВЕСЬ список одразу, не тільки поточне замовлення.
         syncAllOrdersInList(list)
+        checkPurchases(list) // Кеп (29.09): Meta Purchase — один раз на оплачене замовлення
       } catch {}
     }
     tick()

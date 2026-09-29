@@ -1,5 +1,7 @@
 import UIKit
 import Capacitor
+import FBSDKCoreKit
+import AppTrackingTransparency
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,7 +9,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Кеп (29.09): ініціалізація Meta SDK. Події не йдуть, поки користувач не дасть
+        // згоду (FacebookAutoLogAppEventsEnabled=false в Info.plist + MetaEventsPlugin).
+        ApplicationDelegate.shared.application(application, didFinishLaunchingWithOptions: launchOptions)
         return true
     }
 
@@ -60,4 +64,86 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
     }
 
+}
+
+// Кеп (29.09): власний контролер, щоб зареєструвати локальний плагін MetaEvents.
+// Тримаємо його в AppDelegate.swift, щоб не міняти project.pbxproj (новий файл треба
+// було б додавати в Xcode вручну). Main.storyboard посилається на MainViewController.
+class MainViewController: CAPBridgeViewController {
+    override open func capacitorDidLoad() {
+        bridge?.registerPluginInstance(MetaEventsPlugin())
+    }
+}
+
+@objc(MetaEventsPlugin)
+public class MetaEventsPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "MetaEventsPlugin"
+    public let jsName = "MetaEvents"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "setConsent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "logEvent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "logPurchase", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestTracking", returnType: CAPPluginReturnPromise),
+    ]
+    private var consent = false
+
+    @objc func setConsent(_ call: CAPPluginCall) {
+        consent = call.getBool("granted") ?? false
+        DispatchQueue.main.async {
+            Settings.shared.isAutoLogAppEventsEnabled = self.consent
+            Settings.shared.isAdvertiserIDCollectionEnabled = self.consent
+            // SDK 17 сам читає статус ATT — окремий прапорець не потрібен.
+            if self.consent { AppEvents.shared.activateApp() }
+            call.resolve()
+        }
+    }
+
+    @objc func logEvent(_ call: CAPPluginCall) {
+        guard consent else { call.resolve(); return }
+        guard let name = call.getString("name"), !name.isEmpty else { call.reject("name required"); return }
+        let params = toParams(call.getObject("params"))
+        DispatchQueue.main.async {
+            if let v = call.getDouble("valueToSum") {
+                AppEvents.shared.logEvent(AppEvents.Name(name), valueToSum: v, parameters: params)
+            } else {
+                AppEvents.shared.logEvent(AppEvents.Name(name), parameters: params)
+            }
+            call.resolve()
+        }
+    }
+
+    @objc func logPurchase(_ call: CAPPluginCall) {
+        guard consent else { call.resolve(); return }
+        guard let amount = call.getDouble("amount") else { call.reject("amount required"); return }
+        let currency = (call.getString("currency") ?? "UAH").uppercased()
+        let params = toParams(call.getObject("params"))
+        DispatchQueue.main.async {
+            AppEvents.shared.logPurchase(amount: amount, currency: currency, parameters: params)
+            AppEvents.shared.flush()
+            call.resolve()
+        }
+    }
+
+    // Системний запит Apple (ATT). Повертає authorized | denied | restricted | notDetermined.
+    @objc func requestTracking(_ call: CAPPluginCall) {
+        guard #available(iOS 14, *) else { call.resolve(["status": "authorized"]); return }
+        DispatchQueue.main.async {
+            ATTrackingManager.requestTrackingAuthorization { status in
+                let s: String
+                switch status {
+                case .authorized: s = "authorized"
+                case .denied: s = "denied"
+                case .restricted: s = "restricted"
+                default: s = "notDetermined"
+                }
+                call.resolve(["status": s])
+            }
+        }
+    }
+
+    private func toParams(_ obj: JSObject?) -> [AppEvents.ParameterName: Any] {
+        var out: [AppEvents.ParameterName: Any] = [:]
+        obj?.forEach { k, v in out[AppEvents.ParameterName(k)] = v }
+        return out
+    }
 }
