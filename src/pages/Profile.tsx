@@ -147,35 +147,6 @@ export default function Profile() {
           )}
         </div>
 
-        {/* Бонуси (Cashback Club) */}
-        {cab && (
-          <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginTop: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-              <Coins size={18} color={ORange} />
-              <span style={{ fontWeight: 700, fontSize: 15 }}>Cashback Club</span>
-            </div>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-              <div style={{ flex: 1, background: '#FFF9EF', borderRadius: 12, padding: 12 }}>
-                <div style={{ fontSize: 11, color: Gray }}>Активні бонуси</div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: ORange }}>{format(Number(cab['b='] || 0) || 0, 'uah')}</div>
-              </div>
-              <div style={{ flex: 1, background: '#F5F5F5', borderRadius: 12, padding: 12 }}>
-                <div style={{ fontSize: 11, color: Gray }}>В очікуванні</div>
-                <div style={{ fontSize: 20, fontWeight: 900 }}>{format(Number(cab['bw'] || 0) || 0, 'uah')}</div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, padding: '6px 0', borderTop: '1px solid #F5F5F5' }}>
-              <span>Всього нараховано</span><span style={{ color: '#1A1A1A', fontWeight: 600 }}>{format(Number(cab['b+'] || 0) || 0, 'uah')}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, padding: '6px 0' }}>
-              <span>Всього використано</span><span style={{ color: '#1A1A1A', fontWeight: 600 }}>{format(Number(cab['bu'] || 0) || 0, 'uah')}</span>
-            </div>
-            <div style={{ fontSize: 11, color: Gray, marginTop: 10, lineHeight: 1.5 }}>
-              Списати бонуси на оплату можна на сторінці конкретного замовлення (до 10% від вартості) — в "Моїх замовленнях".
-            </div>
-          </div>
-        )}
-
         {/* Статистика замовлень */}
         {cab && (
           <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginTop: 14 }}>
@@ -222,6 +193,35 @@ export default function Profile() {
             <span style={{ position: 'absolute', top: 3, left: trackingOn ? 23 : 3, width: 24, height: 24, borderRadius: 12, background: '#fff', transition: 'left .15s' }} />
           </button>
         </div>
+
+        {/* Бонуси (Cashback Club) */}
+        {cab && (
+          <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginTop: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <Coins size={18} color={ORange} />
+              <span style={{ fontWeight: 700, fontSize: 15 }}>Cashback Club</span>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+              <div style={{ flex: 1, background: '#FFF9EF', borderRadius: 12, padding: 12 }}>
+                <div style={{ fontSize: 11, color: Gray }}>Активні бонуси</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: ORange }}>{format(Number(cab['b='] || 0) || 0, 'uah')}</div>
+              </div>
+              <div style={{ flex: 1, background: '#F5F5F5', borderRadius: 12, padding: 12 }}>
+                <div style={{ fontSize: 11, color: Gray }}>В очікуванні</div>
+                <div style={{ fontSize: 20, fontWeight: 900 }}>{format(Number(cab['bw'] || 0) || 0, 'uah')}</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, padding: '6px 0', borderTop: '1px solid #F5F5F5' }}>
+              <span>Всього нараховано</span><span style={{ color: '#1A1A1A', fontWeight: 600 }}>{format(Number(cab['b+'] || 0) || 0, 'uah')}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: Gray, padding: '6px 0' }}>
+              <span>Всього використано</span><span style={{ color: '#1A1A1A', fontWeight: 600 }}>{format(Number(cab['bu'] || 0) || 0, 'uah')}</span>
+            </div>
+            <div style={{ fontSize: 11, color: Gray, marginTop: 10, lineHeight: 1.5 }}>
+              Списати бонуси на оплату можна на сторінці конкретного замовлення (до 10% від вартості) — в "Моїх замовленнях".
+            </div>
+          </div>
+        )}
 
         <button onClick={() => nav('/tickets')} style={{ width: '100%', marginTop: 14, padding: 16, background: '#fff', border: 'none', borderRadius: 16, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', fontWeight: 700, fontSize: 15 }}>
           <Ticket size={20} color={ORange} /> {t('profile.myOrders')}
