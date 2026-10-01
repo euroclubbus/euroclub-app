@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Info } from 'lucide-react'
-import BottomSheet from './BottomSheet'
 import { computeLegPricing } from '../pricing'
 
 // Кеп (01.10): рейс без жодної фіксованої знижки (пенсіонери, діти, УБД…) і без онлайн-
@@ -16,7 +15,6 @@ export function hasNoFixedDiscounts(trip: any): boolean {
     !/доп\.?\s*мест|тварин|zusätzlich|tierplatz/i.test(String(d?.name || '')) &&
     !isOnlineDiscountName(String(d?.name || '')))
   const result = fixed.length === 0 && computeLegPricing(trip).знижкаПроц === 0
-  console.info('[SinglePrice]', trip?.id, { result, fixed: fixed.map((d: any) => `${d.id}:${d.name}:${d.discount}`), all: (trip.discounts || []).map((d: any) => `${d.id}:${d.name}:${d.discount}`) })
   return result
 }
 
@@ -34,16 +32,26 @@ export default function SinglePriceNote({ route }: { route: boolean }) {
         <Info size={14} style={{ flexShrink: 0 }} />
         Рейс за повною ціною. Фіксовані знижки на рейсі відсутні.
       </button>
-      <BottomSheet open={open} onClose={() => setOpen(false)} title="Єдина ціна">
-        <p style={{ fontSize: 15, lineHeight: 1.5, color: '#1A1A1A', margin: '4px 0 16px' }}>
-          {route
-            ? 'На цьому маршруті діє єдина ціна для всіх категорій пасажирів.'
-            : 'На цьому рейсі діє єдина ціна для всіх категорій пасажирів.'}
-        </p>
-        <button onClick={() => setOpen(false)} style={{ width: '100%', padding: 14, background: '#F5A623', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
-          Зрозуміло
-        </button>
-      </BottomSheet>
+      {open && (
+        <div onClick={() => setOpen(false)} style={{
+          position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.35)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+        }}>
+          <div onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" style={{
+            width: '100%', maxWidth: 340, background: 'rgba(0,0,0,0.95)', borderRadius: 20,
+            padding: '28px 22px 22px', textAlign: 'center', boxShadow: '0 12px 40px rgba(0,0,0,0.35)',
+          }}>
+            <p style={{ color: '#fff', fontSize: 16, lineHeight: 1.5, margin: '0 0 22px' }}>
+              {route
+                ? 'На цьому маршруті діє єдина ціна для всіх категорій пасажирів.'
+                : 'На цьому рейсі діє єдина ціна для всіх категорій пасажирів.'}
+            </p>
+            <button onClick={() => setOpen(false)} style={{ width: '100%', padding: 14, background: '#F5A623', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
+              Зрозуміло
+            </button>
+          </div>
+        </div>
+      )}
     </>
   )
 }
