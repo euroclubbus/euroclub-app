@@ -20,8 +20,6 @@ export default function ConsentScreen({ onDone }: { onDone: () => void }) {
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       padding: 32, textAlign: 'center',
     }}>
-      <span style={{ fontSize: 56, marginBottom: 24 }}>🎯</span>
-      <h2 style={{ color: '#fff', fontSize: 20, marginBottom: 12 }}>Тільки корисні пропозиції</h2>
       <p style={{ color: '#cfe0f2', fontSize: 15, marginBottom: 12, maxWidth: 340, lineHeight: 1.45 }}>
         Дозвольте нам бачити, яка реклама привела вас до EuroClub. Так ми показуватимемо вам
         тільки актуальні знижки й рейси, а не зайву рекламу.
