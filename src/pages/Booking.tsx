@@ -9,6 +9,7 @@ import { fullFareOneWayPrice, localizedDiscountName } from '../passengerPricing'
 import { USE_NEW_PRICING, computeLegPricing, roundTripFixedDisplay, roundTripOpenDateDisplay, roundTripWithFixedCategory, roundTripGroupPrice, pureRoundTripBase, legPriceWithFixedCategory, DEFAULT_COEFFICIENTS, getCoefficient, roundTripQuote, mobDiscountId } from '../pricing'
 import { keepOurPrice } from '../orderStatus'
 import { convert, useDisplayPrice } from '../currency'
+import SinglePriceNote, { hasNoFixedDiscounts, isChisinau } from '../components/SinglePriceNote'
 import { getSavedPassengers } from '../savedPassengers'
 import { validatePromo, redeemPromo } from '../game/gameApi'
 import { applyPromoCode, createOrderNew, NewOrderPassenger, findUserOrder, getUserOrders, APP_PLATFORM } from '../api/auth'
@@ -845,6 +846,9 @@ export default function Booking() {
             )}
           </div>
         </div>
+        {hasNoFixedDiscounts(trip) && (!pricedAsRoundTrip || !pricingTrip2 || hasNoFixedDiscounts(pricingTrip2)) && (
+          <SinglePriceNote route={isChisinau(from?.name) || isChisinau(to?.name)} />
+        )}
 
         <button onClick={handleBook} disabled={loading} style={{
           width: '100%', padding: 18, background: ORange, color: '#fff',

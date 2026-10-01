@@ -13,6 +13,7 @@ import BottomSheet from '../components/BottomSheet'
 import SimpleCalendar from '../components/SimpleCalendar'
 import { useT } from '../i18n'
 import { track } from '../tracking'
+import SinglePriceNote, { hasNoFixedDiscounts, isChisinau } from '../components/SinglePriceNote'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -680,6 +681,11 @@ export default function Results() {
                     ) : (
                       <>
                         <TotalPrice trip={outTrip} twoWayTotal={twoWay?.total ?? null} twoWayStrike={(twoWay as any)?.strikePrice ?? null} twoWayDiscountPct={(twoWay as any)?.discountPct ?? null} twoWayMode={hasFixedReturn ? 'fixed' : (openReturnActive ? 'open' : null)} twoWayDetails={(twoWay as any)?.details ?? null} cats={passengerCategories} onRemovePassenger={passengerCategories.length > 1 ? removePassengerCategoryAt : undefined} />
+                        {(() => {
+                          const leg2 = hasFixedReturn ? retTrip : (openReturnActive ? openReturnSearch.trip : null)
+                          const show = hasNoFixedDiscounts(outTrip) && (!wantsTwoWay || !leg2 || hasNoFixedDiscounts(leg2))
+                          return show ? <SinglePriceNote route={isChisinau(from?.name) || isChisinau(to?.name)} /> : null
+                        })()}
                         {twoWay?.anyFallback && (
                           <div style={{ marginTop: 8, fontSize: 11, color: ORange, display: 'flex', alignItems: 'center', gap: 5 }}>
                             <AlertTriangle size={12} /> Точна ціна в два боки буде уточнена на кроці бронювання
