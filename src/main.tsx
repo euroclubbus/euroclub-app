@@ -42,6 +42,8 @@ import NotifScreen, { shouldShowNotifScreen } from './components/NotifScreen'
 import ConsentScreen from './components/ConsentScreen'
 import { needsConsentScreen, initTracking } from './tracking'
 initTracking().catch(() => {})
+// Кеп (01.10): "збережені пасажири" прибрано — особисті дані інших людей не зберігаємо, чистимо старі.
+try { localStorage.removeItem('eclub_saved_passengers') } catch {}
 
 // Guideline 5.1.1(v) Apple: логін вимагається лише для account-based функцій
 // (бронювання, оплата, квитки, профіль, сповіщення). Пошук/перегляд маршрутів —

@@ -10,7 +10,6 @@ import { USE_NEW_PRICING, computeLegPricing, roundTripFixedDisplay, roundTripOpe
 import { keepOurPrice } from '../orderStatus'
 import { convert, useDisplayPrice } from '../currency'
 import SinglePriceNote, { hasNoFixedDiscounts, isChisinau } from '../components/SinglePriceNote'
-import { getSavedPassengers } from '../savedPassengers'
 import { validatePromo, redeemPromo } from '../game/gameApi'
 import { applyPromoCode, createOrderNew, NewOrderPassenger, findUserOrder, getUserOrders, APP_PLATFORM } from '../api/auth'
 import { isNativePlatform } from '../platform'
@@ -52,7 +51,6 @@ export default function Booking() {
     passengerNames, passengerDiscounts, contactEmail, contactPhone, payerName, setPayerName,
     setSeats, setSeats2, setPassengerName, setPassengerDiscount, removePassengerDataAt, setContact, setOrderResult
   } = useBookingStore()
-  const [savedPassengers] = useState(() => getSavedPassengers())
   const [showSeats, setShowSeats] = useState(false)
   const [showSeats2, setShowSeats2] = useState(false)
   const [attempted, setAttempted] = useState(false)
@@ -622,16 +620,6 @@ export default function Booking() {
                   onChange={e => setPassengerName(idx, e.target.value)}
                   style={{ width: '100%', padding: '12px 14px', border: attempted && !passengerNames[idx]?.trim() ? '1.5px solid #E53935' : '1.5px solid #EEE', borderRadius: 12, fontSize: 14, outline: 'none', marginBottom: 8 }}
                 />
-                {savedPassengers.length > 0 && (
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-                    {savedPassengers.map(sp => (
-                      <button key={sp.id} onClick={() => setPassengerName(idx, sp.name)} style={{
-                        padding: '5px 10px', borderRadius: 14, border: '1px solid #EEE', background: '#FAFAFA',
-                        color: '#555', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                      }}>{sp.name}</button>
-                    ))}
-                  </div>
-                )}
                 {/* Поточна знижка — категорія дрібним шрифтом, ціна виразно (Кеп, 27.08) */}
                 {currentDiscount && !isEditing && (
                   <div style={{ marginBottom: 4 }}>

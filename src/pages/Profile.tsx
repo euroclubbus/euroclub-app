@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { User, LogOut, Ticket, Mail, Phone, Pencil, Check, X, Plus, Trash2, Users, Coins, Menu } from 'lucide-react'
 import { useAuthStore } from '../authStore'
 import { editProfile, getUserOrders } from '../api/auth'
-import { getSavedPassengers, addSavedPassenger, removeSavedPassenger, setSavedPassengerBirthday, SavedPassenger } from '../savedPassengers'
 import Auth from './Auth'
 import { useT } from '../i18n'
 import { useDisplayPrice } from '../currency'
@@ -44,8 +43,6 @@ export default function Profile() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
 
-  // Збережені пасажири (родина, ті кому часто купуєш квитки)
-  const [passengers, setPassengers] = useState<SavedPassenger[]>(() => getSavedPassengers())
 
   // Видалення акаунту (Apple Guideline 5.1.1(v)) — самообслуговуючого видалення на
   // бекенді зараз немає, тому найшвидший законний шлях: підтвердження в застосунку →
@@ -64,8 +61,6 @@ export default function Profile() {
     )
     window.location.href = `mailto:eclubbus24@gmail.com?subject=${subject}&body=${body}`
   }
-  const [newPax, setNewPax] = useState('')
-  const [newPaxBday, setNewPaxBday] = useState('')
 
   if (!user) return <Auth />
 
@@ -86,13 +81,6 @@ export default function Profile() {
     finally { setSaving(false) }
   }
 
-  const addPax = () => {
-    if (!newPax.trim()) return
-    setPassengers(addSavedPassenger(newPax, newPaxBday))
-    setNewPax(''); setNewPaxBday('')
-  }
-  const delPax = (id: string) => setPassengers(removeSavedPassenger(id))
-  const setBday = (id: string, val: string) => setPassengers(setSavedPassengerBirthday(id, val))
 
   const row = (icon: any, label: string, value: string) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0', borderBottom: '1px solid #F2F2F2' }}>
@@ -233,46 +221,6 @@ export default function Profile() {
             style={{ flexShrink: 0, width: 50, height: 30, borderRadius: 15, border: 'none', cursor: 'pointer', background: trackingOn ? '#F5A623' : '#DDD', position: 'relative' }}>
             <span style={{ position: 'absolute', top: 3, left: trackingOn ? 23 : 3, width: 24, height: 24, borderRadius: 12, background: '#fff', transition: 'left .15s' }} />
           </button>
-        </div>
-
-        {/* Збережені пасажири */}
-        <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginTop: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <Users size={18} color={ORange} />
-            <span style={{ fontWeight: 700, fontSize: 15 }}>{t('profile.passengers')}</span>
-          </div>
-          <div style={{ fontSize: 12, color: Gray, marginBottom: 12 }}>
-            {t('profile.passengersNote')}
-          </div>
-
-          {passengers.map(p => (
-            <div key={p.id} style={{ padding: '10px 0', borderTop: '1px solid #F5F5F5' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 14, fontWeight: 600 }}>{p.name}</span>
-                <button onClick={() => delPax(p.id)} aria-label="Видалити" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-                  <Trash2 size={16} color="#E53935" />
-                </button>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                <span style={{ fontSize: 11, color: Gray, whiteSpace: 'nowrap' }}>{t('profile.birthday')}</span>
-                <input type="date" value={p.birthday || ''} onChange={e => setBday(p.id, e.target.value)}
-                  style={{ fontSize: 12.5, padding: '4px 8px', border: '1px solid #EEE', borderRadius: 8, color: '#555' }} />
-              </div>
-            </div>
-          ))}
-
-          <div style={{ display: 'flex', gap: 8, marginTop: passengers.length ? 12 : 0 }}>
-            <input value={newPax} onChange={e => setNewPax(e.target.value)} onKeyDown={e => e.key === 'Enter' && addPax()}
-              placeholder={t('profile.namePlaceholder')} style={{ ...inputStyle, marginTop: 0, flex: 1 }} />
-            <button onClick={addPax} style={{ width: 44, height: 44, background: ORange, border: 'none', borderRadius: 10, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Plus size={20} />
-            </button>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-            <span style={{ fontSize: 12, color: Gray, whiteSpace: 'nowrap' }}>{t('profile.birthdayOptional')}</span>
-            <input type="date" value={newPaxBday} onChange={e => setNewPaxBday(e.target.value)}
-              style={{ fontSize: 13, padding: '6px 10px', border: '1.5px solid #EEE', borderRadius: 8, color: '#555' }} />
-          </div>
         </div>
 
         <button onClick={() => nav('/tickets')} style={{ width: '100%', marginTop: 14, padding: 16, background: '#fff', border: 'none', borderRadius: 16, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', fontWeight: 700, fontSize: 15 }}>
