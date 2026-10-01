@@ -72,9 +72,6 @@ export default function InterestsForm() {
         const platform = Capacitor.isNativePlatform() ? Capacitor.getPlatform() : 'pwa'
         await setDoc(doc(getFirestore(app), 'user_profiles', String(user.id)), {
           userId: String(user.id),
-          header: user.header || '',
-          email: user.email || '',
-          phone: user.phone || '',
           birthday,
           favCities: selected,
           favCityNames: selected.map(nameOf),
