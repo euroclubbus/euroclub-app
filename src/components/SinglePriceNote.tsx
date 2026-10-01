@@ -9,9 +9,15 @@ const isOnlineDiscountName = (n: string) => /^\s*(SALE|MOB)\b/i.test(n)
 
 export function hasNoFixedDiscounts(trip: any): boolean {
   if (!trip) return false
+  // "доп. место" (8) і "Тварина" (51) — службові тарифи, не знижки для категорій пасажирів.
+  const SERVICE_IDS = new Set(['8', '51', '43'])
   const fixed = (trip.discounts || []).filter((d: any) =>
-    Number(d?.discount) > 0 && String(d?.id) !== '43' && !isOnlineDiscountName(String(d?.name || '')))
-  return fixed.length === 0 && computeLegPricing(trip).знижкаПроц === 0
+    Number(d?.discount) > 0 && !SERVICE_IDS.has(String(d?.id)) &&
+    !/доп\.?\s*мест|тварин|zusätzlich|tierplatz/i.test(String(d?.name || '')) &&
+    !isOnlineDiscountName(String(d?.name || '')))
+  const result = fixed.length === 0 && computeLegPricing(trip).знижкаПроц === 0
+  console.info('[SinglePrice]', trip?.id, { result, fixed: fixed.map((d: any) => `${d.id}:${d.name}:${d.discount}`), all: (trip.discounts || []).map((d: any) => `${d.id}:${d.name}:${d.discount}`) })
+  return result
 }
 
 export const isChisinau = (name?: string) => /кишин|кишен|chi[sș]in|kischin/i.test(String(name || ''))
