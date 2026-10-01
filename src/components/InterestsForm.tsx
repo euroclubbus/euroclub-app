@@ -92,13 +92,13 @@ export default function InterestsForm() {
   return (
     <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginTop: 14 }}>
       <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Про вас</div>
-      <div style={{ fontSize: 12, color: Gray, marginBottom: 14 }}>Привітаємо з днем народження і повідомимо про знижки на цікаві вам напрямки</div>
+      <div style={{ fontSize: 12, color: Gray, marginBottom: 14 }}>Привітаємо з днем народження і повідомимо про персональні знижки</div>
 
       <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Дата народження</label>
       <input type="date" value={birthday} max={new Date().toISOString().slice(0, 10)} onChange={e => setBirthday(e.target.value)}
         style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: 12, border: '1px solid #E5E5E5', fontSize: 15, background: '#F9F9F9', marginBottom: 16 }} />
 
-      <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Цікаві міста</label>
+      <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, lineHeight: 1.4 }}>Оберіть міста, які ви використовуєте в маршрутах, і отримуйте персональні знижки для поїздок</label>
       {selected.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
           {selected.map(id => (
