@@ -10,6 +10,7 @@ import { useDisplayPrice } from '../currency'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import SideMenu from '../components/SideMenu'
 import { getConsent, setConsent } from '../tracking'
+import InterestsForm from '../components/InterestsForm'
 
 const ORange = '#F5A623'
 const Gray = '#9E9E9E'
@@ -217,6 +218,9 @@ export default function Profile() {
           <span style={{ fontWeight: 700, fontSize: 15 }}>{t('profile.language')}</span>
           <LanguageSwitcher />
         </div>
+
+        {/* Кеп (01.10): дата народження + цікаві міста */}
+        <InterestsForm />
 
         {/* Кеп (29.09): згода на відстеження реклами (Meta) — можна змінити будь-коли */}
         <div style={{ background: '#fff', borderRadius: 20, padding: 18, marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>

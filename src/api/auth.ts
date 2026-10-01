@@ -72,7 +72,8 @@ export async function findUserOrder(oid: string): Promise<any | null> {
 }
 
 // Редагування профілю. Поля можна передавати разом або окремо: header/email/pass/phone
-export const editProfile = (fields: Partial<{ header: string; email: string; pass: string; phone: string }>) =>
+// Кеп (01.10): birthday — YYYY-MM-DD, favcity — id обраних міст через ';'
+export const editProfile = (fields: Partial<{ header: string; email: string; pass: string; phone: string; birthday: string; favcity: string }>) =>
   inputPost({ mod: 'apimobile', opr: 'edit', uidkey: currentUidKey(), ...fields })
 
 // Зберегти FCM-токен пристрою для push-сповіщень

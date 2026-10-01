@@ -42,3 +42,11 @@ export function getCityNameSync(id: string | number | undefined | null): string 
 export async function ensureCitiesLoaded(): Promise<void> {
   await loadCities()
 }
+
+/**
+ * Кеп (01.10): усі міста списком (для вибору "Цікаві міста" в профілі), за алфавітом.
+ */
+export async function getAllCities(): Promise<{ id: string; name: string }[]> {
+  const map = await loadCities()
+  return Object.entries(map).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'uk'))
+}
