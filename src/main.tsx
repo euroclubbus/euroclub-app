@@ -40,8 +40,9 @@ import { useForceUpdate } from './forceUpdate'
 import ForceUpdateScreen from './components/ForceUpdateScreen'
 import NotifScreen, { shouldShowNotifScreen } from './components/NotifScreen'
 import ConsentScreen from './components/ConsentScreen'
-import { needsConsentScreen, initTracking } from './tracking'
+import { needsConsentScreen, initTracking, syncConsentIfNeeded } from './tracking'
 initTracking().catch(() => {})
+syncConsentIfNeeded()
 // Кеп (01.10): "збережені пасажири" прибрано — особисті дані інших людей не зберігаємо, чистимо старі.
 try { localStorage.removeItem('eclub_saved_passengers') } catch {}
 

@@ -62,7 +62,6 @@ async function recordConsent(granted: boolean, att: string | null, source: strin
   const { getFirestore, doc, setDoc, serverTimestamp } = await import('firebase/firestore')
   const firstKey = 'eclub_tracking_consent_first'
   const first = !localStorage.getItem(firstKey)
-  if (first) localStorage.setItem(firstKey, String(Date.now()))
   await setDoc(doc(getFirestore(app), 'tracking_consents', getDeviceId()), {
     platform: platform(),
     consent: granted ? 'granted' : 'denied',
@@ -72,6 +71,19 @@ async function recordConsent(granted: boolean, att: string | null, source: strin
     updatedAt: serverTimestamp(),
     ...(first ? { firstAnsweredAt: serverTimestamp(), firstConsent: granted ? 'granted' : 'denied' } : {}),
   }, { merge: true })
+  // Позначаємо лише ПІСЛЯ успішного запису — інакше відповідь, дана до появи правила
+  // Firestore (або без мережі), загубилась би назавжди.
+  try { localStorage.setItem(firstKey, String(Date.now())); localStorage.setItem(SYNCED_KEY, '1') } catch {}
+}
+
+// Кеп (01.10): відповідь є локально, але в адмінку не дійшла (не було правила / мережі) —
+// дописуємо при наступному запуску.
+const SYNCED_KEY = 'eclub_tracking_consent_synced'
+export function syncConsentIfNeeded() {
+  const c = getConsent()
+  if (!c) return
+  try { if (localStorage.getItem(SYNCED_KEY) === '1') return } catch {}
+  recordConsent(c === 'granted', null, 'first_launch').catch(e => console.warn('[Meta] consent sync', e))
 }
 
 // ─── веб-пікселі ──────────────────────────────────────────────────────────────
