@@ -76,6 +76,15 @@ export async function registerPushToken() {
       if (req.receive !== 'granted') return
     }
 
+    // Кеп (08.10): Android — власний канал сповіщень зі звуком EuroClub (res/raw/notification_sound.mp3).
+    // Він же канал за замовчуванням у AndroidManifest, тож усі пуші з FCM грають наш звук.
+    // На Android 8+ звук каналу фіксується при створенні — тому новий id каналу.
+    if (platform === 'android') {
+      try {
+        await PushNotifications.createChannel({ id: 'euroclub_sound', name: 'EuroClub', description: 'Сповіщення EuroClub', importance: 5, visibility: 1, sound: 'notification_sound', vibration: true, lights: true })
+      } catch (e) { console.error('[Push] createChannel failed', e) }
+    }
+
     // Кеп (04.09), КРИТИЧНИЙ баг масштабу — слухачі МАЮТЬ бути підписані ДО виклику
     // register(), не після. Раніше було навпаки: register() → await → ТІЛЬКИ ПОТІМ
     // addListener('registration', ...) — класичний race condition. Якщо нативна сторона
