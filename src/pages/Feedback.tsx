@@ -92,6 +92,11 @@ export default function Feedback() {
             padding: '10px 14px',
             fontSize: 14,
             boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+            // Кеп (08.10): текст і довгі посилання — строго в межах бульбашки, з переносами рядків
+            whiteSpace: 'pre-wrap',
+            overflowWrap: 'anywhere',
+            wordBreak: 'break-word',
+            minWidth: 0,
           }}>
             {m.text}
           </div>

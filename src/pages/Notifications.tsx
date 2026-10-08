@@ -34,7 +34,7 @@ function NotifDetail({ n, onClose }: { n: FolderNotif; onClose: () => void }) {
             <div style={{ color: Gray, fontSize: 12.5 }}>{formatNotifDate(n.createdAt)}</div>
           </div>
         </div>
-        <p style={{ color: '#333', fontSize: 15.5, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{n.body}</p>
+        <p style={{ color: '#333', fontSize: 15.5, lineHeight: 1.6, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{n.body}</p>
         {n.deepLink && (
           <button
             onClick={() => navigate(n.deepLink!)}
