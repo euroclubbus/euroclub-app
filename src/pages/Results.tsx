@@ -303,11 +303,32 @@ function useLegSearch(fromId: string | undefined, toId: string | undefined, date
   return { ...state, setAgreed }
 }
 
-function legResolvedTrip(leg: LegState): any | null {
+// Кеп (09.10): на одну дату може бути кілька рейсів (два автобуси) — показуємо всі,
+// пасажир обирає конкретний рейс (за id рейсу, а не «маршрут + дата»).
+function legAvailable(leg: LegState): any[] {
   const onRequested = leg.trips.filter(hasSeat)
-  if (onRequested.length > 0) return onRequested[0]
-  if (leg.agreed && leg.nearest) return leg.nearest.trips.filter(hasSeat)[0] || null
-  return null
+  if (onRequested.length > 0) return onRequested
+  if (leg.agreed && leg.nearest) return leg.nearest.trips.filter(hasSeat)
+  return []
+}
+function legResolvedTrip(leg: LegState, selId?: string | null): any | null {
+  const list = legAvailable(leg)
+  return list.find(t => String(t.id) === selId) || list[0] || null
+}
+function TripChooser({ label, trips, selected, onSelect, cats }: { label: string; trips: any[]; selected: any; onSelect: (id: string) => void; cats: string[] }) {
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#7A5A00', background: '#FFF3DC', borderRadius: 12, padding: '8px 12px', marginBottom: 10 }}>{label}: {trips.length} рейси на цю дату — оберіть свій</div>
+      {trips.map(t => {
+        const on = String(t.id) === String(selected?.id)
+        return (
+          <div key={String(t.id)} onClick={() => onSelect(String(t.id))} style={{ cursor: 'pointer', borderRadius: 22, outline: on ? `3px solid ${ORange}` : '3px solid transparent', marginBottom: 10, opacity: on ? 1 : 0.75 }}>
+            <TripCard trip={t} cats={cats} hideBookButton />
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 function legBlocked(leg: LegState): boolean {
   return !leg.loading && (leg.noRoute || (leg.trips.filter(hasSeat).length === 0 && !leg.searchingNearest && !leg.nearest))
@@ -474,8 +495,14 @@ export default function Results() {
   const openReturnActive = isOpenReturn && !hasFixedReturn
   const openReturnSearch = useOpenReturnSearch(to?.id, from?.id, dateFrom, openReturnActive)
 
-  const outTrip = legResolvedTrip(outLeg)
-  const retTrip = hasFixedReturn ? legResolvedTrip(retLeg) : null
+  const [outSel, setOutSel] = useState<string | null>(null)
+  const [retSel, setRetSel] = useState<string | null>(null)
+  useEffect(() => { setOutSel(null) }, [dateFrom, from?.id, to?.id])
+  useEffect(() => { setRetSel(null) }, [returnDateISO, from?.id, to?.id])
+  const outList = legAvailable(outLeg)
+  const retList = hasFixedReturn ? legAvailable(retLeg) : []
+  const outTrip = legResolvedTrip(outLeg, outSel)
+  const retTrip = hasFixedReturn ? legResolvedTrip(retLeg, retSel) : null
 
   const outBlocked = legBlocked(outLeg)
   const retBlocked = hasFixedReturn && legBlocked(retLeg)
@@ -624,8 +651,12 @@ export default function Results() {
 
             {ready && outTrip && (
               <>
-                <TripCard trip={outTrip} cats={passengerCategories} hideBookButton />
-                {hasFixedReturn && retTrip && <TripCard trip={retTrip} cats={passengerCategories} hideBookButton />}
+                {outList.length > 1
+                  ? <TripChooser label="Туди" trips={outList} selected={outTrip} onSelect={setOutSel} cats={passengerCategories} />
+                  : <TripCard trip={outTrip} cats={passengerCategories} hideBookButton />}
+                {hasFixedReturn && retTrip && (retList.length > 1
+                  ? <TripChooser label="Назад" trips={retList} selected={retTrip} onSelect={setRetSel} cats={passengerCategories} />
+                  : <TripCard trip={retTrip} cats={passengerCategories} hideBookButton />)}
 
                 {/* "Відкрита дата повернення" без обраної dateTo — бекенд ПІДТРИМУЄ такий
                     round-trip (route2=-1, ціна/оплата рахуються як за два боки), просто
