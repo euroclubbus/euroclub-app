@@ -290,7 +290,8 @@ export default function OrderSuccess() {
 
       const res: any = await getRoutes(String(fromId), String(toId), `${dd}-${mm}-${yyyy}`)
       const routes = res.routes || []
-      const match = routes.find((t: any) => t?.departure?.[0]?.time === data?.ftime) || routes[0]
+      // Кеп (09.10): на дату може бути кілька рейсів — беремо тільки той самий рейс (за часом), не перший.
+      const match = routes.find((t: any) => t?.departure?.[0]?.time === data?.ftime) || (routes.length === 1 ? routes[0] : null)
 
       if (match && Number(match.free) > 0) {
         setMatchedTrip(match)
